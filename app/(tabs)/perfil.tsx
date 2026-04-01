@@ -40,7 +40,6 @@ export default function PerfilScreen() {
   const [passConfirmar, setPassConfirmar]   = useState('');
   const [notificaciones, setNotificaciones] = useState(true);
   const [idioma, setIdioma]                 = useState('es');
-  const [tapAdmin, setTapAdmin]             = useState(0);
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
@@ -194,21 +193,7 @@ export default function PerfilScreen() {
         <View style={estilos.modalContenido}>
           <Text style={estilos.modalTitulo}>Acerca de Mexcursión</Text>
           <Image source={require('../../assets/images/logo.png')} style={estilos.logoAcerca} resizeMode="contain" />
-          <TouchableOpacity activeOpacity={1} onPress={() => {
-            const nuevoTap = tapAdmin + 1;
-            setTapAdmin(nuevoTap);
-            if (nuevoTap >= 5) {
-              setTapAdmin(0);
-              if (sesion?.tipo !== 'admin') {
-                Alert.alert('Acceso denegado', 'No tienes permisos de administrador.');
-                return;
-              }
-              cerrarModal();
-              router.push('/(tabs)/admin' as any);
-            }
-          }}>
-            <Text style={estilos.acercaVersion}>Versión 1.0.0</Text>
-          </TouchableOpacity>
+          <Text style={estilos.acercaVersion}>Versión 1.0.0</Text>
           <Text style={estilos.acercaDescripcion}>Mexcursión es tu guía de viaje para descubrir los mejores destinos de México. Desde playas paradisíacas hasta zonas arqueológicas, te ayudamos a planear tu aventura perfecta.</Text>
           <View style={estilos.acercaDivider} />
           <Text style={estilos.acercaInfo}>© 2025 Mexcursión · Todos los derechos reservados</Text>
@@ -299,6 +284,12 @@ export default function PerfilScreen() {
             </View>
           ))}
 
+          {sesion?.tipo === 'admin' && (
+            <TouchableOpacity style={estilos.botonAdmin} onPress={() => router.push('/(tabs)/admin' as any)}>
+              <Text style={estilos.textoBotonAdmin}>Panel de administración</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={estilos.botonCerrarSesion} onPress={handleCerrarSesion}>
             <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
           </TouchableOpacity>
@@ -388,6 +379,8 @@ const estilos = StyleSheet.create({
   filaOpcionBorde:       { borderBottomWidth: 1, borderBottomColor: '#eee' },
   textoOpcion:           { fontSize: 15, color: '#333' },
   chevron:               { fontSize: 16, color: '#aaa', fontWeight: '600' },
+  botonAdmin:            { backgroundColor: '#1D3557', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 10, elevation: 4, alignSelf: 'center', width: 240 },
+  textoBotonAdmin:       { color: '#fff', fontSize: 15, fontWeight: '600' },
   botonCerrarSesion:     { backgroundColor: '#DD331D', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 10, marginBottom: 10, elevation: 4, alignSelf: 'center', width: 200 },
   textoCerrarSesion:     { color: '#fff', fontSize: 16, fontWeight: '600' },
   envolturaBarra:        { width: '100%', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingBottom: Platform.OS === 'android' ? 16 : 8 },
