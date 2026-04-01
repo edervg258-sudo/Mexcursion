@@ -85,6 +85,7 @@ export default function AdminScreen() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [rutasSugeridas, setRutasSugeridas] = useState<RutaSugerida[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [verificado, setVerificado] = useState(false);
 
   // CRUD destinos
   const [modoForm, setModoForm]             = useState<'nuevo' | 'editar' | null>(null);
@@ -106,6 +107,7 @@ export default function AdminScreen() {
   const [filtroUsuario, setFiltroUsuario] = useState('todos');
 
   useFocusEffect(useCallback(() => {
+    setVerificado(false);
     const cargar = async () => {
       setCargando(true);
       const sesion = await obtenerUsuarioActivo();
@@ -114,7 +116,7 @@ export default function AdminScreen() {
         return;
       }
       const [r, u, d, ru] = await Promise.all([
-        cargarTodasLasReservas(), 
+        cargarTodasLasReservas(),
         cargarTodosLosUsuarios(),
         obtenerTodosLosDestinos(),
         obtenerRutasSugeridas()
@@ -124,6 +126,7 @@ export default function AdminScreen() {
       setDestinos(d as Destino[]);
       setRutasSugeridas(ru as RutaSugerida[]);
       setCargando(false);
+      setVerificado(true);
     };
     cargar();
   }, []));
@@ -665,6 +668,14 @@ export default function AdminScreen() {
     reservas:  <Reservas  />,
     usuarios:  <Usuarios  />,
   };
+
+  if (!verificado) {
+    return (
+      <View style={[s.contenedor, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={Tema.primario} />
+      </View>
+    );
+  }
 
   return (
     <View style={s.contenedor}>

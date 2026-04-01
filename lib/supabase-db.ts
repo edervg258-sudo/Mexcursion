@@ -37,23 +37,33 @@ export async function registrarUsuario(
   telefono: string = ''
 ): Promise<{ exito: boolean; confirmar?: boolean; error?: string }> {
   try {
+    const email = (correo ?? '').trim().toLowerCase();
+
+    // Validación rápida antes de llamar a Supabase
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return { exito: false, error: 'Ingresa un correo electrónico válido.' };
+    }
+
+    // DEBUG: ver payload (elimina o desactiva en producción)
+    console.log('signup payload', { email, passwordLength: contrasena?.length, nombre, nombre_usuario, telefono });
+
     const { data, error } = await supabase.auth.signUp({
-      email: correo,
+      email,
       password: contrasena,
       options: { data: { nombre, nombre_usuario, telefono } },
     });
 
     if (error) {
-      if (error.message.toLowerCase().includes('already'))
-        return { exito: false, error: 'Ya existe una cuenta con ese correo.' };
+      const msg = (error.message ?? '').toLowerCase();
+      if (msg.includes('already')) return { exito: false, error: 'Ya existe una cuenta con ese correo.' };
+      if (msg.includes('invalid') || msg.includes('email')) return { exito: false, error: 'Correo inválido.' };
       return { exito: false, error: error.message };
     }
 
-    if (data.user && data.session) {
-      // Sesión activa (confirmación de email desactivada en Supabase)
+    if (data?.user && data?.session) {
       await supabase.from('usuarios').insert({
         id: data.user.id,
-        email: correo,
+        email,
         nombre,
         nombre_usuario,
         telefono,
@@ -65,10 +75,9 @@ export async function registrarUsuario(
       return { exito: true };
     }
 
-    // Sin sesión → Supabase requiere confirmar el correo primero
-    // El perfil se creará automáticamente en obtenerUsuarioActivo al primer login
     return { exito: true, confirmar: true };
-  } catch {
+  } catch (err) {
+    console.error('registrarUsuario error', err);
     return { exito: false, error: 'Error al registrar.' };
   }
 }

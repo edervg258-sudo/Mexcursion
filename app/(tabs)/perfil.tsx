@@ -199,6 +199,10 @@ export default function PerfilScreen() {
             setTapAdmin(nuevoTap);
             if (nuevoTap >= 5) {
               setTapAdmin(0);
+              if (sesion?.tipo !== 'admin') {
+                Alert.alert('Acceso denegado', 'No tienes permisos de administrador.');
+                return;
+              }
               cerrarModal();
               router.push('/(tabs)/admin' as any);
             }
