@@ -488,11 +488,18 @@ export async function guardarReserva(
   estado: string = 'confirmada'
 ): Promise<boolean> {
   try {
+    // Convierte DD/MM/AAAA → YYYY-MM-DD si viene en formato mexicano
+    const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)
+      ? fecha.split('/').reverse().join('-')
+      : fecha;
+
     const { error } = await supabase
       .from('reservas')
-      .insert({ usuario_id, folio, destino, paquete, fecha, personas, total, metodo, estado, creado_en: new Date().toISOString() });
+      .insert({ usuario_id, folio, destino, paquete, fecha: fechaISO, personas, total, metodo, estado });
+    if (error) console.error('guardarReserva error:', error.message, error.details, error.hint);
     return !error;
-  } catch {
+  } catch (e) {
+    console.error('guardarReserva excepción:', e);
     return false;
   }
 }

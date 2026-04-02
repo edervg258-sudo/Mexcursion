@@ -3,12 +3,12 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { router, usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Platform,
+  ActivityIndicator, Alert, FlatList, Image, Platform,
   StatusBar, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PESTANAS, TODOS_LOS_ESTADOS } from '../../lib/constantes';
-import { cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 type Reserva = {
   id: number; usuario_id: number; folio: string; destino: string;
@@ -28,10 +28,11 @@ export default function MisReservasScreen() {
   const rutaActual        = usePathname();
   const { width }         = useWindowDimensions();
   const esPC              = width >= 768;
-  const [filtro, setFiltro]       = useState<Filtro>('todas');
-  const [reservas, setReservas]   = useState<Reserva[]>([]);
+  const [filtro, setFiltro]         = useState<Filtro>('todas');
+  const [reservas, setReservas]     = useState<Reserva[]>([]);
   const [destinosDB, setDestinosDB] = useState<any[]>([]);
-  const [cargando, setCargando]   = useState(true);
+  const [cargando, setCargando]     = useState(true);
+  const [usuarioId, setUsuarioId]   = useState<string | null>(null);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -45,6 +46,7 @@ export default function MisReservasScreen() {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) { router.replace('/login'); return; }
+      setUsuarioId(usuario.id);
       const [r, d] = await Promise.all([
         cargarReservas(usuario.id),
         obtenerTodosLosDestinos()
@@ -79,11 +81,43 @@ export default function MisReservasScreen() {
     });
   };
 
+  const cancelarReserva = (item: Reserva) => {
+    Alert.alert(
+      'Cancelar reserva',
+      `¿Seguro que deseas cancelar la reserva ${item.folio} a ${item.destino}? Esta acción no se puede deshacer.`,
+      [
+        { text: 'No, mantener', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            await actualizarEstadoReserva(item.id, 'cancelada');
+            if (usuarioId) {
+              const r = await cargarReservas(usuarioId);
+              setReservas(r);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const volverAReservar = (item: Reserva) => {
+    router.push({
+      pathname: '/(tabs)/reserva' as any,
+      params: { nombre: item.destino, paquete: item.paquete, precio: String(Math.round(item.total / item.personas)) },
+    });
+  };
+
   const renderReserva = ({ item }: { item: Reserva }) => {
     const est = COLOR_ESTADO[item.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: item.estado };
+    const cancelable = item.estado === 'confirmada' || item.estado === 'pendiente';
+    const fechaTexto = item.fecha
+      ? (item.fecha.includes('T') ? item.fecha.split('T')[0].split('-').reverse().join('/') : item.fecha)
+      : '—';
+
     return (
       <View style={es.tarjeta}>
-        {/* Header tarjeta */}
         <View style={es.headerTarjeta}>
           <View style={{ flex: 1 }}>
             <Text style={es.destino}>{item.destino}</Text>
@@ -96,7 +130,6 @@ export default function MisReservasScreen() {
 
         <View style={es.separador} />
 
-        {/* Detalles */}
         <View style={es.filaDetalle}>
           <View style={es.dato}>
             <Text style={es.datoLabel}>Folio</Text>
@@ -104,7 +137,7 @@ export default function MisReservasScreen() {
           </View>
           <View style={es.dato}>
             <Text style={es.datoLabel}>Fecha</Text>
-            <Text style={es.datoValor}>{item.fecha}</Text>
+            <Text style={es.datoValor}>{fechaTexto}</Text>
           </View>
           <View style={es.dato}>
             <Text style={es.datoLabel}>Personas</Text>
@@ -118,10 +151,21 @@ export default function MisReservasScreen() {
           </View>
         </View>
 
-        {/* Acción */}
-        <TouchableOpacity style={es.btnAccion} onPress={() => irADetalle(item)} activeOpacity={0.8}>
-          <Text style={es.textoBtnAccion}>Ver detalles del viaje →</Text>
-        </TouchableOpacity>
+        <View style={es.filaAcciones}>
+          <TouchableOpacity style={es.btnVerDetalle} onPress={() => irADetalle(item)} activeOpacity={0.8}>
+            <Text style={es.textoBtnDetalle}>Ver destino →</Text>
+          </TouchableOpacity>
+          {cancelable && (
+            <TouchableOpacity style={es.btnCancelar} onPress={() => cancelarReserva(item)} activeOpacity={0.8}>
+              <Text style={es.textoBtnCancelar}>Cancelar</Text>
+            </TouchableOpacity>
+          )}
+          {item.estado === 'cancelada' && (
+            <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8}>
+              <Text style={es.textoBtnReservarOtra}>Volver a reservar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -243,8 +287,13 @@ const es = StyleSheet.create({
   dato:                { alignItems: 'center' },
   datoLabel:           { fontSize: 11, color: '#aaa', marginBottom: 3 },
   datoValor:           { fontSize: 13, fontWeight: '600', color: '#333' },
-  btnAccion:           { marginTop: 12, paddingVertical: 10, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-  textoBtnAccion:      { color: '#3AB7A5', fontWeight: '700', fontSize: 13 },
+  filaAcciones:        { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  btnVerDetalle:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: '#3AB7A5' },
+  textoBtnDetalle:     { color: '#3AB7A5', fontWeight: '700', fontSize: 13 },
+  btnCancelar:         { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#fef0f0', borderWidth: 1.5, borderColor: '#DD331D' },
+  textoBtnCancelar:    { color: '#DD331D', fontWeight: '700', fontSize: 13 },
+  btnReservarOtra:     { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#3AB7A5' },
+  textoBtnReservarOtra:{ color: '#fff', fontWeight: '700', fontSize: 13 },
   vacio:               { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
   tituloVacio:         { fontSize: 18, fontWeight: '700', color: '#333' },
   subtituloVacio:      { fontSize: 13, color: '#888' },

@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator, Image,
+  ActivityIndicator, Alert, Image,
   ScrollView, StatusBar, StyleSheet, Text,
   TextInput, TouchableOpacity, View
 } from 'react-native';
@@ -72,33 +72,46 @@ export default function PagoScreen() {
 
     try {
       const usuario = await obtenerUsuarioActivo();
-      if (usuario) {
-        await guardarReserva(
-          usuario.id,
-          folio,
-          nombre ?? '',
-          paquete ?? '',
-          fecha ?? '',
-          parseInt(personas ?? '1'),
-          parseInt(precio ?? '0'),
-          metodo,
-          'confirmada'
-        );
-        await agregarHistorial(
-          usuario.id,
-          'reserva',
-          'Nueva reserva',
-          `Reserva ${folio} — ${nombre}, paquete ${paquete}, $${parseInt(precio ?? '0').toLocaleString()} MXN`
-        );
-        await crearNotificacion(
-          usuario.id,
-          'reserva',
-          'Reserva confirmada',
-          `Tu reserva ${folio} para ${nombre} ha sido confirmada. Fecha: ${fecha}`
-        );
+      if (!usuario) {
+        setProcesando(false);
+        Alert.alert('Sesión requerida', 'Inicia sesión para completar tu reserva.');
+        return;
       }
+
+      const ok = await guardarReserva(
+        usuario.id,
+        folio,
+        nombre ?? '',
+        paquete ?? '',
+        fecha ?? '',
+        parseInt(personas ?? '1'),
+        parseInt(precio ?? '0'),
+        metodo,
+        'confirmada'
+      );
+
+      if (!ok) {
+        setProcesando(false);
+        Alert.alert('Error', 'No se pudo guardar la reserva. Verifica tu conexión e intenta de nuevo.');
+        return;
+      }
+
+      await agregarHistorial(
+        usuario.id,
+        'reserva',
+        'Nueva reserva',
+        `Reserva ${folio} — ${nombre}, paquete ${paquete}, $${parseInt(precio ?? '0').toLocaleString()} MXN`
+      );
+      await crearNotificacion(
+        usuario.id,
+        'reserva',
+        'Reserva confirmada',
+        `Tu reserva ${folio} para ${nombre} ha sido confirmada. Fecha: ${fecha}`
+      );
     } catch (e) {
-      // error silencioso al procesar pago
+      setProcesando(false);
+      Alert.alert('Error inesperado', 'Ocurrió un problema al procesar el pago. Intenta de nuevo.');
+      return;
     }
 
     setProcesando(false);
