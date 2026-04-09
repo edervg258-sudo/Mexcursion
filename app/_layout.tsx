@@ -1,12 +1,36 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import * as NavigationBar from 'expo-navigation-bar';
-import { Stack } from 'expo-router';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { LogBox, Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { configurarBarraAndroid } from '../lib/android-ui';
+import { IdiomaProvider } from '../lib/IdiomaContext';
+import {
+    configurarNotificaciones,
+    notificationsDisponibles,
+    registrarParaPush,
+} from '../lib/push-notifications';
+import '../lib/react-19-filter'; // Importar filtro de advertencias
+import { supabase } from '../lib/supabase';
+import { TemaProvider } from '../lib/TemaContext';
+type NotificationSubscription = { remove: () => void };
+
+// Elimina el outline azul del browser en todos los TextInput (web)
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = 'input, textarea { outline: none !important; }';
+  document.head.appendChild(style);
+}
 
 // Lista de warnings a ignorar
 const IGNORED_WARNINGS = [
@@ -34,32 +58,99 @@ export const unstable_settings = {
   initialRouteName: 'registro',
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24, // 24 horas de cache persistente
+      staleTime: 1000 * 60 * 2,    // Evita requests si los datos tienen menos de 2 minutos
+      retry: 1,
+    },
+  },
+});
+
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+});
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const notifListener = useRef<NotificationSubscription | null>(null);
+  const responseListener = useRef<NotificationSubscription | null>(null);
 
+  // Barra de navegación Android
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
     const configurarBarra = async () => {
-      try {
-        await NavigationBar.setVisibilityAsync('visible');
-        await NavigationBar.setButtonStyleAsync('dark');
-      } catch {}
+      await configurarBarraAndroid();
     };
-
     configurarBarra();
   }, []);
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="registro" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="nueva-contrasena" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+  // Configuración base de notificaciones
+  useEffect(() => {
+    configurarNotificaciones();
+  }, []);
 
-      <StatusBar style="auto" />
-    </ThemeProvider>
+  // Sesión: redirect en cambios de auth
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setTimeout(() => router.push('/login'), 0);
+      }
+      // Registrar push token al iniciar sesión
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        registrarParaPush(session.user.id).catch(() => {});
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Listeners de notificaciones push
+  useEffect(() => {
+    if (!notificationsDisponibles()) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+
+    // Notificación recibida con la app en primer plano
+    notifListener.current = Notifications.addNotificationReceivedListener(() => {});
+
+    // Tap en una notificación
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      if (response.notification.request.content.data?.ruta) {
+        setTimeout(() => router.push(response.notification.request.content.data.ruta as any), 0);
+      } else if (response.notification.request.content.data?.notificacion_id) {
+        setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0);
+      }
+    });
+
+    return () => {
+      notifListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, []);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister }}>
+        <ErrorBoundary>
+          <IdiomaProvider>
+            <TemaProvider>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <BottomSheetModalProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="registro"         options={{ headerShown: false }} />
+                    <Stack.Screen name="login"            options={{ headerShown: false }} />
+                    <Stack.Screen name="nueva-contrasena" options={{ headerShown: false }} />
+                    <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
+                  </Stack>
+
+                  <StatusBar style="auto" />
+                </BottomSheetModalProvider>
+              </ThemeProvider>
+            </TemaProvider>
+          </IdiomaProvider>
+        </ErrorBoundary>
+      </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

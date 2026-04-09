@@ -1,3 +1,6 @@
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
+
 // ============================================================
 //  SkeletonLoader.tsx — componente reutilizable
 //  Uso: import { SkeletonTarjeta, SkeletonLista } from './(tabs)/skeletonloader'
@@ -5,8 +8,6 @@
 
 // Requerido por Expo Router para que no muestre WARN de pantalla sin default export
 export default function SkeletonLoaderScreen() { return null; }
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
 
 // ── Animación base ────────────────────────────────────────────────────────
 const usePulso = () => {
@@ -18,7 +19,7 @@ const usePulso = () => {
         Animated.timing(opacidad, { toValue: 0.4, duration: 800, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [opacidad]);
   return opacidad;
 };
 

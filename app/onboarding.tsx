@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     Animated, Dimensions,
-    Platform,
     StatusBar, StyleSheet, Text, TouchableOpacity, View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: W } = Dimensions.get('window');
 
@@ -51,11 +50,11 @@ export default function OnboardingScreen() {
       scrollRef.current?.scrollTo({ x: W * nuevo, animated: true });
       setIndice(nuevo);
     } else {
-      router.replace('/registro' as any);
+      router.push('/registro' as any);
     }
   };
 
-  const saltar = () => router.replace('/registro' as any);
+  const saltar = () => router.push('/registro' as any);
 
   const slide = SLIDES[indice];
 
@@ -131,7 +130,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
 
           {indice === SLIDES.length - 1 && (
-            <TouchableOpacity onPress={() => router.replace('/login' as any)} style={s.btnYaTengo}>
+            <TouchableOpacity onPress={() => router.push('/login' as any)} style={s.btnYaTengo}>
               <Text style={s.txtYaTengo}>Ya tengo cuenta → Iniciar sesión</Text>
             </TouchableOpacity>
           )}

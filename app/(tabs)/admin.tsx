@@ -2,31 +2,34 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Platform, ScrollView,
-  StyleSheet, Text, TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    ActivityIndicator, Alert,
+    Pressable, ScrollView,
+    StyleSheet, Text, TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AdminDashboard } from '../../components/AdminDashboard';
 import {
-  actualizarDestino,
-  actualizarEstadoReserva,
-  actualizarRutaSugerida,
-  cambiarTipoUsuario, cargarTodasLasReservas,
-  cargarTodosLosUsuarios,
-  crearDestino,
-  crearRutaSugerida,
-  eliminarDestino,
-  eliminarRutaSugerida,
-  obtenerRutasSugeridas,
-  obtenerTodosLosDestinos,
-  obtenerUsuarioActivo,
-  toggleActivoDestinoAdmin,
-  toggleActivoRutaSugerida,
-  toggleActivoUsuarioAdmin
+    actualizarDestino,
+    actualizarEstadoReserva,
+    actualizarRutaSugerida,
+    cambiarTipoUsuario, cargarTodasLasReservas,
+    cargarTodosLosUsuarios,
+    crearDestino,
+    crearRutaSugerida,
+    eliminarDestino,
+    eliminarRutaSugerida,
+    obtenerRutasSugeridas,
+    obtenerTodosLosDestinos,
+    obtenerUsuarioActivo,
+    toggleActivoDestinoAdmin,
+    toggleActivoRutaSugerida,
+    toggleActivoUsuarioAdmin
 } from '../../lib/supabase-db';
-import { sombraTarjeta, Tema } from '../../lib/tema';
+import { Tema } from '../../lib/tema';
+import { SkeletonFilas } from './skeletonloader';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 type Seccion = 'dashboard' | 'destinos' | 'rutas' | 'reservas' | 'usuarios';
@@ -77,6 +80,7 @@ const TRANSICIONES: Record<string, { label: string; estado: string; color: strin
 export default function AdminScreen() {
   const { width } = useWindowDimensions();
   const esPC = width >= 768;
+  const { bottom: bottomInset } = useSafeAreaInsets();
 
   const [seccion, setSeccion]         = useState<Seccion>('dashboard');
 
@@ -221,13 +225,83 @@ export default function AdminScreen() {
     await actualizarEstadoReserva(reserva.id, nuevo_estado);
   };
 
+  // ── Cálculos reales ───────────────────────────────────────────────────
+  const ahora         = new Date();
+  const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  const inicioMesPas  = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+
+  const enEsteMes  = (fecha: string) => new Date(fecha) >= inicioEsteMes;
+  const enMesPas   = (fecha: string) => new Date(fecha) >= inicioMesPas && new Date(fecha) < inicioEsteMes;
+  const trend      = (actual: number, anterior: number) =>
+    anterior === 0 ? (actual > 0 ? 100 : 0) : Math.round(((actual - anterior) / anterior) * 100);
+
+  const formatTiempo = (fecha: string) => {
+    const seg = Math.floor((ahora.getTime() - new Date(fecha).getTime()) / 1000);
+    if (seg < 60)    return 'Hace un momento';
+    if (seg < 3600)  return `Hace ${Math.floor(seg / 60)} min`;
+    if (seg < 86400) return `Hace ${Math.floor(seg / 3600)}h`;
+    return `Hace ${Math.floor(seg / 86400)}d`;
+  };
+
+  // Top destinos reales: agrupar reservas por destino
+  const topDestinos = Object.entries(
+    reservas.reduce<Record<string, number>>((acc, r) => {
+      if (r.destino) acc[r.destino] = (acc[r.destino] ?? 0) + 1;
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([nombre, count]) => ({ nombre, reservas: count }));
+
+  // Actividad reciente real: mezcla de reservas + altas de usuarios
+  const actividadReservas = [...reservas]
+    .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
+    .slice(0, 6)
+    .map(r => ({
+      tipo: 'reserva',
+      descripcion: `Reserva ${r.estado}: ${r.destino} — ${r.nombre_usuario}`,
+      tiempo: formatTiempo(r.creado_en),
+      _ts: new Date(r.creado_en).getTime(),
+    }));
+
+  const actividadUsuarios = [...usuarios]
+    .filter(u => !!u.creado_en)
+    .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
+    .slice(0, 4)
+    .map(u => ({
+      tipo: 'usuario',
+      descripcion: `Nuevo usuario: ${u.nombre || u.correo}`,
+      tiempo: formatTiempo(u.creado_en),
+      _ts: new Date(u.creado_en).getTime(),
+    }));
+
+  const actividadReciente = [...actividadReservas, ...actividadUsuarios]
+    .sort((a, b) => b._ts - a._ts)
+    .slice(0, 8)
+    .map(({ tipo, descripcion, tiempo }) => ({ tipo, descripcion, tiempo }));
+
+  // Trends mes a mes
+  const resEsteMes  = reservas.filter(r => r.creado_en && enEsteMes(r.creado_en)).length;
+  const resMesPas   = reservas.filter(r => r.creado_en && enMesPas(r.creado_en)).length;
+  const ingEsteMes  = reservas.filter(r => r.creado_en && enEsteMes(r.creado_en) && r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0);
+  const ingMesPas   = reservas.filter(r => r.creado_en && enMesPas(r.creado_en)  && r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0);
+  const usrEsteMes  = usuarios.filter(u => u.creado_en && enEsteMes(u.creado_en)).length;
+  const usrMesPas   = usuarios.filter(u => u.creado_en && enMesPas(u.creado_en)).length;
+
   // Stats
   const stats = {
-    totalReservas:   reservas.length,
-    ingresos:        reservas.filter(r => r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0),
-    confirmadas:     reservas.filter(r => r.estado === 'confirmada').length,
-    usuarios:        usuarios.filter(u => u.activo).length,
-    destinosActivos: destinos.filter(d => d.activo).length,
+    totalReservas:       reservas.length,
+    ingresos:            reservas.filter(r => r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0),
+    confirmadas:         reservas.filter(r => r.estado === 'confirmada').length,
+    usuarios:            usuarios.filter(u => u.activo).length,
+    destinosActivos:     destinos.filter(d => d.activo).length,
+    reservasHoy:         reservas.filter(r => r.creado_en && new Date(r.creado_en).toDateString() === ahora.toDateString()).length,
+    crecimientoUsuarios: trend(usrEsteMes, usrMesPas),
+    trendReservas:       trend(resEsteMes, resMesPas),
+    trendIngresos:       trend(ingEsteMes, ingMesPas),
+    topDestinos,
+    actividadReciente,
   };
 
   // (Pantalla de login manual eliminada, validación mediante base de datos y rol)
@@ -263,7 +337,7 @@ export default function AdminScreen() {
       <View style={{ flex: 1 }} />
     </View>
   ) : (
-    <View style={s.bottomBar}>
+    <View style={[s.bottomBar, { paddingBottom: Math.max(bottomInset, 8) }]}>
       {NAV.map(n => (
         <TouchableOpacity
           key={n.id}
@@ -278,71 +352,14 @@ export default function AdminScreen() {
 
   // ── Dashboard ─────────────────────────────────────────────────────────
   const Dashboard = () => (
-    <ScrollView contentContainerStyle={s.seccionScroll}>
-      <Text style={s.seccionTitulo}>Panel general</Text>
-      {cargando
-        ? <ActivityIndicator color={Tema.primario} style={{ marginTop: 24 }} />
-        : <>
-          <View style={s.gridStats}>
-            {[
-              { label: 'Reservas totales', valor: stats.totalReservas,                   color: Tema.primario       },
-              { label: 'Ingresos MXN',     valor: `$${stats.ingresos.toLocaleString()}`, color: '#27AE60'           },
-              { label: 'Confirmadas',      valor: stats.confirmadas,                     color: '#9A7118'           },
-              { label: 'Usuarios activos', valor: stats.usuarios,                        color: '#3E5FA8'           },
-              { label: 'Destinos activos', valor: stats.destinosActivos,                 color: Tema.primarioOscuro },
-            ].map(st => (
-              <View key={st.label} style={[s.statCard, { borderTopColor: st.color }]}>
-                <Text style={[s.statValor, { color: st.color }]}>{st.valor}</Text>
-                <Text style={s.statLabel}>{st.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Text style={s.subTitulo}>Últimas reservas</Text>
-          {reservas.length === 0
-            ? <View style={s.vacioCentrado}><Text style={s.textoVacio}>Sin reservas registradas</Text></View>
-            : reservas.slice(0, 3).map(r => {
-              const ce = C_ESTADO[r.estado] ?? { fondo: '#f0f0f0', texto: '#888', label: r.estado };
-              return (
-                <View key={r.folio ?? r.id} style={s.filaResumen}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.filaResumenNombre}>{r.folio} · {r.destino}</Text>
-                    <Text style={s.filaResumenSub}>{r.nombre_usuario} · {r.fecha}</Text>
-                  </View>
-                  <View style={[s.badge, { backgroundColor: ce.fondo }]}>
-                    <Text style={[s.badgeTxt, { color: ce.texto }]}>{ce.label}</Text>
-                  </View>
-                </View>
-              );
-            })}
-
-          <Text style={[s.subTitulo, { marginTop: 20 }]}>Usuarios recientes</Text>
-          {usuarios.length === 0
-            ? <View style={s.vacioCentrado}><Text style={s.textoVacio}>Sin usuarios registrados</Text></View>
-            : usuarios.slice(0, 3).map(u => (
-              <View key={u.id} style={s.filaResumen}>
-                <View style={[s.avatar, { backgroundColor: u.tipo === 'admin' ? Tema.primario : Tema.borde }]}>
-                  <Text style={[s.avatarLetra, { color: u.tipo === 'admin' ? '#fff' : Tema.textoSecundario }]}>
-                    {u.nombre?.[0]?.toUpperCase()}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.filaResumenNombre}>{u.nombre}</Text>
-                  <Text style={s.filaResumenSub}>{u.correo} · {u.reservas_count} reserva{u.reservas_count !== 1 ? 's' : ''}</Text>
-                </View>
-                <View style={[s.badge, { backgroundColor: u.tipo === 'admin' ? Tema.primarioSuave : '#f0f0f0' }]}>
-                  <Text style={[s.badgeTxt, { color: u.tipo === 'admin' ? Tema.primario : '#888' }]}>
-                    {u.tipo === 'admin' ? 'Admin' : 'Normal'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-        </>
-      }
-    </ScrollView>
+    <AdminDashboard 
+      stats={stats} 
+      cargando={cargando} 
+      esPC={esPC}
+    />
   );
 
-  // ── Destinos ──────────────────────────────────────────────────────────
+  // ── Destinos ────────────────────────────────────────────────────────────────
   const Destinos = () => (
     <View style={{ flex: 1 }}>
       {modoForm ? (
@@ -400,17 +417,17 @@ export default function AdminScreen() {
                 <Text style={s.itemPrecio}>${d.precio.toLocaleString()} MXN / persona</Text>
               </View>
               <View style={s.itemAcciones}>
-                <TouchableOpacity style={s.btnAccion} onPress={() => handleToggleActivoDestino(d.id)}>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => handleToggleActivoDestino(d.id)}>
                   <Text style={[s.btnAccionTxt, { color: d.activo ? '#9A7118' : Tema.primario }]}>
                     {d.activo ? 'Pausar' : 'Activar'}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.btnAccion} onPress={() => abrirFormEditar(d)}>
+                </Pressable>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => abrirFormEditar(d)}>
                   <Text style={s.btnAccionTxt}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.btnAccion} onPress={() => handleEliminarDestino(d.id)}>
+                </Pressable>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(221,51,29,0.12)', borderless: false }} onPress={() => handleEliminarDestino(d.id)}>
                   <Text style={[s.btnAccionTxt, { color: Tema.acento }]}>Eliminar</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           ))}
@@ -462,7 +479,7 @@ export default function AdminScreen() {
               <Text style={s.btnNuevoTxt}>+ Sugerencia</Text>
             </TouchableOpacity>
           </View>
-          {cargando ? <ActivityIndicator color={Tema.primario} style={{ marginTop: 24 }} /> : rutasSugeridas.length === 0 ? (
+          {cargando ? <SkeletonFilas cantidad={4} /> : rutasSugeridas.length === 0 ? (
             <View style={s.vacioCentrado}><Text style={s.textoVacio}>No hay sugerencias configuradas</Text></View>
           ) : rutasSugeridas.map(r => (
             <View key={r.id} style={[s.itemCard, r.activo === 0 && s.itemCardInactivo]}>
@@ -476,17 +493,17 @@ export default function AdminScreen() {
                 <Text style={s.itemSub}>Foco en: {r.estado}</Text>
               </View>
               <View style={s.itemAcciones}>
-                <TouchableOpacity style={s.btnAccion} onPress={() => handleToggleActivoRuta(r.id)}>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => handleToggleActivoRuta(r.id)}>
                   <Text style={[s.btnAccionTxt, { color: r.activo ? '#9A7118' : Tema.primario }]}>
                     {r.activo ? 'Pausar' : 'Activar'}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.btnAccion} onPress={() => abrirFormRutaEditar(r)}>
+                </Pressable>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => abrirFormRutaEditar(r)}>
                   <Text style={s.btnAccionTxt}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.btnAccion} onPress={() => handleEliminarRuta(r.id)}>
+                </Pressable>
+                <Pressable style={s.btnAccion} android_ripple={{ color: 'rgba(221,51,29,0.12)', borderless: false }} onPress={() => handleEliminarRuta(r.id)}>
                   <Text style={[s.btnAccionTxt, { color: Tema.acento }]}>Eliminar</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           ))}
@@ -505,7 +522,7 @@ export default function AdminScreen() {
       <ScrollView contentContainerStyle={s.seccionScroll}>
         <Text style={s.seccionTitulo}>Reservas ({reservas.length})</Text>
         {cargando
-          ? <ActivityIndicator color={Tema.primario} style={{ marginTop: 24 }} />
+          ? <SkeletonFilas cantidad={4} />
           : <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
@@ -550,13 +567,14 @@ export default function AdminScreen() {
                     {transiciones.length > 0 && (
                       <View style={s.transicionRow}>
                         {transiciones.map(tr => (
-                          <TouchableOpacity
+                          <Pressable
                             key={tr.estado}
                             style={[s.btnTransicion, { borderColor: tr.color }]}
+                            android_ripple={{ color: tr.color + '30', borderless: false }}
                             onPress={() => handleCambiarEstado(r, tr.estado)}
                           >
                             <Text style={[s.btnTransicionTxt, { color: tr.color }]}>{tr.label}</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         ))}
                       </View>
                     )}
@@ -608,7 +626,7 @@ export default function AdminScreen() {
         </ScrollView>
 
         {cargando ? (
-          <ActivityIndicator color={Tema.primario} style={{ marginTop: 24 }} />
+          <SkeletonFilas cantidad={4} />
         ) : filtrados.length === 0 ? (
           <View style={s.vacioCentrado}>
             <Text style={s.textoVacio}>{usuarios.length === 0 ? 'Sin usuarios registrados' : 'Sin resultados'}</Text>
@@ -637,24 +655,26 @@ export default function AdminScreen() {
                     {u.tipo === 'admin' ? 'Administrador' : 'Normal'}
                   </Text>
                 </View>
-                <TouchableOpacity
+                <Pressable
                   style={[s.btnTransicion, { borderColor: u.tipo === 'admin' ? '#9A7118' : Tema.primario }]}
+                  android_ripple={{ color: u.tipo === 'admin' ? 'rgba(154,113,24,0.15)' : `${Tema.primario}25`, borderless: false }}
                   onPress={() => handleCambiarTipo(u.id, u.tipo)}
                 >
                   <Text style={[s.btnTransicionTxt, { color: u.tipo === 'admin' ? '#9A7118' : Tema.primario }]}>
                     {u.tipo === 'admin' ? 'Quitar admin' : 'Hacer admin'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
-            <TouchableOpacity
+            <Pressable
               style={[s.btnAccion, { borderColor: u.activo ? Tema.acento : Tema.primario }]}
+              android_ripple={{ color: u.activo ? 'rgba(221,51,29,0.12)' : `${Tema.primario}25`, borderless: false }}
               onPress={() => handleToggleActivo(u.id)}
             >
               <Text style={[s.btnAccionTxt, { color: u.activo ? Tema.acento : Tema.primario }]}>
                 {u.activo ? 'Bloquear' : 'Activar'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ))}
       </ScrollView>
@@ -703,8 +723,21 @@ export default function AdminScreen() {
               <Text style={s.headerTitulo}>Admin</Text>
               <View style={{ width: 40 }} />
             </View>
-            <View style={{ flex: 1 }}>{SECCIONES[seccion]}</View>
-            <NavBar />
+            <View style={{ flex: 1 }}>
+  {SECCIONES[seccion]}
+
+  {(seccion === 'destinos' || seccion === 'rutas') && (
+    <TouchableOpacity
+      style={s.fab}
+      onPress={seccion === 'destinos' ? abrirFormNuevo : abrirFormRutaNuevo}
+      activeOpacity={0.85}
+    >
+      <Text style={s.fabTxt}>+</Text>
+    </TouchableOpacity>
+  )}
+</View>
+
+<NavBar />
           </View>
         )}
       </SafeAreaView>
@@ -713,152 +746,460 @@ export default function AdminScreen() {
 }
 
 const s = StyleSheet.create({
-  // ── Login ──
-  loginContenedor: { flex: 1, backgroundColor: Tema.primarioOscuro, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loginCaja:       {
-    width: '100%', maxWidth: 380, backgroundColor: Tema.superficie,
-    borderRadius: 20, padding: 32, alignItems: 'center', gap: 14,
-    ...sombraTarjeta,
+  contenedor: {
+    flex: 1,
+    backgroundColor: '#f4f6f8', // fondo más Android
   },
-  loginIcono:      { width: 64, height: 64, borderRadius: 32, backgroundColor: Tema.primarioSuave, alignItems: 'center', justifyContent: 'center' },
-  loginIconoLetra: { fontSize: 28, fontWeight: '800', color: Tema.primario },
-  loginTitulo:     { fontSize: 22, fontWeight: '800', color: Tema.texto, textAlign: 'center' },
-  loginSubtitulo:  { fontSize: 13, color: Tema.textoMuted, textAlign: 'center', marginTop: -6 },
-  loginInput:      {
-    width: '100%', height: 50, backgroundColor: Tema.inputFondo,
-    borderRadius: 12, borderWidth: 1.5, borderColor: Tema.bordeInput,
-    paddingHorizontal: 16, fontSize: 15, color: Tema.texto,
+
+  segura: { flex: 1 },
+
+  layoutMovil: {
+    flex: 1,
   },
-  loginInputError: { borderColor: Tema.error },
-  loginError:      { fontSize: 13, color: Tema.error, fontWeight: '600' },
-  loginBtn:        {
-    width: '100%', backgroundColor: Tema.primario, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginTop: 4,
+
+  headerMovil: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    elevation: 4,
   },
-  loginBtnTxt:     { color: '#fff', fontWeight: '700', fontSize: 16 },
-  loginVolver:     { fontSize: 13, color: Tema.textoMuted, fontWeight: '600' },
 
-  // ── Layout ──
-  contenedor:  { flex: 1, backgroundColor: Tema.fondo },
-  segura:      { flex: 1 },
-  layoutPC:    { flex: 1, flexDirection: 'row' },
-  layoutMovil: { flex: 1, flexDirection: 'column' },
-
-  // ── Sidebar ──
-  sidebar:        { width: 200, backgroundColor: Tema.superficie, borderRightWidth: 1, borderRightColor: Tema.borde, paddingTop: 20, paddingBottom: 16, paddingHorizontal: 14, gap: 4 },
-  sidebarHeader:  { marginBottom: 4, paddingHorizontal: 4 },
-  sidebarTitulo:  { fontSize: 16, fontWeight: '800', color: Tema.texto },
-  sidebarSub:     { fontSize: 11, color: Tema.textoMuted, marginTop: 2 },
-  separador:      { height: 1, backgroundColor: Tema.borde, marginVertical: 10 },
-  navItem:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 10 },
-  navItemActivo:  { backgroundColor: Tema.primarioSuave },
-  navAbrev:       { width: 36, height: 36, borderRadius: 8, backgroundColor: Tema.fondo, alignItems: 'center', justifyContent: 'center' },
-  navAbrevActivo: { backgroundColor: Tema.primario },
-  navAbrevTxt:    { fontSize: 10, fontWeight: '800', color: Tema.textoMuted },
-  navAbrevTxtActivo: { color: '#fff' },
-  navLabel:       { fontSize: 14, color: Tema.textoSecundario, fontWeight: '500' },
-  navLabelActivo: { color: Tema.primario, fontWeight: '700' },
-  btnSalir:       { paddingHorizontal: 10, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Tema.borde },
-  txtSalir:       { fontSize: 13, color: Tema.textoMuted, fontWeight: '600' },
-
-  // ── Bottom bar ──
-  bottomBar:        { flexDirection: 'row', backgroundColor: Tema.superficie, borderTopWidth: 1, borderTopColor: Tema.borde, paddingBottom: Platform.OS === 'android' ? 16 : 8 },
-  bottomItem:       { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  bottomItemActivo: { borderTopWidth: 2, borderTopColor: Tema.primario },
-  bottomLabel:      { fontSize: 11, color: Tema.textoMuted, fontWeight: '500' },
-  bottomLabelActivo:{ fontSize: 11, color: Tema.primario, fontWeight: '800' },
-
-  // ── Headers ──
-  headerPC:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Tema.borde, backgroundColor: Tema.superficie },
-  headerMovil:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Tema.borde, backgroundColor: Tema.superficie },
-  headerTitulo: { fontSize: 15, fontWeight: '700', color: Tema.texto },
-  btnAtras:     { fontSize: 14, color: Tema.primario, fontWeight: '600' },
-  contenidoPC:  { flex: 1, flexDirection: 'column' },
-
-  // ── Secciones ──
-  seccionScroll: { padding: 20, gap: 12 },
-  seccionTitulo: { fontSize: 20, fontWeight: '800', color: Tema.texto, marginBottom: 4 },
-  subTitulo:     { fontSize: 14, fontWeight: '700', color: Tema.textoSecundario, marginTop: 4 },
-  rowHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  btnCancelarTxt:{ fontSize: 14, color: Tema.acento, fontWeight: '600' },
-
-  // ── Stats ──
-  gridStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  statCard:  {
-    flex: 1, minWidth: 130, backgroundColor: Tema.superficie,
-    borderRadius: 12, padding: 16, borderTopWidth: 3,
-    borderWidth: 1, borderColor: Tema.borde, gap: 4,
-    ...sombraTarjeta,
+  headerTitulo: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
   },
-  statValor: { fontSize: 24, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: Tema.textoMuted, lineHeight: 14 },
 
-  // ── Item cards ──
-  itemCard:       {
-    backgroundColor: Tema.superficie, borderRadius: 12,
-    padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    borderWidth: 1, borderColor: Tema.borde,
-    ...sombraTarjeta,
+  btnAtras: {
+    fontSize: 18,
+    color: Tema.primario,
   },
-  itemCardInactivo: { opacity: 0.5 },
-  itemCardRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  itemNombre:     { fontSize: 14, fontWeight: '700', color: Tema.texto, flex: 1, marginRight: 8 },
-  itemSub:        { fontSize: 12, color: Tema.textoMuted, marginTop: 2, lineHeight: 17 },
-  itemPrecio:     { fontSize: 13, fontWeight: '700', color: Tema.acento, marginTop: 6 },
-  itemAcciones:   { gap: 6 },
-  btnAccion:      { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1.5, borderColor: Tema.borde, alignItems: 'center' },
-  btnAccionTxt:   { fontSize: 11, fontWeight: '700', color: Tema.textoSecundario },
 
-  // ── Barra de estado lateral (reservas) ──
-  barraEstado: { width: 4, borderRadius: 2, alignSelf: 'stretch', marginRight: 4 },
-
-  // ── Transiciones de estado ──
-  transicionRow:    { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
-  btnTransicion:    { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1.5 },
-  btnTransicionTxt: { fontSize: 12, fontWeight: '700' },
-
-  // ── Tipo usuario ──
-  tipoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-
-  // ── Badges ──
-  badge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeTxt: { fontSize: 11, fontWeight: '700' },
-
-  // ── Formulario ──
-  formLabel:     { fontSize: 13, fontWeight: '600', color: Tema.textoSecundario, marginBottom: 4 },
-  formInput:     {
-    backgroundColor: Tema.inputFondo, borderRadius: 10, borderWidth: 1.5,
-    borderColor: Tema.bordeInput, paddingHorizontal: 14,
-    paddingVertical: 12, fontSize: 14, color: Tema.texto,
+  // SECCIONES
+  seccionScroll: {
+    padding: 16,
+    gap: 16,
+    paddingBottom: 120,
   },
-  btnPrimario:    { backgroundColor: Tema.primario, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  btnPrimarioTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnDeshabilitado: { backgroundColor: Tema.borde },
-  btnNuevo:      { backgroundColor: Tema.primario, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  btnNuevoTxt:   { color: '#fff', fontWeight: '700', fontSize: 13 },
 
-  // ── Chips de filtro ──
-  chipFiltro:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: Tema.superficie, borderWidth: 1.5, borderColor: Tema.borde },
-  chipFiltroActivo: { backgroundColor: Tema.primario, borderColor: Tema.primario },
-  chipFiltroTxt:    { fontSize: 13, color: Tema.textoSecundario, fontWeight: '500' },
-  chipFiltroTxtActivo: { color: '#fff', fontWeight: '700' },
-
-  // ── Avatares ──
-  avatar:           { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  avatarLetra:      { fontWeight: '700', fontSize: 13 },
-  avatarGrande:     { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avatarLetraGrande:{ fontWeight: '800', fontSize: 18 },
-
-  // ── Resumen dashboard ──
-  filaResumen:       {
-    backgroundColor: Tema.superficie, borderRadius: 10, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: Tema.borde,
+  seccionTitulo: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111',
   },
-  filaResumenNombre: { fontSize: 13, fontWeight: '700', color: Tema.texto },
-  filaResumenSub:    { fontSize: 11, color: Tema.textoMuted, marginTop: 2 },
 
-  // ── Vacío ──
-  vacioCentrado: { paddingVertical: 32, alignItems: 'center' },
-  textoVacio:    { fontSize: 13, color: Tema.textoMuted },
+  subTitulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#555',
+  },
+
+  // CARDS
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    elevation: 2,
+  },
+
+  itemCardInactivo: {
+    opacity: 0.5,
+  },
+
+  itemNombre: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+  },
+
+  itemSub: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 4,
+  },
+
+  itemPrecio: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Tema.acento,
+    marginTop: 6,
+  },
+
+  // BOTONES
+  btnAccion: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#f2f2f2',
+  },
+
+  btnAccionTxt: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#333',
+  },
+
+  pressed: {
+    transform: [{ scale: 0.96 }],
+  },
+
+  // BADGES
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+
+  badgeTxt: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // STATS
+  gridStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+
+  statCard: {
+    flex: 1,
+    minWidth: 150,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    elevation: 2,
+  },
+
+  statValor: {
+    fontSize: 26,
+    fontWeight: '900',
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: '#777',
+  },
+
+  // INPUTS
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
+
+  formInput: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    elevation: 1,
+  },
+
+  // BOTÓN PRINCIPAL
+  btnPrimario: {
+    backgroundColor: Tema.primario,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+
+  btnPrimarioTxt: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  btnDeshabilitado: {
+    backgroundColor: '#ccc',
+  },
+
+  // CHIPS
+  chipFiltro: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    elevation: 1,
+  },
+
+  chipFiltroActivo: {
+    backgroundColor: Tema.primario,
+  },
+
+  chipFiltroTxt: {
+    fontSize: 13,
+    color: '#555',
+  },
+
+  chipFiltroTxtActivo: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  // BOTTOM BAR
+  bottomBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    elevation: 10,
+  },
+
+  bottomItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+
+  bottomItemActivo: {
+    backgroundColor: Tema.primarioSuave,
+    borderRadius: 12,
+  },
+
+  bottomLabel: {
+    fontSize: 12,
+    color: '#777',
+  },
+
+  bottomLabelActivo: {
+    color: Tema.primario,
+    fontWeight: '700',
+  },
+
+  // FAB
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 90,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Tema.primario,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+
+  fabTxt: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: 'bold',
+  },
+
+  // OTROS
+  rowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  vacioCentrado: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+
+  textoVacio: {
+    color: '#777'},
+  
+  sidebar: {
+  width: 80,
+  backgroundColor: '#0f172a',
+  paddingVertical: 16,
+  alignItems: 'center',
+  elevation: 6,
+},
+
+sidebarHeader: {
+  alignItems: 'center',
+  marginBottom: 20,
+},
+
+sidebarTitulo: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '700',
+},
+
+sidebarSub: {
+  color: '#94a3b8',
+  fontSize: 12,
+},
+
+separador: {
+  height: 1,
+  backgroundColor: '#1e293b',
+  width: '80%',
+  marginVertical: 12,
+},
+
+navItem: {
+  width: '100%',
+  alignItems: 'center',
+  paddingVertical: 10,
+  borderRadius: 10,
+},
+
+navItemActivo: {
+  backgroundColor: '#1e293b',
+},
+
+navAbrev: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#1e293b',
+},
+
+navAbrevActivo: {
+  backgroundColor: '#2563eb',
+},
+
+navAbrevTxt: {
+  color: '#cbd5f5',
+  fontWeight: '600',
+},
+
+navAbrevTxtActivo: {
+  color: '#fff',
+},
+
+navLabel: {
+  fontSize: 11,
+  color: '#94a3b8',
+  marginTop: 4,
+},
+
+navLabelActivo: {
+  color: '#fff',
+},
+
+filaResumen: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+  marginBottom: 10,
+},
+
+filaResumenNombre: {
+  fontSize: 15,
+  fontWeight: '600',
+  color: '#0f172a',
+},
+
+filaResumenSub: {
+  fontSize: 12,
+  color: '#64748b',
+},
+
+avatar: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: '#2563eb',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+avatarLetra: {
+  color: '#fff',
+  fontWeight: '700',
+},
+
+avatarGrande: {
+  width: 60,
+  height: 60,
+  borderRadius: 30,
+  backgroundColor: '#2563eb',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+avatarLetraGrande: {
+  color: '#fff',
+  fontSize: 20,
+  fontWeight: '700',
+},
+
+btnNuevo: {
+  backgroundColor: '#2563eb',
+  paddingVertical: 12,
+  borderRadius: 10,
+  alignItems: 'center',
+},
+
+btnNuevoTxt: {
+  color: '#fff',
+  fontWeight: '600',
+},
+
+btnCancelarTxt: {
+  color: '#ef4444',
+  fontWeight: '600',
+},
+
+itemCardRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
+itemAcciones: {
+  flexDirection: 'row',
+  gap: 10,
+},
+
+barraEstado: {
+  height: 6,
+  borderRadius: 10,
+  backgroundColor: '#22c55e',
+  marginTop: 6,
+},
+
+transicionRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: 10,
+},
+
+btnTransicion: {
+  backgroundColor: '#e2e8f0',
+  paddingVertical: 8,
+  paddingHorizontal: 12,
+  borderRadius: 8,
+},
+
+btnTransicionTxt: {
+  color: '#0f172a',
+  fontWeight: '500',
+},
+
+tipoRow: {
+  flexDirection: 'row',
+  gap: 8,
+},
+
+layoutPC: {
+  flexDirection: 'row',
+  flex: 1,
+},
+
+contenidoPC: {
+  flex: 1,
+  padding: 20,
+},
+
+headerPC: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+
 });

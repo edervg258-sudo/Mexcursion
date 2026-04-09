@@ -1,36 +1,111 @@
 import { useFocusEffect } from '@react-navigation/native';
-import * as NavigationBar from 'expo-navigation-bar';
-import { router, usePathname } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList, Image, Platform, StatusBar,
-  StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
+    Animated, FlatList, Image, LayoutAnimation, Platform,
+    RefreshControl, StyleSheet, Text,
+    TouchableOpacity, UIManager, View, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PESTANAS, TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { TabChrome } from '../../components/TabChrome';
+import { TopActionHeader } from '../../components/TopActionHeader';
+import { configurarBarraAndroid } from '../../lib/android-ui';
+import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { SkeletonLista } from './skeletonloader';
 
-export default function FavoritosScreen() {
-  const rutaActual       = usePathname();
-  const { width }        = useWindowDimensions();
-  const esPC             = width >= 768;
+if (Platform.OS === 'android' && !(globalThis as any).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ─── FavCard — tarjeta con animaciones de entrada, escala y eliminación ──────
+const FavCard = ({ item, idx, t, onPress, onRemove }: {
+  item: any; idx: number; t: any;
+  onPress: (item: any) => void;
+  onRemove: (id: number) => void;
+}) => {
+  const entradaAnim = useRef(new Animated.Value(0)).current;
+  const escalaCard  = useRef(new Animated.Value(1)).current;
+  const escalaFav   = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setVisibilityAsync('visible');
-      NavigationBar.setButtonStyleAsync('dark');
-    }
+    Animated.spring(entradaAnim, {
+      toValue: 1, useNativeDriver: true,
+      tension: 55, friction: 10,
+      delay: idx * 65,
+    } as any).start();
+  }, [entradaAnim, idx]);
+
+  const pressIn  = () => Animated.spring(escalaCard, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 2 }).start();
+  const pressOut = () => Animated.spring(escalaCard, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 6 }).start();
+
+  const handleRemove = () => {
+    Animated.sequence([
+      Animated.spring(escalaFav, { toValue: 1.38, useNativeDriver: true, speed: 40, bounciness: 8 }),
+      Animated.spring(escalaFav, { toValue: 0,    useNativeDriver: true, speed: 30, bounciness: 0 }),
+    ]).start(() => onRemove(item.id));
+  };
+
+  return (
+    <Animated.View style={[s.tarjetaContenedor, {
+      opacity: entradaAnim,
+      transform: [
+        { scale: escalaCard },
+        { translateY: entradaAnim.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }) },
+      ],
+    }]}>
+      <TouchableOpacity
+        style={s.tarjeta}
+        activeOpacity={1}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={() => onPress(item)}
+      >
+        <Image source={item.imagen} style={s.imagenTarjeta} resizeMode="cover" />
+        <View style={s.sombra} />
+        <View style={s.badgeCategoria}>
+          <Text style={s.badgeCategoriaTxt}>{item.categoria}</Text>
+        </View>
+        <Text style={s.nombreTarjeta}>{item.nombre}</Text>
+        <Text style={s.precioTarjeta}>{t('fav_precio_desde', { precio: item.precio.toLocaleString() })}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={s.botonFavorito} onPress={handleRemove} activeOpacity={0.7}>
+        <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
+          <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+export default function FavoritosScreen() {
+  const { width }        = useWindowDimensions();
+  const esPC             = width >= 768;
+  const { t } = useIdioma();
+
+  useEffect(() => {
+    configurarBarraAndroid();
   }, []);
 
   const [estadosFavoritos, setEstadosFavoritos] = useState<any[]>([]);
   const [usuarioId, setUsuarioId]       = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando]   = useState(true);
+  const [recargando, setRecargando] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const totalCategorias = useMemo(
+    () => new Set(estadosFavoritos.map(item => item.categoria)).size,
+    [estadosFavoritos]
+  );
+  const previewFavoritos = useMemo(
+    () => estadosFavoritos.slice(0, 3).map(item => item.nombre).join(' · '),
+    [estadosFavoritos]
+  );
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
-      if (!usuario) { router.replace('/login'); return; }
+      if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
       
       const [idsFav, destinosDB] = await Promise.all([
@@ -49,168 +124,133 @@ export default function FavoritosScreen() {
         });
       setEstadosFavoritos(mapeados);
       setCargando(false);
+      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 45, friction: 9 }).start();
     };
     cargar();
-  }, []));
+  }, [fadeAnim]));
+
+  const onRefresh = useCallback(async () => {
+    if (!usuarioId) return;
+    setRecargando(true);
+    const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
+    const mapeados = destinosDB
+      .filter((d: any) => idsFav.includes(d.id))
+      .map((d: any) => {
+        const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
+        return { id: d.id, nombre: d.nombre, categoria: d.categoria, precio: d.precio, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
+      });
+    setEstadosFavoritos(mapeados);
+    setRecargando(false);
+  }, [usuarioId]);
 
   const quitarFavorito = async (id: number) => {
     if (!usuarioId) return;
-    // Optimistic update
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setEstadosFavoritos(ant => ant.filter(f => f.id !== id));
     await alternarFavorito(usuarioId, id);
   };
 
-  const navegarPestana   = (ruta: string) => router.replace(ruta as any);
-  const estaActiva       = (ruta: string) => rutaActual.endsWith(ruta.replace('/(tabs)', ''));
-
-  // ── Sidebar PC ─────────────────────────────────────────────────────────
-  const Sidebar = () => (
-    <View style={s.sidebar}>
-      <Image source={require('../../assets/images/logo.png')} style={s.logoSidebar} resizeMode="contain" />
-      <View style={s.separadorSidebar} />
-      {PESTANAS.map(p => {
-        const activa = estaActiva(p.ruta);
-        return (
-          <TouchableOpacity key={p.ruta} style={[s.itemSidebar, activa && s.itemSidebarActivo]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
-            <Image source={activa ? p.iconoRojo : p.iconoGris} style={s.iconoSidebar} resizeMode="contain" />
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-
   // ── Contenido ──────────────────────────────────────────────────────────
   const Contenido = () => (
     <View style={{ flex: 1 }}>
-      <View style={s.encabezado}>
-        {!esPC && <Image source={require('../../assets/images/logo.png')} style={s.logoFijo} resizeMode="contain" />}
-        <Text style={[s.tituloEncabezado, { paddingLeft: esPC ? 0 : 60 }]}>Mis favoritos</Text>
-        <View style={s.iconosEncabezado}>
-          <TouchableOpacity style={s.botonIcono} onPress={() => router.push('/(tabs)/notificaciones' as any)}>
-            <Image source={require('../../assets/images/notificaciones.png')} style={s.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.botonIcono} onPress={() => navegarPestana('/(tabs)/perfil')}>
-            <Image source={require('../../assets/images/cuenta.png')} style={s.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)} />
 
       <View style={s.contenedorCentrado}>
         {cargando ? (
-          <View style={s.vacio}>
-            <Text style={s.tituloVacio}>Cargando favoritos...</Text>
-          </View>
+          <SkeletonLista cantidad={3} />
         ) : estadosFavoritos.length === 0 ? (
           <View style={s.vacio}>
             <Text style={s.textoVacio}>❤️</Text>
-            <Text style={s.tituloVacio}>Sin favoritos aún</Text>
-            <Text style={s.subtituloVacio}>Agrega destinos desde el menú principal</Text>
-            <TouchableOpacity style={s.botonIr} onPress={() => navegarPestana('/(tabs)/menu')}>
-              <Text style={s.textoBotonIr}>Explorar destinos</Text>
+            <Text style={s.tituloVacio}>{t('fav_vacios')}</Text>
+            <Text style={s.subtituloVacio}>{t('fav_vacios2')}</Text>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as any), 0)}>
+              <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <FlatList
-            data={estadosFavoritos}
-            keyExtractor={item => String(item.id)}
-            renderItem={({ item }) => (
-              <View style={s.tarjetaContenedor}>
-                <TouchableOpacity
-                  style={s.tarjeta}
-                  activeOpacity={0.88}
-                  onPress={() => router.push({
+          <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+            <FlatList
+              data={estadosFavoritos}
+              keyExtractor={item => String(item.id)}
+              renderItem={({ item, index }) => (
+                <FavCard
+                  item={item}
+                  idx={index}
+                  t={t}
+                  onPress={(it: any) => setTimeout(() => router.push({
                     pathname: '/(tabs)/detalle' as any,
-                    params: { nombre: item.nombre, categoria: item.categoria },
-                  })}
-                >
-                  <Image source={item.imagen} style={s.imagenTarjeta} resizeMode="cover" />
-                  <View style={s.sombra} />
-                  <Text style={s.nombreTarjeta}>{item.nombre}</Text>
-                  <Text style={s.precioTarjeta}>Desde ${item.precio.toLocaleString()} MXN</Text>
-                </TouchableOpacity>
-                {/* Botón quitar favorito FUERA del TouchableOpacity — evita conflicto en web */}
-                <TouchableOpacity style={s.botonFavorito} onPress={() => quitarFavorito(item.id)} activeOpacity={0.7}>
-                  <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
-                </TouchableOpacity>
-              </View>
-            )}
-            contentContainerStyle={s.contenidoLista}
-            showsVerticalScrollIndicator={false}
-          />
+                    params: { nombre: it.nombre, categoria: it.categoria },
+                  }), 0)}
+                  onRemove={quitarFavorito}
+                />
+              )}
+              ListHeaderComponent={
+                <View style={s.resumenPanel}>
+                  <View style={s.resumenTop}>
+                    <View>
+                      <Text style={s.resumenEyebrow}>{t('fav_titulo')}</Text>
+                      <Text style={s.resumenNumero}>{estadosFavoritos.length}</Text>
+                    </View>
+                    <View style={s.resumenBadges}>
+                      <View style={s.resumenBadge}>
+                        <Text style={s.resumenBadgeTxt}>❤️ {estadosFavoritos.length}</Text>
+                      </View>
+                      <View style={s.resumenBadge}>
+                        <Text style={s.resumenBadgeTxt}>🧭 {totalCategorias}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={s.resumenSub} numberOfLines={2}>
+                    {previewFavoritos}
+                  </Text>
+                </View>
+              }
+              contentContainerStyle={s.contenidoLista}
+              showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={recargando} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
+            />
+          </Animated.View>
         )}
       </View>
     </View>
   );
 
   return (
-    <View style={s.raiz}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={require('../../assets/images/mapa.png')} style={s.imagenMapa} resizeMode="contain" />
-
-      {esPC ? (
-        <View style={s.layoutPC}>
-          <Sidebar />
-          <SafeAreaView style={s.areaSeguraPC}><Contenido /></SafeAreaView>
-        </View>
-      ) : (
-        <View style={s.layoutMovil}>
-          <SafeAreaView style={s.areaSeguraMovil}><Contenido /></SafeAreaView>
-          <View style={s.envolturaBarra}>
-            <View style={s.barraPestanas}>
-              {PESTANAS.map(p => {
-                const activa = estaActiva(p.ruta);
-                return (
-                  <TouchableOpacity key={p.ruta} style={s.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
-                    <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                    <Text style={[s.etiquetaPestana, activa && s.etiquetaPestanaActiva]}>{p.etiqueta}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
+    <TabChrome esPC={esPC} maxWidth={900} showLogoWhenNoTitle={false}>
+      <Contenido />
+    </TabChrome>
   );
 }
 
 const s = StyleSheet.create({
-  raiz:                  { flex: 1, backgroundColor: '#FAF7F0' },
-  imagenMapa:            { opacity: 0.15, position: 'absolute', width: '90%', height: '100%', alignSelf: 'center' },
-  layoutPC:              { flex: 1, flexDirection: 'row' },
-  layoutMovil:           { flex: 1, flexDirection: 'column' },
-  areaSeguraPC:          { flex: 1 },
-  areaSeguraMovil:       { flex: 1 },
-  sidebar:               { width: 64, backgroundColor: '#fff', borderRightWidth: 1, borderRightColor: '#e8e8e8', alignItems: 'center', paddingTop: 16, paddingBottom: 20, gap: 4 },
-  logoSidebar:           { width: 48, height: 48, marginBottom: 6 },
-  separadorSidebar:      { width: 40, height: 1, backgroundColor: '#eee', marginVertical: 12 },
-  itemSidebar:           { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  itemSidebarActivo:     { backgroundColor: '#f0faf9' },
-  iconoSidebar:          { width: 28, height: 28 },
-  encabezado:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, gap: 8, width: '100%', maxWidth: 900, alignSelf: 'center', minHeight: 70 },
-  logoFijo:              { width: 46, height: 46 },
+  encabezado:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, gap: 8, width: '100%', minHeight: 70 },
   tituloEncabezado:      { flex: 1, fontSize: 18, fontWeight: '800', color: '#333', textAlign: 'center' },
   iconosEncabezado:      { flexDirection: 'row', gap: 6 },
   botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   iconoEncabezado:       { width: 28, height: 28 },
   contenedorCentrado:    { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
   contenidoLista:        { paddingHorizontal: 16, paddingBottom: 20, gap: 14 },
+  resumenPanel:          { backgroundColor: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E7ECEB', elevation: 2 },
+  resumenTop:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  resumenEyebrow:        { fontSize: 11, color: '#7B8B88', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontWeight: '700' },
+  resumenNumero:         { fontSize: 38, lineHeight: 42, fontWeight: '900', color: '#16312D' },
+  resumenBadges:         { alignItems: 'flex-end', gap: 8 },
+  resumenBadge:          { backgroundColor: '#F2F7F6', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  resumenBadgeTxt:       { fontSize: 12, color: '#375D56', fontWeight: '700' },
+  resumenSub:            { marginTop: 12, fontSize: 13, lineHeight: 19, color: '#60706D' },
   tarjetaContenedor:     { position: 'relative' },
   tarjeta:               { borderRadius: 16, overflow: 'hidden', height: 180, backgroundColor: '#ddd', elevation: 4, borderWidth: 2, borderColor: '#3AB7A5' },
   imagenTarjeta:         { width: '100%', height: '100%', position: 'absolute' },
   sombra:                { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, backgroundColor: 'rgba(0,0,0,0.35)' },
+  badgeCategoria:        { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeCategoriaTxt:     { fontSize: 11, color: '#214740', fontWeight: '700' },
   nombreTarjeta:         { position: 'absolute', bottom: 28, left: 14, fontSize: 22, fontWeight: '700', color: '#fff' },
   precioTarjeta:         { position: 'absolute', bottom: 10, left: 14, fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
   botonFavorito:         { position: 'absolute', top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 20, padding: 28, borderWidth: 1, borderColor: '#E7ECEB' },
   textoVacio:            { fontSize: 48 },
   tituloVacio:           { fontSize: 20, fontWeight: '700', color: '#333' },
   subtituloVacio:        { fontSize: 14, color: '#888' },
   botonIr:               { marginTop: 10, backgroundColor: '#DD331D', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25, elevation: 4 },
   textoBotonIr:          { color: '#fff', fontWeight: '600', fontSize: 15 },
-  envolturaBarra:        { width: '100%', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingBottom: Platform.OS === 'android' ? 16 : 8 },
-  barraPestanas:         { flexDirection: 'row', backgroundColor: '#fff', width: '100%', maxWidth: 800, alignSelf: 'center' },
-  itemPestana:           { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
-  etiquetaPestana:       { fontSize: 10, color: '#999', marginTop: 2 },
-  etiquetaPestanaActiva: { color: '#DD331D', fontWeight: '600' },
 });

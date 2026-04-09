@@ -1,401 +1,486 @@
-import { useFocusEffect } from '@react-navigation/native';
-import * as NavigationBar from 'expo-navigation-bar';
-import { router, usePathname } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FlashList } from '@shopify/flash-list';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Animated,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PESTANAS, TODOS_LOS_ESTADOS } from '../../lib/constantes';
+
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as any;
+
+import { TabChrome } from '../../components/TabChrome';
+import { TopActionHeader } from '../../components/TopActionHeader';
+import { configurarBarraAndroid } from '../../lib/android-ui';
+import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { sombra } from '../../lib/estilos';
+import { useIdioma } from '../../lib/IdiomaContext';
 import {
-  alternarFavorito as alternarFavoritoBD,
-  cargarFavoritos,
-  obtenerTodosLosDestinos,
-  obtenerUsuarioActivo,
+    alternarFavorito as alternarFavoritoBD,
+    cargarFavoritos,
+    obtenerTodosLosDestinos,
+    obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
-import { sombraBarraInferior, Tema } from '../../lib/tema';
+import { Tema } from '../../lib/tema';
+import { SkeletonLista } from './skeletonloader';
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
 
-const CATEGORIAS = ['Todos', 'Playa', 'Cultura', 'Aventura', 'Gastronomía', 'Ciudad'];
-
-const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
-  { clave: 'az', etiqueta: 'Orden A-Z' },
-  { clave: 'mas_barato', etiqueta: 'Menor precio' },
-  { clave: 'mas_caro', etiqueta: 'Mayor precio' },
-];
-
 export default function MenuScreen() {
   const { width } = useWindowDimensions();
   const esPC = width >= 768;
+  const { t } = useIdioma();
+
+  const CATEGORIAS: { clave: string; etiqueta: string }[] = [
+    { clave: 'Todos',        etiqueta: t('menu_cat_todos')   },
+    { clave: 'Playa',        etiqueta: t('menu_cat_playa')   },
+    { clave: 'Cultura',      etiqueta: t('menu_cat_cultura') },
+    { clave: 'Aventura',     etiqueta: t('menu_cat_aventura')},
+    { clave: 'Gastronomía',  etiqueta: t('menu_cat_gastro')  },
+    { clave: 'Ciudad',       etiqueta: t('menu_cat_ciudad')  },
+  ];
+
+  const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
+    { clave: 'az',         etiqueta: t('menu_orden_az')       },
+    { clave: 'mas_barato', etiqueta: t('menu_menor_precio')   },
+    { clave: 'mas_caro',   etiqueta: t('menu_mayor_precio')   },
+  ];
 
   const HEADER_HEIGHT = 72;
 
-  const [estados, setEstados] = useState<Estado[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const queryClient = useQueryClient();
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState<TipoOrden>('az');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
-  const [nombreUsuario, setNombreUsuario] = useState('');
-  const [usuarioId, setUsuarioId] = useState<string | null>(null);
-  const rutaActual = usePathname();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const animsFav = useRef<Map<number, Animated.Value>>(new Map()).current;
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const fadeAnim       = useRef(new Animated.Value(0)).current;
+  const resultAnim     = useRef(new Animated.Value(1)).current;
+  const resultSlide    = useRef(new Animated.Value(0)).current;
+  const montadoRef     = useRef(false);
+  const animsFav       = useRef<Map<number, Animated.Value>>(new Map()).current;
+  const animsChip      = useRef<Map<string, Animated.Value>>(new Map()).current;
+  const animsCard      = useRef<Map<number, Animated.Value>>(new Map()).current;
+  const searchFocusAnim = useRef(new Animated.Value(0)).current;
+  const dropdownFade   = useRef(new Animated.Value(0)).current;
+  const dropdownSlide  = useRef(new Animated.Value(-8)).current;
 
   const obtenerAnimFav = (id: number) => {
     if (!animsFav.has(id)) animsFav.set(id, new Animated.Value(1));
     return animsFav.get(id)!;
   };
 
+  const obtenerAnimChip = (key: string) => {
+    if (!animsChip.has(key)) animsChip.set(key, new Animated.Value(1));
+    return animsChip.get(key)!;
+  };
+
+  const obtenerAnimCard = (id: number) => {
+    if (!animsCard.has(id)) animsCard.set(id, new Animated.Value(1));
+    return animsCard.get(id)!;
+  };
+
+  const animarChip = (key: string) => {
+    const a = obtenerAnimChip(key);
+    Animated.sequence([
+      Animated.spring(a, { toValue: 0.88, useNativeDriver: true, speed: 60, bounciness: 2 }),
+      Animated.spring(a, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 8 }),
+    ]).start();
+  };
+
+  const cardPressIn = (id: number) => {
+  Animated.spring(obtenerAnimCard(id), {
+    toValue: 0.96,
+    useNativeDriver: true,
+    speed: 50,
+    bounciness: 2,
+  }).start();
+};
+
+const cardPressOut = (id: number) => {
+  Animated.spring(obtenerAnimCard(id), {
+    toValue: 1,
+    useNativeDriver: true,
+    speed: 25,
+    bounciness: 6,
+  }).start();
+};
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setVisibilityAsync('visible');
-      NavigationBar.setButtonStyleAsync('dark');
-    }
+    configurarBarraAndroid();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      const iniciar = async () => {
-        const usuario = await obtenerUsuarioActivo();
-        if (!usuario) { router.replace('/login'); return; }
-        setUsuarioId(usuario.id);
-        setNombreUsuario(usuario.nombre?.split(' ')[0] ?? '');
-        
-        const [idsFav, destinosDB] = await Promise.all([
-          cargarFavoritos(usuario.id),
-          obtenerTodosLosDestinos()
-        ]);
+  const { data: usuario, isLoading: loadingUsr } = useQuery({
+    queryKey: ['usuarioActivo'],
+    queryFn: obtenerUsuarioActivo,
+    staleTime: 1000 * 60 * 60,
+  });
 
-        const idsActivos: Set<number> = destinosDB.length > 0
-          ? new Set(destinosDB.filter((d: any) => d.activo !== 0).map((d: any) => Number(d.id)))
-          : new Set(TODOS_LOS_ESTADOS.map(e => e.id));
+  const usuarioId = usuario?.id ?? null;
+  const nombreUsuario = usuario?.nombre?.split(' ')[0] ?? '';
 
-        const destinosMapeados = TODOS_LOS_ESTADOS
-          .filter(e => idsActivos.has(e.id))
-          .map(e => ({ ...e, favorito: idsFav.map(Number).includes(e.id) }));
+  const { data: favoritosIds = [], isLoading: loadingFavs } = useQuery({
+    queryKey: ['favoritos', usuarioId],
+    queryFn: () => cargarFavoritos(usuarioId!),
+    enabled: !!usuarioId,
+  });
 
-        setEstados(destinosMapeados);
-        setCargando(false);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: false }).start();
-      };
-      iniciar();
-    }, [])
-  );
+  const { data: destinosBD = [], isLoading: loadingDest } = useQuery({
+    queryKey: ['destinosBD'],
+    queryFn: obtenerTodosLosDestinos,
+    staleTime: 1000 * 60 * 30,
+  });
 
-  const manejarFavorito = async (id: number) => {
+  const cargando = loadingUsr || loadingFavs || loadingDest;
+
+  useEffect(() => {
+    if (loadingUsr) return;
+    // usuario === null → sin sesión confirmada; undefined → aún no cargó
+    if (usuario === null) {
+      setTimeout(() => router.replace('/login'), 0);
+    } else if (usuario) {
+      setVerificandoSesion(false);
+    }
+  }, [usuario, loadingUsr]);
+
+  const estados = useMemo(() => {
+    const idsActivos: Set<number> = destinosBD.length > 0
+      ? new Set(destinosBD.filter((d: any) => d.activo !== 0).map((d: any) => Number(d.id)))
+      : new Set(TODOS_LOS_ESTADOS.map(e => e.id));
+
+    return TODOS_LOS_ESTADOS
+      .filter(e => idsActivos.has(e.id))
+      .map(e => ({ ...e, favorito: favoritosIds.map(Number).includes(e.id) }));
+  }, [destinosBD, favoritosIds]);
+
+  useEffect(() => {
+    if (!cargando) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [cargando, fadeAnim]);
+
+  const mutarFavorito = useMutation({
+    mutationFn: async (idDestino: number) => alternarFavoritoBD(usuarioId!, idDestino),
+    onMutate: async (idDestino) => {
+      await queryClient.cancelQueries({ queryKey: ['favoritos', usuarioId] });
+      const prev = queryClient.getQueryData<number[]>(['favoritos', usuarioId]) || [];
+      queryClient.setQueryData<number[]>(['favoritos', usuarioId], (old = []) => {
+        if (old.includes(idDestino)) return old.filter((id) => id !== idDestino);
+        return [...old, idDestino];
+      });
+      return { prev };
+    },
+    onError: (err, idDestino, context) => {
+      queryClient.setQueryData(['favoritos', usuarioId], context?.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['favoritos', usuarioId] });
+    }
+  });
+
+  const manejarFavorito = (id: number) => {
     if (!usuarioId) return;
+
     const anim = obtenerAnimFav(id);
     Animated.sequence([
-      Animated.spring(anim, { toValue: 1.4, useNativeDriver: true, speed: 40, bounciness: 6 }),
-      Animated.spring(anim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }),
+      Animated.spring(anim, { toValue: 1.4, useNativeDriver: true }),
+      Animated.spring(anim, { toValue: 0.9, useNativeDriver: true }),
+      Animated.spring(anim, { toValue: 1, useNativeDriver: true }),
     ]).start();
-    try {
-      const idsActualizados = await alternarFavoritoBD(usuarioId, id);
-      setEstados((ant) => ant.map((e) => ({ ...e, favorito: idsActualizados.includes(e.id) })));
-    } catch (err) {
-      // error silencioso al alternar favorito
-    }
+
+    mutarFavorito.mutate(id);
   };
 
-  const estadosFiltrados = estados
-    .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
-    .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
-    .sort((a, b) => {
-      if (orden === 'mas_caro') return b.precio - a.precio;
-      if (orden === 'mas_barato') return a.precio - b.precio;
-      return a.nombre.localeCompare(b.nombre);
-    });
+  useEffect(() => {
+    if (!montadoRef.current) { montadoRef.current = true; return; }
+    resultAnim.setValue(0);
+    resultSlide.setValue(14);
+    Animated.parallel([
+      Animated.timing(resultAnim,  { toValue: 1, duration: 230, useNativeDriver: false }),
+      Animated.spring(resultSlide, { toValue: 0, useNativeDriver: false, tension: 65, friction: 11 }),
+    ]).start();
+  }, [busqueda, categoriaActiva, orden, resultAnim, resultSlide]);
 
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
+  const estadosFiltrados = useMemo(() => (
+    [...estados]
+      .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+      .filter((e) => categoriaActiva === 'Todos' || (e.categoria as string) === categoriaActiva)
+      .sort((a, b) => {
+        if (orden === 'mas_caro') return b.precio - a.precio;
+        if (orden === 'mas_barato') return a.precio - b.precio;
+        return a.nombre.localeCompare(b.nombre);
+      })
+  ), [estados, busqueda, categoriaActiva, orden]);
 
-  const estaActiva = (ruta: string) => {
-    const segmento = ruta.replace('/(tabs)', '');
-    return rutaActual.endsWith(segmento);
-  };
+  const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? t('menu_orden_az');
 
-  const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? 'Ordenar';
-
-  const renderizarEstado = ({ item }: { item: Estado }) => (
-    <View style={estilos.tarjetaContenedor}>
-        <TouchableOpacity
-          style={estilos.tarjeta}
-          activeOpacity={0.88}
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/detalle',
-              params: { nombre: item.nombre, categoria: item.categoria },
-            } as any)
-          }
-        >
-          <Image source={item.imagen} style={estilos.imagenTarjeta} resizeMode="cover" />
-          <View style={estilos.sombraOverlay} />
-          <View style={estilos.badgeCategoria}>
-            <Text style={estilos.textoBadge}>{item.categoria}</Text>
-          </View>
-          <Text style={estilos.nombreTarjeta}>{item.nombre}</Text>
-          <Text style={estilos.precioTarjeta}>Desde ${item.precio.toLocaleString()} MXN</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={estilos.botonFavorito}
-          onPress={() => manejarFavorito(item.id)}
-          activeOpacity={0.7}
-        >
-          <Animated.View style={{ transform: [{ scale: obtenerAnimFav(item.id) }] }}>
-            <Image
-              source={
-                item.favorito
-                  ? require('../../assets/images/favoritos_rojo.png')
-                  : require('../../assets/images/favoritos_gris.png')
-              }
-              style={{ width: 20, height: 20 }}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-  );
-
-  const renderSidebar = () => (
-    <View style={estilos.sidebar}>
-      <Image source={require('../../assets/images/logo.png')} style={estilos.logoSidebar} resizeMode="contain" />
-      <View style={estilos.separadorSidebar} />
-      {Array.isArray(PESTANAS) &&
-        PESTANAS.map((p) => {
-          const activa = estaActiva(p.ruta);
-          return (
-            <TouchableOpacity
-              key={p.ruta}
-              style={[estilos.itemSidebar, activa && estilos.itemSidebarActivo]}
-              onPress={() => navegarPestana(p.ruta)}
-              activeOpacity={0.75}
-            >
-              <Image source={activa ? p.iconoRojo : p.iconoGris} style={estilos.iconoSidebar} resizeMode="contain" />
-            </TouchableOpacity>
-          );
-        })}
-      <View style={{ flex: 1 }} />
-    </View>
-  );
-
-  const renderContenido = () => (
-    <View style={{ flex: 1 }}>
-      <View style={[estilos.encabezado, { height: HEADER_HEIGHT }]}>
-        {!esPC && (
-          <Image source={require('../../assets/images/logo.png')} style={estilos.logoFijo} resizeMode="contain" />
-        )}
-        <View style={{ flex: 1, paddingLeft: esPC ? 0 : 60 }}>
-          {nombreUsuario ? <Text style={estilos.saludo}>Hola, {nombreUsuario}</Text> : null}
-          <Text style={estilos.tituloEncabezado}>Descubre México</Text>
-        </View>
-
-        <View style={estilos.iconosEncabezado}>
-          <TouchableOpacity style={[estilos.botonIcono, { marginRight: 8 }]} onPress={() => router.push('/(tabs)/notificaciones' as any)}>
-            <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
-          <TouchableOpacity style={estilos.botonIcono} onPress={() => router.push('/(tabs)/perfil' as any)}>
-            <Image source={require('../../assets/images/mapa.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={estilos.contenedorCentrado}>
-        <View style={[estilos.filaBusqueda, { zIndex: 20 }]}>
-          <View style={estilos.cajaBusqueda}>
-            <Image source={require('../../assets/images/busqueda.png')} style={estilos.iconoBusquedaImg} resizeMode="contain" />
-            <TextInput
-              style={estilos.inputBusqueda}
-              placeholder="Buscar destino..."
-              placeholderTextColor={Tema.textoMuted}
-              value={busqueda}
-              onChangeText={setBusqueda}
-            />
-            {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda('')}>
-                <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={{ position: 'relative' }}>
-            <TouchableOpacity
-              style={[estilos.botonFiltro, dropdownAbierto && estilos.botonFiltroActivo]}
-              onPress={() => setDropdownAbierto((v) => !v)}
-              activeOpacity={0.8}
-            >
-              <Image source={require('../../assets/images/filtro.png')} style={estilos.iconoFiltroImg} resizeMode="contain" />
-              <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>
-                {etiquetaOrdenActual}
-              </Text>
-              <Text style={[estilos.chevron, dropdownAbierto && { color: '#fff' }]}>{dropdownAbierto ? '▲' : '▼'}</Text>
-            </TouchableOpacity>
-
-            {dropdownAbierto && (
-              <View style={[estilos.dropdown, { top: 48, right: 0, zIndex: 999 }]}>
-                {OPCIONES_ORDEN.map((op, i) => (
-                  <TouchableOpacity
-                    key={op.clave}
-                    style={[
-                      estilos.filaDropdown,
-                      orden === op.clave && estilos.filaDropdownActiva,
-                      i < OPCIONES_ORDEN.length - 1 && estilos.filaDropdownBorde,
-                    ]}
-                    onPress={() => {
-                      setOrden(op.clave);
-                      setDropdownAbierto(false);
-                    }}
-                  >
-                    <Text style={[estilos.textoDropdown, orden === op.clave && estilos.textoDropdownActivo]}>
-                      {op.etiqueta}
-                    </Text>
-                    {orden === op.clave && <Text style={{ color: Tema.primario, fontSize: 14 }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={estilos.listaCategoriasContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={estilos.listaCategorias}
-            bounces={false}
-          >
-            {CATEGORIAS.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[estilos.chipCategoria, categoriaActiva === cat && estilos.chipCategoriaActivo]}
-                onPress={() => setCategoriaActiva(cat)}
-              >
-                <Text style={[estilos.textoChip, categoriaActiva === cat && estilos.textoChipActivo]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <Text style={estilos.contadorResultados}>
-          {estadosFiltrados.length} destino{estadosFiltrados.length !== 1 ? 's' : ''} encontrado
-          {estadosFiltrados.length !== 1 ? 's' : ''}
-        </Text>
-
-        {dropdownAbierto && (
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
-            }}
-            onPress={() => setDropdownAbierto(false)}
-            activeOpacity={1}
-          />
-        )}
-
-        {cargando ? (
-          <View style={estilos.vacio}>
-            <Text style={estilos.subtituloVacio}>Cargando destinos...</Text>
-          </View>
-        ) : estadosFiltrados.length === 0 ? (
-          <View style={estilos.vacio}>
-            <Text style={estilos.tituloVacio}>Sin resultados</Text>
-            <Text style={estilos.subtituloVacio}>Intenta con otra búsqueda o categoría</Text>
-            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
-              <Text style={estilos.limpiarFiltros}>Limpiar filtros</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-            <FlatList
-              data={estadosFiltrados}
-              keyExtractor={(item) => String(item.id)}
-              renderItem={renderizarEstado}
-              contentContainerStyle={estilos.contenidoLista}
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1 }}
-            />
-          </Animated.View>
-        )}
-      </View>
-    </View>
-  );
+  const renderizarEstado = ({ item }: { item: Estado; index: number }) => {
+  const anim = obtenerAnimCard(item.id);
 
   return (
-    <View style={estilos.raiz}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={require('../../assets/images/mapa.png')} style={estilos.imagenMapa} resizeMode="contain" />
+    <Animated.View
+      style={[
+        estilos.tarjetaContenedor,
+        {
+          transform: [{ scale: anim }],
+          opacity: anim,
+        },
+      ]}
+    >
+      <Pressable
+        android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+        style={({ pressed }) => [
+          estilos.tarjeta,
+          pressed && Platform.OS !== 'android' && { opacity: 0.85 },
+        ]}
+        onPressIn={() => cardPressIn(item.id)}
+        onPressOut={() => cardPressOut(item.id)}
+        onPress={() =>
+          setTimeout(() => router.push({
+            pathname: '/(tabs)/detalle',
+            params: { nombre: item.nombre, categoria: item.categoria },
+          } as any), 0)
+        }
+      >
+        <Image source={item.imagen} style={estilos.imagenTarjeta} contentFit="cover" transition={200} placeholder="#f0f0f0" />
+        <View style={estilos.sombraOverlay} />
 
-      {esPC ? (
-        <View style={estilos.layoutPC}>
-          {renderSidebar()}
-          <SafeAreaView style={estilos.areaSeguraPC}>{renderContenido()}</SafeAreaView>
+        <View style={estilos.badgeCategoria}>
+          <Text style={estilos.textoBadge}>{item.categoria}</Text>
         </View>
-      ) : (
-        <View style={estilos.layoutMovil}>
-          <SafeAreaView style={estilos.areaSeguraMovil}>{renderContenido()}</SafeAreaView>
 
-          <View style={estilos.envolturaBarra}>
-            <View style={estilos.barraPestanas}>
-              {Array.isArray(PESTANAS) &&
-                PESTANAS.map((p) => {
-                  const activa = estaActiva(p.ruta);
-                  return (
-                    <TouchableOpacity key={p.ruta} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
-                      <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                      <Text style={[estilos.etiquetaPestana, activa && estilos.etiquetaPestanaActiva]}>{p.etiqueta}</Text>
+        <Text style={estilos.nombreTarjeta}>{item.nombre}</Text>
+        <Text style={estilos.precioTarjeta}>
+          {t('menu_precio_desde', { precio: item.precio.toLocaleString() })}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => manejarFavorito(item.id)}
+        android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+        style={estilos.botonFavorito}
+      >
+        <Animated.View
+          style={{
+            transform: [{ scale: obtenerAnimFav(item.id) }],
+          }}
+        >
+          <Image
+            source={
+              item.favorito
+                ? require('../../assets/images/favoritos_rojo.png')
+                : require('../../assets/images/favoritos_gris.png')
+            }
+            style={{ width: 20, height: 20 }}
+            contentFit="contain"
+            transition={150}
+          />
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+  const renderContenido = () => {
+    if (verificandoSesion) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, color: '#666' }}>Verificando sesión...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ minHeight: HEADER_HEIGHT, justifyContent: 'center' }}>
+          <TopActionHeader
+            title={t('menu_subtitulo')}
+            subtitle={nombreUsuario ? t('menu_saludo', { nombre: nombreUsuario }) : undefined}
+            showInlineLogo={!esPC}
+            onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)}
+          />
+        </View>
+
+        <View style={estilos.contenedorCentrado}>
+          <View style={[estilos.filaBusqueda, { zIndex: 20 }]}>
+            <Animated.View style={[estilos.cajaBusqueda, {
+              borderColor: searchFocusAnim.interpolate({
+                inputRange: [0, 1], outputRange: [Tema.borde, Tema.primario],
+              }),
+              borderWidth: searchFocusAnim.interpolate({
+                inputRange: [0, 1], outputRange: [1, 2],
+              }) as any,
+            }]}>
+              <Image source={require('../../assets/images/busqueda.png')} style={estilos.iconoBusquedaImg} contentFit="contain" />
+              <TextInput
+                style={estilos.inputBusqueda}
+                placeholder={t('menu_buscar')}
+                placeholderTextColor={Tema.textoMuted}
+                value={busqueda}
+                onChangeText={setBusqueda}
+                onFocus={() => Animated.spring(searchFocusAnim, { toValue: 1, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
+                onBlur={() => Animated.spring(searchFocusAnim, { toValue: 0, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
+              />
+              {busqueda.length > 0 && (
+                <TouchableOpacity onPress={() => setBusqueda('')}>
+                  <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={[estilos.botonFiltro, dropdownAbierto && estilos.botonFiltroActivo]}
+                onPress={() => {
+                  Animated.sequence([
+                    Animated.spring(obtenerAnimChip('__filtro__'), { toValue: 0.92, useNativeDriver: true, speed: 60, bounciness: 2 }),
+                    Animated.spring(obtenerAnimChip('__filtro__'), { toValue: 1, useNativeDriver: true, speed: 25, bounciness: 8 }),
+                  ]).start();
+                  const abriendo = !dropdownAbierto;
+                  setDropdownAbierto(abriendo);
+                  if (abriendo) {
+                    dropdownFade.setValue(0);
+                    dropdownSlide.setValue(-8);
+                    Animated.parallel([
+                      Animated.timing(dropdownFade,  { toValue: 1, duration: 180, useNativeDriver: true }),
+                      Animated.spring(dropdownSlide, { toValue: 0, useNativeDriver: true, tension: 70, friction: 12 }),
+                    ]).start();
+                  } else {
+                    Animated.timing(dropdownFade, { toValue: 0, duration: 120, useNativeDriver: true }).start();
+                  }
+                }}
+                activeOpacity={1}
+              >
+                <Image source={require('../../assets/images/filtro.png')} style={estilos.iconoFiltroImg} contentFit="contain" />
+                <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>
+                  {etiquetaOrdenActual}
+                </Text>
+                <Text style={[estilos.chevron, dropdownAbierto && { color: '#fff' }]}>{dropdownAbierto ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              {dropdownAbierto && (
+                <Animated.View style={[estilos.dropdown, { top: 48, right: 0, zIndex: 999 }, {
+                  opacity: dropdownFade,
+                  transform: [{ translateY: dropdownSlide }],
+                }]}>
+                  {OPCIONES_ORDEN.map((op, i) => (
+                    <TouchableOpacity
+                      key={op.clave}
+                      style={[
+                        estilos.filaDropdown,
+                        orden === op.clave && estilos.filaDropdownActiva,
+                        i < OPCIONES_ORDEN.length - 1 && estilos.filaDropdownBorde,
+                      ]}
+                      onPress={() => {
+                        Animated.timing(dropdownFade, { toValue: 0, duration: 100, useNativeDriver: true })
+                          .start(() => { setOrden(op.clave); setDropdownAbierto(false); });
+                      }}
+                    >
+                      <Text style={[estilos.textoDropdown, orden === op.clave && estilos.textoDropdownActivo]}>
+                        {op.etiqueta}
+                      </Text>
+                      {orden === op.clave && <Text style={{ color: Tema.primario, fontSize: 14 }}>✓</Text>}
                     </TouchableOpacity>
-                  );
-                })}
+                  ))}
+                </Animated.View>
+              )}
             </View>
           </View>
+
+          <View style={estilos.listaCategoriasContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={estilos.listaCategorias}
+              bounces={false}
+            >
+              {CATEGORIAS.map((cat) => (
+                <TouchableOpacity
+                  key={cat.clave}
+                  onPress={() => { animarChip(cat.clave); setCategoriaActiva(cat.clave); }}
+                  activeOpacity={1}
+                >
+                  <Animated.View style={[
+                    estilos.chipCategoria,
+                    categoriaActiva === cat.clave && estilos.chipCategoriaActivo,
+                    { transform: [{ scale: obtenerAnimChip(cat.clave) }] },
+                  ]}>
+                    <Text style={[estilos.textoChip, categoriaActiva === cat.clave && estilos.textoChipActivo]}>{cat.etiqueta}</Text>
+                  </Animated.View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <Text style={estilos.contadorResultados}>
+            {estadosFiltrados.length} {estadosFiltrados.length !== 1 ? t('menu_destino_plural') : t('menu_destino_singular')}
+          </Text>
+
+          {dropdownAbierto && (
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 10,
+              }}
+              onPress={() => setDropdownAbierto(false)}
+              activeOpacity={1}
+            />
+          )}
+
+          {cargando ? (
+            <SkeletonLista cantidad={4} />
+          ) : estadosFiltrados.length === 0 ? (
+            <View style={estilos.vacio}>
+              <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
+              <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
+              <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
+                <Text style={estilos.limpiarFiltros}>{t('menu_limpiar')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+              <Animated.View style={{ flex: 1, opacity: resultAnim, transform: [{ translateY: resultSlide }] }}>
+                <AnimatedFlashList
+                  data={estadosFiltrados}
+                  estimatedItemSize={200}
+                  keyExtractor={(item: any) => String(item.id)}
+                  renderItem={renderizarEstado as any}
+                  contentContainerStyle={estilos.contenidoLista}
+                  showsVerticalScrollIndicator={false}
+                />
+              </Animated.View>
+            </Animated.View>
+          )}
         </View>
-      )}
-    </View>
+      </View>
+    );
+  };
+
+  return (
+    <TabChrome esPC={esPC} maxWidth={900} showLogoWhenNoTitle={false}>
+      {renderContenido()}
+    </TabChrome>
   );
 }
 
 const estilos = StyleSheet.create({
-  raiz: { flex: 1, backgroundColor: '#FAF7F0' },
-  imagenMapa: { opacity: 0.15, position: 'absolute', width: '90%', height: '100%', alignSelf: 'center' },
-
-  layoutPC: { flex: 1, flexDirection: 'row' },
-  layoutMovil: { flex: 1, flexDirection: 'column' },
-  areaSeguraPC: { flex: 1 },
-  areaSeguraMovil: { flex: 1 },
-
-  sidebar: {
-    width: 64,
-    backgroundColor: Tema.superficieBlanca,
-    borderRightWidth: 1,
-    borderRightColor: Tema.borde,
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 20,
-    gap: 4,
-  },
-  logoSidebar: { width: 48, height: 48, marginBottom: 6 },
-  separadorSidebar: { width: 40, height: 1, backgroundColor: Tema.borde, marginVertical: 12 },
-  itemSidebar: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  itemSidebarActivo: { backgroundColor: Tema.primarioSuave },
-  iconoSidebar: { width: 28, height: 28 },
-
   encabezado: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -533,17 +618,4 @@ const estilos = StyleSheet.create({
   tituloVacio: { fontSize: 18, fontWeight: '700', color: Tema.texto },
   subtituloVacio: { fontSize: 13, color: Tema.textoMuted },
   limpiarFiltros: { marginTop: 10, color: Tema.acento, fontWeight: '700', fontSize: 14 },
-
-  envolturaBarra: {
-    width: '100%',
-    backgroundColor: Tema.superficieBlanca,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'android' ? 16 : 10,
-    ...sombraBarraInferior,
-  },
-  barraPestanas: { flexDirection: 'row', backgroundColor: 'transparent', width: '100%', maxWidth: 800, alignSelf: 'center' },
-  itemPestana: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
-  etiquetaPestana: { fontSize: 10, color: Tema.textoMuted, marginTop: 2, fontWeight: '500' },
-  etiquetaPestanaActiva: { color: Tema.acento, fontWeight: '700' },
 });

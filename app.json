@@ -7,10 +7,28 @@
     "icon": "./assets/images/logo.png",
     "scheme": "mercursion",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
 
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mercursion.app",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "CFBundleDisplayName": "Mercursión",
+        "LSRequiresIPhoneOS": true,
+        "UIStatusBarStyle": "UIStatusBarStyleDefault",
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UILaunchStoryboardName": "SplashScreen",
+        "UIRequiredDeviceCapabilities": ["armv7"],
+        "UIStatusBarHidden": false,
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
+        "UISupportedInterfaceOrientations~ipad": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+      },
+      "splash": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      }
     },
 
     "android": {
@@ -31,6 +49,14 @@
 
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon":  "./assets/images/logo.png",
+          "color": "#3AB7A5",
+          "sounds": []
+        }
+      ],
       [
         "expo-splash-screen",
         {

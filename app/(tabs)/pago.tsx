@@ -1,51 +1,27 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image,
-  ScrollView, StatusBar, StyleSheet, Text,
+  ActivityIndicator, Alert,
+  ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { sombra } from '../../lib/estilos';
+import { useIdioma } from '../../lib/IdiomaContext';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
 
-const PASOS = ['Reserva', 'Pago', 'Confirmación'];
-
-const IndicadorPasos = ({ actual }: { actual: number }) => (
-  <View style={es.indicadorPasos}>
-    {PASOS.map((paso, i) => {
-      const activo   = i === actual;
-      const completo = i < actual;
-      return (
-        <React.Fragment key={paso}>
-          <View style={es.filaPaso}>
-            <View style={[es.circuloPaso, activo && es.circuloActivo, completo && es.circuloCompleto]}>
-              {completo
-                ? <Text style={es.checkPaso}>✓</Text>
-                : <Text style={[es.numPaso, activo && { color: '#fff' }]}>{i + 1}</Text>}
-            </View>
-            <Text style={[es.etiquetaPaso, activo && es.etiquetaActiva]}>{paso}</Text>
-          </View>
-          {i < PASOS.length - 1 && (
-            <View style={[es.lineaPaso, completo && es.lineaCompleta]} />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </View>
-);
-
-const METODOS = [
-  { id: 'tarjeta', emoji: '💳', label: 'Tarjeta',   sub: 'Crédito o débito' },
-  { id: 'spei',    emoji: '🏦', label: 'SPEI',       sub: 'Transferencia'   },
-  { id: 'oxxo',    emoji: '🏪', label: 'OXXO Pay',   sub: 'Pago en tienda'  },
-];
-
 export default function PagoScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero, email } =
+  const { nombre, paquete, precio, personas, fecha, nombre_viajero, email, telefono, notas } =
     useLocalSearchParams<Record<string, string>>();
+  const { t } = useIdioma();
+  const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
+  const METODOS = [
+    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: t('pago_credito_debito') },
+    { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
+    { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
+  ];
 
   const [metodo, setMetodo]         = useState<MetodoPago>('tarjeta');
   const [numTarjeta, setNum]        = useState('');
@@ -74,7 +50,7 @@ export default function PagoScreen() {
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) {
         setProcesando(false);
-        Alert.alert('Sesión requerida', 'Inicia sesión para completar tu reserva.');
+        Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
         return;
       }
 
@@ -87,12 +63,13 @@ export default function PagoScreen() {
         parseInt(personas ?? '1'),
         parseInt(precio ?? '0'),
         metodo,
-        'confirmada'
+        'confirmada',
+        notas ?? undefined
       );
 
       if (!ok) {
         setProcesando(false);
-        Alert.alert('Error', 'No se pudo guardar la reserva. Verifica tu conexión e intenta de nuevo.');
+        Alert.alert(t('pago_error'), t('pago_error_guardar'));
         return;
       }
 
@@ -108,16 +85,16 @@ export default function PagoScreen() {
         'Reserva confirmada',
         `Tu reserva ${folio} para ${nombre} ha sido confirmada. Fecha: ${fecha}`
       );
-    } catch (e) {
+    } catch {
       setProcesando(false);
-      Alert.alert('Error inesperado', 'Ocurrió un problema al procesar el pago. Intenta de nuevo.');
+      Alert.alert(t('pago_error_inesperado'), t('pago_error_pago'));
       return;
     }
 
     setProcesando(false);
     router.replace({
       pathname: '/(tabs)/confirmacion',
-      params: { nombre, paquete, precio, personas, fecha, nombre_viajero, email, folio, metodo, ref_oxxo: refOxxo },
+      params: { nombre, paquete, precio, personas, fecha, nombre_viajero, email, telefono, notas, folio, metodo, ref_oxxo: refOxxo },
     } as any);
   };
 
@@ -134,44 +111,33 @@ export default function PagoScreen() {
           keyboardType={teclado}
           secureTextEntry={seguro}
           autoCapitalize="characters"
+          underlineColorAndroid="transparent"
         />
       </View>
     </View>
   );
 
   return (
-    <View style={es.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={require('../../assets/images/mapa.png')} style={es.imagenMapa} resizeMode="contain" />
-
-      <SafeAreaView style={es.area}>
-        <View style={es.header}>
-          <TouchableOpacity onPress={() => router.back()} style={es.btnVolver}>
-            <Text style={es.chevron}>‹</Text>
-          </TouchableOpacity>
-          <Image source={require('../../assets/images/logo.png')} style={es.logo} resizeMode="contain" />
-          <View style={{ flex: 1 }}>
-            <Text style={es.titulo}>Método de pago</Text>
-            <Text style={es.subtitulo}>{nombre} · Paquete {paquete}</Text>
-          </View>
-        </View>
-
-        <IndicadorPasos actual={1} />
-
+    <BookingStepLayout
+      currentStep={1}
+      steps={PASOS}
+      title={t('pago_titulo')}
+      subtitle={`${nombre} · ${t('rsv_paquete', { n: paquete ?? '' })}`}
+    >
         <ScrollView contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           <View style={es.tarjetaMonto}>
-            <Text style={es.montoLabel}>Total a pagar</Text>
+            <Text style={es.montoLabel}>{t('pago_total')}</Text>
             <Text style={es.monto}>${parseInt(precio ?? '0').toLocaleString()}<Text style={es.montoMXN}> MXN</Text></Text>
             <View style={es.separadorMonto} />
             <View style={es.filasMonto}>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>Destino</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>Personas</Text><Text style={es.datoPagoValor}>{personas}</Text></View>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>Fecha</Text><Text style={es.datoPagoValor}>{fecha}</Text></View>
+              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_destino')}</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
+              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_personas')}</Text><Text style={es.datoPagoValor}>{personas}</Text></View>
+              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_fecha')}</Text><Text style={es.datoPagoValor}>{fecha}</Text></View>
             </View>
           </View>
 
-          <Text style={es.seccionTitulo}>Selecciona tu método</Text>
+          <Text style={es.seccionTitulo}>{t('pago_selecciona')}</Text>
           <View style={es.filaMetodos}>
             {METODOS.map(m => (
               <TouchableOpacity
@@ -191,25 +157,25 @@ export default function PagoScreen() {
           {metodo === 'tarjeta' && (
             <View style={es.formulario}>
               <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>💳 Datos de la tarjeta</Text>
+                <Text style={es.formularioTitulo}>{t('pago_datos_tarjeta')}</Text>
               </View>
               <View style={es.formularioCuerpo}>
                 <Campo
-                  label="Número de tarjeta"
+                  label={t('pago_num_tarjeta')}
                   valor={numTarjeta}
                   onChange={(v: string) => setNum(formatTarjeta(v))}
                   placeholder="0000 0000 0000 0000"
                   teclado="numeric"
                 />
                 <Campo
-                  label="Titular de la tarjeta"
+                  label={t('pago_titular')}
                   valor={titular}
                   onChange={setTitular}
                   placeholder="NOMBRE APELLIDO"
                 />
                 <View style={es.filaDos}>
                   <View style={{ flex: 1 }}>
-                    <Text style={es.label}>Vencimiento</Text>
+                    <Text style={es.label}>{t('pago_vencimiento')}</Text>
                     <View style={es.cajaInput}>
                       <TextInput
                         style={es.input}
@@ -237,7 +203,7 @@ export default function PagoScreen() {
                   </View>
                 </View>
                 <View style={es.cajaSegura}>
-                  <Text style={es.textoSegura}>🔒  Conexión cifrada SSL · Datos no almacenados</Text>
+                  <Text style={es.textoSegura}>{t('pago_ssl')}</Text>
                 </View>
               </View>
             </View>
@@ -246,17 +212,17 @@ export default function PagoScreen() {
           {metodo === 'spei' && (
             <View style={es.formulario}>
               <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>🏦 Instrucciones SPEI</Text>
+                <Text style={es.formularioTitulo}>{t('pago_spei_titulo')}</Text>
               </View>
               <View style={es.formularioCuerpo}>
-                {['Abre tu aplicación bancaria', 'Realiza una transferencia SPEI a la siguiente CLABE', `Usa como referencia tu correo: ${email}`, 'Presiona "Confirmar" — tu reserva se activa al recibir el pago'].map((txt, i) => (
+                {[t('pago_spei_paso1'), t('pago_spei_paso2'), t('pago_spei_paso3', { email: email ?? '' }), t('pago_spei_paso4')].map((txt, i) => (
                   <View key={i} style={es.filaInstruccion}>
                     <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
                     <Text style={es.instruccionTexto}>{txt}</Text>
                   </View>
                 ))}
                 <View style={es.cajaClabe}>
-                  <Text style={es.clabeLabel}>CLABE interbancaria</Text>
+                  <Text style={es.clabeLabel}>{t('pago_spei_clabe')}</Text>
                   <Text style={es.clabe}>032180000118359719</Text>
                   <Text style={es.clabeLabel}>HSBC · Mexcursion SA de CV</Text>
                 </View>
@@ -267,19 +233,19 @@ export default function PagoScreen() {
           {metodo === 'oxxo' && (
             <View style={es.formulario}>
               <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>🏪 Pago en OXXO</Text>
+                <Text style={es.formularioTitulo}>{t('pago_oxxo_titulo')}</Text>
               </View>
               <View style={es.formularioCuerpo}>
-                {['Acude a cualquier tienda OXXO', 'Indica que realizarás un pago de servicio', 'Proporciona la referencia de pago', 'Guarda tu comprobante y presiona "Confirmar"'].map((txt, i) => (
+                {[t('pago_oxxo_paso1'), t('pago_oxxo_paso2'), t('pago_oxxo_paso3'), t('pago_oxxo_paso4')].map((txt, i) => (
                   <View key={i} style={es.filaInstruccion}>
                     <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
                     <Text style={es.instruccionTexto}>{txt}</Text>
                   </View>
                 ))}
                 <View style={es.cajaClabe}>
-                  <Text style={es.clabeLabel}>Referencia de pago</Text>
+                  <Text style={es.clabeLabel}>{t('pago_oxxo_ref')}</Text>
                   <Text style={es.clabe}>{refOxxo}</Text>
-                  <Text style={es.clabeLabel}>Monto: ${parseInt(precio ?? '0').toLocaleString()} MXN · Vigencia 48 h</Text>
+                  <Text style={es.clabeLabel}>{t('pago_oxxo_monto', { precio: parseInt(precio ?? '0').toLocaleString() })}</Text>
                 </View>
               </View>
             </View>
@@ -294,41 +260,17 @@ export default function PagoScreen() {
             {procesando
               ? <ActivityIndicator color="#fff" />
               : <Text style={es.textoPagar}>
-                  {metodo === 'tarjeta' ? '🔒  Pagar ahora' : '✓  Confirmar reserva'}
+                  {metodo === 'tarjeta' ? t('pago_btn_pagar') : t('pago_btn_confirmar')}
                 </Text>}
           </TouchableOpacity>
 
           <View style={{ height: 20 }} />
         </ScrollView>
-      </SafeAreaView>
-    </View>
+    </BookingStepLayout>
   );
 }
 
 const es = StyleSheet.create({
-  contenedor:         { flex: 1, backgroundColor: '#FAF7F0' },
-  imagenMapa:         { opacity: 0.1, position: 'absolute', width: '90%', height: '100%', alignSelf: 'center' },
-  area:               { flex: 1 },
-
-  header:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee', gap: 8 },
-  btnVolver:          { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  chevron:            { fontSize: 26, color: '#3AB7A5', lineHeight: 30 },
-  logo:               { width: 36, height: 36 },
-  titulo:             { fontSize: 16, fontWeight: '700', color: '#333' },
-  subtitulo:          { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
-
-  indicadorPasos:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  filaPaso:           { alignItems: 'center', gap: 4 },
-  circuloPaso:        { width: 28, height: 28, borderRadius: 14, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
-  circuloActivo:      { backgroundColor: '#3AB7A5' },
-  circuloCompleto:    { backgroundColor: '#3AB7A5' },
-  checkPaso:          { color: '#fff', fontSize: 13, fontWeight: '700' },
-  numPaso:            { fontSize: 12, fontWeight: '700', color: '#aaa' },
-  etiquetaPaso:       { fontSize: 10, color: '#aaa', fontWeight: '500' },
-  etiquetaActiva:     { color: '#3AB7A5', fontWeight: '700' },
-  lineaPaso:          { flex: 1, height: 2, backgroundColor: '#eee', marginHorizontal: 6, marginBottom: 14 },
-  lineaCompleta:      { backgroundColor: '#3AB7A5' },
-
   scroll:             { padding: 16, maxWidth: 700, alignSelf: 'center', width: '100%' },
 
   tarjetaMonto: { 
@@ -364,7 +306,7 @@ const es = StyleSheet.create({
   grupoCampo:         { gap: 6 },
   label:              { fontSize: 13, fontWeight: '600', color: '#555', marginLeft: 4 },
   cajaInput:          { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5', paddingHorizontal: 16, height: 48 },
-  input:              { flex: 1, fontSize: 14, color: '#333' },
+  input:              { flex: 1, fontSize: 14, color: '#333', outlineWidth: 0 },
   filaDos:            { flexDirection: 'row', gap: 12 },
   cajaSegura:         { backgroundColor: '#f0faf9', borderRadius: 12, padding: 12, alignItems: 'center' },
   textoSegura:        { fontSize: 12, color: '#3AB7A5', fontWeight: '500' },

@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, Image, Modal, ScrollView,
-  StyleSheet, Text, TextInput, TouchableOpacity, View
+    ActivityIndicator, Alert, Image, Modal, ScrollView,
+    StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sombra } from '../lib/estilos';
-import { buscarUsuarioPorCorreo, iniciarSesion, obtenerUsuarioActivo } from '../lib/supabase-db';
+import { buscarUsuarioPorCorreo, haySesionActiva, iniciarSesion } from '../lib/supabase-db';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -24,18 +24,11 @@ export default function LoginScreen() {
   const [verificandoSesion, setVerificandoSesion] = useState(true);
 
   useEffect(() => {
-    const revisarSesion = async () => {
-      const u = await obtenerUsuarioActivo();
-      if (u) {
-        router.replace('/(tabs)/menu');
-        return;
-      }
-      setVerificandoSesion(false);
-    };
-    revisarSesion();
+    haySesionActiva().then(activa => {
+      if (activa) router.replace('/(tabs)/menu');
+      else setVerificandoSesion(false);
+    });
   }, []);
-
-  if (verificandoSesion) return null;
 
   const validar = (): boolean => {
     let valido = true;
@@ -74,7 +67,8 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/(tabs)/menu');
+    // Navegar inmediatamente después de login exitoso
+    router.push('/(tabs)/menu');
   };
 
   const handleRecuperar = async () => {
@@ -162,11 +156,14 @@ export default function LoginScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[estilos.boton, cargando && estilos.botonDesactivado]}
+                style={[estilos.boton, (cargando || verificandoSesion) && estilos.botonDesactivado]}
                 onPress={handleLogin}
-                disabled={cargando}
+                disabled={cargando || verificandoSesion}
               >
-                <Text style={estilos.textoBoton}>{cargando ? 'Ingresando...' : 'Continuar'}</Text>
+                {verificandoSesion
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={estilos.textoBoton}>{cargando ? 'Ingresando...' : 'Continuar'}</Text>
+                }
               </TouchableOpacity>
 
               <TouchableOpacity style={estilos.enlace} onPress={() => router.push('/registro')}>

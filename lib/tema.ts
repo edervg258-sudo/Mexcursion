@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 
 export const Tema = {
   fondo: '#FAF7F0',
@@ -59,3 +59,33 @@ export const subtituloAuth = {
   color: Tema.textoMuted,
   lineHeight: 20,
 };
+
+// ── Tema oscuro ────────────────────────────────────────────────────────────
+export const TemaOscuro = {
+  fondo:            '#0F1A18',
+  superficie:       '#1A2B28',
+  superficieBlanca: '#1E2E2B',
+  inputFondo:       '#1E2E2B',
+
+  primario:         '#3AB7A5',
+  primarioSuave:    '#1A3530',
+  primarioOscuro:   '#4ECFBD',
+
+  acento:           '#FF5240',
+  acentoOscuro:     '#CC4033',
+
+  texto:            '#F0EDE8',
+  textoSecundario:  '#A8A49E',
+  textoMuted:       '#6E6A64',
+
+  borde:            '#2A3D3A',
+  bordeInput:       '#2E4E49',
+
+  error:            '#FF5240',
+  mapaOverlay:      0.18,
+} as const;
+
+export function useTema() {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? TemaOscuro : Tema;
+}

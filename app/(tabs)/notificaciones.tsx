@@ -1,13 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { router, usePathname } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image,
-  StatusBar,
+  ActivityIndicator, FlatList,
   StyleSheet, Text, TouchableOpacity, View, useWindowDimensions
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PESTANAS } from '../../lib/constantes';
+import { SkeletonFilas } from './skeletonloader';
+import { TabChrome } from '../../components/TabChrome';
+import { useIdioma } from '../../lib/IdiomaContext';
+import { type TraduccionClave } from '../../lib/traducciones';
 import {
   cargarNotificaciones,
   marcarNotificacionLeida,
@@ -28,44 +29,59 @@ const COLOR: Record<string, string> = {
   reserva: '#3AB7A5', oferta: '#DD331D', sistema: '#888', resena: '#e9c46a',
 };
 
-function formatearFecha(iso: string): string {
+function formatearFecha(
+  iso: string,
+  t: (k: TraduccionClave, v?: Record<string, string | number>) => string
+): string {
   try {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1)  return 'Ahora mismo';
-    if (mins < 60) return `Hace ${mins} min`;
+    if (mins < 1)  return t('notif_ahora');
+    if (mins < 60) return t('notif_hace_min', { n: mins });
     const horas = Math.floor(mins / 60);
-    if (horas < 24) return `Hace ${horas} hora${horas > 1 ? 's' : ''}`;
+    if (horas < 24) return horas === 1 ? t('notif_hace_h_s', { n: horas }) : t('notif_hace_h_p', { n: horas });
     const dias = Math.floor(horas / 24);
-    if (dias === 1) return 'Ayer';
-    if (dias < 7)   return `Hace ${dias} días`;
-    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    if (dias === 1) return t('notif_ayer');
+    if (dias < 7)   return t('notif_hace_d', { n: dias });
+    return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   } catch { return ''; }
 }
 
+const LIMITE = 20;
+
 export default function NotificacionesScreen() {
-  const rutaActual            = usePathname();
   const { width }             = useWindowDimensions();
   const esPC                  = width >= 768;
+  const { t }                 = useIdioma();
   const [notifs, setNotifs]     = useState<Notif[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [hayMas, setHayMas]     = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [filtro, setFiltro]     = useState<'todas' | 'no_leidas'>('todas');
-
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
-  const estaActiva = (ruta: string) => rutaActual.endsWith(ruta.replace('/(tabs)', ''));
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
-      if (!usuario) { router.replace('/login'); return; }
+      if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
-      setNotifs(await cargarNotificaciones(usuario.id));
+      const nuevas = await cargarNotificaciones(usuario.id, LIMITE, 0);
+      setNotifs(nuevas);
+      setHayMas(nuevas.length === LIMITE);
       setCargando(false);
     };
     cargar();
   }, []));
+
+  const cargarMas = async () => {
+    if (!usuarioId || cargandoMas) return;
+    setCargandoMas(true);
+    const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
+    setNotifs(prev => [...prev, ...mas]);
+    setHayMas(mas.length === LIMITE);
+    setCargandoMas(false);
+  };
 
   const noLeidas = notifs.filter(n => !n.leida).length;
   const visibles = filtro === 'no_leidas' ? notifs.filter(n => !n.leida) : notifs;
@@ -95,96 +111,77 @@ export default function NotificacionesScreen() {
           {!item.leida && <View style={[s.puntito, { backgroundColor: COLOR[item.tipo] ?? '#888' }]} />}
         </View>
         <Text style={s.itemMensaje} numberOfLines={2}>{item.mensaje}</Text>
-        <Text style={s.itemFecha}>{formatearFecha(item.creado_en)}</Text>
+        <Text style={s.itemFecha}>{formatearFecha(item.creado_en, t)}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  const Sidebar = () => (
-    <View style={s.sidebar}>
-      <Image source={require('../../assets/images/logo.png')} style={s.logoSidebar} resizeMode="contain" />
-      <View style={s.separadorSidebar} />
-      {PESTANAS.map(p => {
-        const activa = estaActiva(p.ruta);
-        return (
-          <TouchableOpacity key={p.ruta} style={[s.itemSidebar, activa && s.itemSidebarActivo]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
-            <Image source={activa ? p.iconoRojo : p.iconoGris} style={s.iconoSidebar} resizeMode="contain" />
-          </TouchableOpacity>
-        );
-      })}
-      <View style={{ flex: 1 }} />
-    </View>
-  );
-
   const contenido = (
     <>
-      <View style={s.header}>
-        <TouchableOpacity style={s.btnAtras} onPress={() => router.back()}>
-          <Text style={s.txtAtras}>←</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.titulo}>Notificaciones</Text>
-          {noLeidas > 0 && <Text style={s.subtitulo}>{noLeidas} sin leer</Text>}
-        </View>
-        {noLeidas > 0 && (
-          <TouchableOpacity onPress={marcarTodas} style={s.btnMarcar}>
-            <Text style={s.txtMarcar}>Marcar todas</Text>
-          </TouchableOpacity>
-        )}
+      <View style={s.subheader}>
+        {noLeidas > 0 && <Text style={s.subtitulo}>{t('notif_sin_leer', { n: noLeidas })}</Text>}
       </View>
       <View style={s.filtros}>
         {(['todas', 'no_leidas'] as const).map(f => (
           <TouchableOpacity key={f} style={[s.chipFiltro, filtro === f && s.chipFiltroActivo]} onPress={() => setFiltro(f)}>
             <Text style={[s.txtChip, filtro === f && s.txtChipActivo]}>
-              {f === 'todas' ? 'Todas' : `Sin leer${noLeidas > 0 ? ` (${noLeidas})` : ''}`}
+              {f === 'todas' ? t('notif_todas') : `${t('notif_no_leidas')}${noLeidas > 0 ? ` (${noLeidas})` : ''}`}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
       {cargando ? (
-        <View style={s.vacio}><ActivityIndicator size="large" color="#3AB7A5" /></View>
+        <SkeletonFilas cantidad={6} />
       ) : visibles.length === 0 ? (
         <View style={s.vacio}>
           <Text style={s.vacioemoji}>🔔</Text>
-          <Text style={s.vacioTitulo}>Sin notificaciones</Text>
-          <Text style={s.vacioSub}>{filtro === 'no_leidas' ? 'Todas están leídas' : 'No tienes notificaciones aún'}</Text>
+          <Text style={s.vacioTitulo}>{t('notif_vacio')}</Text>
+          <Text style={s.vacioSub}>{filtro === 'no_leidas' ? t('notif_leidas_sub') : t('notif_vacio_sub')}</Text>
         </View>
       ) : (
-        <FlatList data={visibles} keyExtractor={n => String(n.id)} renderItem={renderItem} contentContainerStyle={s.lista} showsVerticalScrollIndicator={false} ItemSeparatorComponent={() => <View style={s.separador} />} />
+        <FlatList
+          data={visibles}
+          keyExtractor={n => String(n.id)}
+          renderItem={renderItem}
+          contentContainerStyle={s.lista}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={s.separador} />}
+          ListFooterComponent={hayMas && filtro === 'todas' ? (
+            <TouchableOpacity style={s.btnCargarMas} onPress={cargarMas} disabled={cargandoMas} activeOpacity={0.8}>
+              {cargandoMas
+                ? <ActivityIndicator size="small" color="#3AB7A5" />
+                : <Text style={s.txtCargarMas}>{t('notif_cargar_mas')}</Text>}
+            </TouchableOpacity>
+          ) : null}
+        />
       )}
     </>
   );
 
   return (
-    <View style={s.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      {esPC ? (
-        <View style={s.layoutPC}>
-          <Sidebar />
-          <SafeAreaView style={s.seguraPC}>{contenido}</SafeAreaView>
-        </View>
-      ) : (
-        <SafeAreaView style={s.segura}>{contenido}</SafeAreaView>
-      )}
-    </View>
+    <TabChrome
+      esPC={esPC}
+      title={t('notif_titulo')}
+      onBack={() => router.back()}
+      maxWidth={720}
+      headerRight={
+        noLeidas > 0 ? (
+          <TouchableOpacity onPress={marcarTodas} style={s.btnMarcar}>
+            <Text style={s.txtMarcar}>{t('notif_marcar_todas')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={s.headerSpacer} />
+        )
+      }
+    >
+      {contenido}
+    </TabChrome>
   );
 }
 
 const s = StyleSheet.create({
-  contenedor:      { flex: 1, backgroundColor: '#FAF7F0' },
-  layoutPC:        { flex: 1, flexDirection: 'row' },
-  segura:          { flex: 1 },
-  seguraPC:        { flex: 1 },
-  sidebar:         { width: 64, backgroundColor: '#fff', borderRightWidth: 1, borderRightColor: '#e8e8e8', alignItems: 'center', paddingTop: 16, paddingBottom: 20, gap: 4 },
-  logoSidebar:     { width: 48, height: 48, marginBottom: 6 },
-  separadorSidebar:{ width: 40, height: 1, backgroundColor: '#eee', marginVertical: 12 },
-  itemSidebar:     { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  itemSidebarActivo:{ backgroundColor: '#f0faf9' },
-  iconoSidebar:    { width: 28, height: 28 },
-  header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: '#fff', gap: 12 },
-  btnAtras:        { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  txtAtras:        { fontSize: 20, color: '#333' },
-  titulo:          { fontSize: 17, fontWeight: '700', color: '#333' },
+  headerSpacer:    { width: 38, height: 38 },
+  subheader:       { paddingHorizontal: 16, paddingBottom: 8, width: '100%', maxWidth: 720, alignSelf: 'center' },
   subtitulo:       { fontSize: 12, color: '#3AB7A5', fontWeight: '600' },
   btnMarcar:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtMarcar:       { fontSize: 12, color: '#3AB7A5', fontWeight: '600' },
@@ -204,6 +201,8 @@ const s = StyleSheet.create({
   puntito:         { width: 8, height: 8, borderRadius: 4 },
   itemMensaje:     { fontSize: 13, color: '#888', lineHeight: 18 },
   itemFecha:       { fontSize: 11, color: '#bbb' },
+  btnCargarMas:    { marginHorizontal: 16, marginTop: 8, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
+  txtCargarMas:    { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },
   vacio:           { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   vacioemoji:      { fontSize: 52 },
   vacioTitulo:     { fontSize: 18, fontWeight: '700', color: '#333' },

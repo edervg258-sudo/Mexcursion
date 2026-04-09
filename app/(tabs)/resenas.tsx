@@ -1,13 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { router, useLocalSearchParams, usePathname } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Platform,
-  StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
+  FlatList,
+  StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PESTANAS } from '../../lib/constantes';
+import { Estrellas } from '../../components/Estrellas';
+import { TabChrome } from '../../components/TabChrome';
+import { useIdioma } from '../../lib/IdiomaContext';
 import { cargarResenas, guardarResena, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { SkeletonFilas } from './skeletonloader';
 
 type ResenaDB = {
   id: number; usuario_id: number; destino: string;
@@ -22,9 +24,9 @@ function formatearMes(iso: string): string {
 
 export default function ResenasScreen() {
   const { nombre }        = useLocalSearchParams<{ nombre?: string }>();
-  const rutaActual        = usePathname();
   const { width }         = useWindowDimensions();
   const esPC              = width >= 768;
+  const { t } = useIdioma();
 
   const [resenas, setResenas]         = useState<ResenaDB[]>([]);
   const [cargando, setCargando]       = useState(true);
@@ -33,9 +35,6 @@ export default function ResenasScreen() {
   const [miTexto, setMiTexto]         = useState('');
   const [enviando, setEnviando]       = useState(false);
   const [enviado, setEnviado]         = useState(false);
-
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
-  const estaActiva = (ruta: string) => rutaActual.endsWith(ruta.replace('/(tabs)', ''));
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
@@ -67,18 +66,6 @@ export default function ResenasScreen() {
     }
   };
 
-  const Estrellas = ({ valor, tamaño = 18, seleccionable = false, onSelect }: {
-    valor: number; tamaño?: number; seleccionable?: boolean; onSelect?: (n: number) => void;
-  }) => (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
-      {[1,2,3,4,5].map(n => (
-        <TouchableOpacity key={n} disabled={!seleccionable} onPress={() => onSelect?.(n)} activeOpacity={0.7}>
-          <Text style={{ fontSize: tamaño, color: n <= valor ? '#f5a623' : '#ddd' }}>★</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
   const renderResena = ({ item }: { item: ResenaDB }) => (
     <View style={es.tarjeta}>
       <View style={es.headerResena}>
@@ -95,37 +82,15 @@ export default function ResenasScreen() {
     </View>
   );
 
-  const Sidebar = () => (
-    <View style={es.sidebar}>
-      <Image source={require('../../assets/images/logo.png')} style={es.logoSidebar} resizeMode="contain" />
-      <View style={es.separadorSidebar} />
-      {PESTANAS.map(p => {
-        const activa = estaActiva(p.ruta);
-        return (
-          <TouchableOpacity key={p.ruta} style={[es.itemSidebar, activa && es.itemSidebarActivo]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
-            <Image source={activa ? p.iconoRojo : p.iconoGris} style={es.iconoSidebar} resizeMode="contain" />
-          </TouchableOpacity>
-        );
-      })}
-      <View style={{ flex: 1 }} />
-    </View>
-  );
-
   const contenidoInterno = (
     <>
-      <View style={es.header}>
-        <TouchableOpacity onPress={() => router.back()} style={es.btnVolver}>
-          <Text style={es.chevron}>‹</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={es.titulo}>Reseñas</Text>
-          {nombre ? <Text style={es.subtitulo}>{nombre}</Text> : null}
+      {nombre ? (
+        <View style={es.subheader}>
+          <Text style={es.subtitulo}>{nombre}</Text>
         </View>
-      </View>
+      ) : null}
       {cargando ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <ActivityIndicator size="large" color="#3AB7A5" />
-        </View>
+        <SkeletonFilas cantidad={4} />
       ) : (
         <FlatList
           data={resenas}
@@ -133,13 +98,13 @@ export default function ResenasScreen() {
           renderItem={renderResena}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={es.lista}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#aaa', marginTop: 12 }}>Aún no hay reseñas. ¡Sé el primero!</Text>}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#aaa', marginTop: 12 }}>{t('rsn_sin_resenas')}</Text>}
           ListHeaderComponent={() => (
             <>
               <View style={es.resumen}>
                 <Text style={es.promedioNum}>{promedio}</Text>
                 <Estrellas valor={Math.round(parseFloat(promedio))} tamaño={24} />
-                <Text style={es.totalResenas}>{resenas.length} reseña{resenas.length !== 1 ? 's' : ''} verificada{resenas.length !== 1 ? 's' : ''}</Text>
+                <Text style={es.totalResenas}>{resenas.length} {resenas.length !== 1 ? t('rsn_verificada_plural') : t('rsn_verificada_singular')}</Text>
                 {[5,4,3,2,1].map(n => {
                   const count = resenas.filter(r => r.calificacion === n).length;
                   const pct = resenas.length > 0 ? (count / resenas.length) * 100 : 0;
@@ -153,18 +118,18 @@ export default function ResenasScreen() {
                 })}
               </View>
               <View style={es.formulario}>
-                <Text style={es.formTitulo}>Deja tu reseña</Text>
+                <Text style={es.formTitulo}>{t('rsn_deja_resena')}</Text>
                 <Estrellas valor={miEstrellas} tamaño={32} seleccionable onSelect={setMiEstrellas} />
-                <TextInput style={es.inputResena} value={miTexto} onChangeText={setMiTexto} placeholder="Cuéntanos tu experiencia..." placeholderTextColor="#bbb" multiline numberOfLines={3} textAlignVertical="top" />
+                <TextInput style={es.inputResena} value={miTexto} onChangeText={setMiTexto} placeholder={t('rsn_placeholder')} placeholderTextColor="#bbb" multiline numberOfLines={3} textAlignVertical="top" />
                 {enviado ? (
-                  <View style={es.enviado}><Text style={es.textoEnviado}>✓ ¡Gracias por tu reseña!</Text></View>
+                  <View style={es.enviado}><Text style={es.textoEnviado}>{t('rsn_gracias')}</Text></View>
                 ) : (
                   <TouchableOpacity style={[es.btnEnviar, (miEstrellas === 0 || !miTexto.trim() || enviando) && { opacity: 0.5 }]} onPress={enviarResena} disabled={miEstrellas === 0 || !miTexto.trim() || enviando}>
-                    <Text style={es.textoEnviar}>{enviando ? 'Publicando...' : 'Publicar reseña'}</Text>
+                    <Text style={es.textoEnviar}>{enviando ? t('rsn_publicando') : t('rsn_publicar')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <Text style={es.seccion}>Reseñas de viajeros</Text>
+              <Text style={es.seccion}>{t('rsn_de_viajeros')}</Text>
             </>
           )}
         />
@@ -173,52 +138,22 @@ export default function ResenasScreen() {
   );
 
   return (
-    <View style={es.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      {esPC ? (
-        <View style={es.layoutPC}>
-          <Sidebar />
-          <SafeAreaView style={es.areaPC}>{contenidoInterno}</SafeAreaView>
-        </View>
-      ) : (
-        <View style={es.layoutMovil}>
-          <SafeAreaView style={es.area}>{contenidoInterno}</SafeAreaView>
-          <View style={es.envolturaBarra}>
-            <View style={es.barraPestanas}>
-              {PESTANAS.map(p => {
-                const activa = estaActiva(p.ruta);
-                return (
-                  <TouchableOpacity key={p.ruta} style={es.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
-                    <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                    <Text style={[es.etiquetaPestana, activa && es.etiquetaPestanaActiva]}>{p.etiqueta}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
+    <TabChrome
+      esPC={esPC}
+      title={t('rsn_titulo')}
+      onBack={() => router.replace('/(tabs)/perfil' as any)}
+      headerRight={<View style={es.headerSpacer} />}
+      maxWidth={700}
+    >
+      {contenidoInterno}
+    </TabChrome>
   );
 
 }
 
 const es = StyleSheet.create({
-  contenedor:          { flex: 1, backgroundColor: '#FAF7F0' },
-  layoutPC:            { flex: 1, flexDirection: 'row' },
-  layoutMovil:         { flex: 1, flexDirection: 'column' },
-  area:                { flex: 1 },
-  areaPC:              { flex: 1 },
-  sidebar:             { width: 64, backgroundColor: '#fff', borderRightWidth: 1, borderRightColor: '#e8e8e8', alignItems: 'center', paddingTop: 16, paddingBottom: 20, gap: 4 },
-  logoSidebar:         { width: 48, height: 48, marginBottom: 6 },
-  separadorSidebar:    { width: 40, height: 1, backgroundColor: '#eee', marginVertical: 12 },
-  itemSidebar:         { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  itemSidebarActivo:   { backgroundColor: '#f0faf9' },
-  iconoSidebar:        { width: 28, height: 28 },
-  header:              { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: '#fff' },
-  btnVolver:           { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  chevron:             { fontSize: 32, color: '#3AB7A5', lineHeight: 36 },
-  titulo:              { fontSize: 17, fontWeight: '700', color: '#333' },
+  headerSpacer:        { width: 38, height: 38 },
+  subheader:           { paddingHorizontal: 16, paddingBottom: 10, width: '100%' },
   subtitulo:           { fontSize: 12, color: '#888' },
   lista:               { padding: 16, gap: 12, maxWidth: 700, alignSelf: 'center', width: '100%', paddingBottom: 20 },
   resumen:             { backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', gap: 6, marginBottom: 16, elevation: 2, borderWidth: 1, borderColor: '#eee' },
@@ -244,9 +179,4 @@ const es = StyleSheet.create({
   usuario:             { fontSize: 14, fontWeight: '700', color: '#333' },
   fecha:               { fontSize: 11, color: '#aaa' },
   textoResena:         { fontSize: 13, color: '#555', lineHeight: 20 },
-  envolturaBarra:      { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingBottom: Platform.OS === 'android' ? 16 : 8 },
-  barraPestanas:       { flexDirection: 'row', maxWidth: 800, alignSelf: 'center', width: '100%' },
-  itemPestana:         { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
-  etiquetaPestana:     { fontSize: 10, color: '#999', marginTop: 2 },
-  etiquetaPestanaActiva: { color: '#DD331D', fontWeight: '600' },
 });

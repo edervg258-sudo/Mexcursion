@@ -44,9 +44,6 @@ export async function registrarUsuario(
       return { exito: false, error: 'Ingresa un correo electrónico válido.' };
     }
 
-    // DEBUG: ver payload (elimina o desactiva en producción)
-    console.log('signup payload', { email, passwordLength: contrasena?.length, nombre, nombre_usuario, telefono });
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password: contrasena,
@@ -60,7 +57,9 @@ export async function registrarUsuario(
       return { exito: false, error: error.message };
     }
 
-    if (data?.user && data?.session) {
+    // Guardamos el perfil si hay usuario (con o sin sesión activa)
+    // Sin sesión = email pendiente de confirmación, pero el row se crea igualmente
+    if (data?.user) {
       await supabase.from('usuarios').insert({
         id: data.user.id,
         email,
@@ -72,7 +71,8 @@ export async function registrarUsuario(
         tipo: 'normal',
         activo: 1,
       });
-      return { exito: true };
+      if (data.session) return { exito: true };
+      return { exito: true, confirmar: true };
     }
 
     return { exito: true, confirmar: true };
@@ -87,80 +87,129 @@ export async function iniciarSesion(
   contrasena: string
 ): Promise<{ exito: boolean; usuario?: Usuario; error?: string }> {
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: correo,
       password: contrasena,
     });
 
-    if (error) return { exito: false, error: 'Correo o contraseña incorrectos.' };
+    if (error) {
+      console.log('❌ Error de login:', error.message);
+      
+      // Manejar específicamente errores de refresh token
+      if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
+        return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
+      }
+      
+      return { exito: false, error: 'Correo o contraseña incorrectos.' };
+    }
 
+    console.log('✅ Login exitoso para:', correo);
+    
+    // Obtener usuario activo inmediatamente
     const usuario = await obtenerUsuarioActivo();
+    
     return { exito: true, usuario: usuario ?? undefined };
-  } catch {
+  } catch (error) {
+    console.log('❌ Error inesperado en login:', error);
     return { exito: false, error: 'Error al iniciar sesión.' };
   }
 }
 
 export async function cerrarSesion(): Promise<void> {
-  try { await supabase.auth.signOut(); } catch {}
+  _sessionCache = null; // invalidar caché al cerrar sesión
+  try { await supabase.auth.signOut(); } catch (err) { console.error('cerrarSesion error:', err); }
 }
 
-export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
+// ── Verificación rápida — solo auth, sin query a BD (para routing inicial) ─
+export async function haySesionActiva(): Promise<boolean> {
   try {
-    // getSession() es local (sin red) — mucho más rápido y fiable en mobile
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return null;
-    const user = session.user;
-
-    const { data } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    // Si el perfil no existe todavía, lo creamos con los datos de auth metadata
-    if (!data) {
-      await supabase.from('usuarios').insert({
-        id: user.id,
-        email: user.email ?? '',
-        nombre: user.user_metadata?.nombre ?? null,
-        nombre_usuario: user.user_metadata?.nombre_usuario ?? null,
-        idioma: 'es',
-        notificaciones: 1,
-        tipo: 'normal',
-        activo: 1,
-      });
-      return {
-        id: user.id,
-        nombre: user.user_metadata?.nombre ?? null,
-        nombre_usuario: user.user_metadata?.nombre_usuario ?? null,
-        correo: user.email ?? '',
-        telefono: null,
-        idioma: 'es',
-        notificaciones: 1,
-        tipo: 'normal',
-        activo: 1,
-        foto_url: null,
-      };
-    }
-
-    return {
-      id: data.id,
-      nombre: data.nombre ?? null,
-      nombre_usuario: data.nombre_usuario ?? null,
-      correo: data.email ?? user.email ?? '',
-      telefono: data.telefono ?? null,
-      idioma: data.idioma ?? 'es',
-      notificaciones: data.notificaciones ?? 1,
-      tipo: data.tipo ?? 'normal',
-      activo: data.activo ?? 1,
-      foto_url: data.foto_url ?? null,
-    };
+    return !!session?.user;
   } catch {
-    return null;
+    return false;
   }
 }
 
+// ── Caché de sesión — evita llamar getSession() en cada useFocusEffect ────
+let _sessionCache: { usuario: Usuario | null; ts: number } | null = null;
+const SESSION_TTL = 30_000; // 30 segundos
+
+export function invalidarSesionCache() {
+  _sessionCache = null;
+}
+
+export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
+  // Devolver caché si aún es válido
+  if (_sessionCache && Date.now() - _sessionCache.ts < SESSION_TTL) {
+    return _sessionCache.usuario;
+  }
+
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error) {
+      if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
+        await supabase.auth.signOut();
+      }
+      return null; // no cachear errores
+    }
+
+    if (!session?.user) {
+      return null; // no cachear ausencia de sesión — puede ser timing de AsyncStorage
+    }
+
+    const user = session.user;
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (dbError) console.error('obtenerUsuarioActivo BD error:', dbError.message);
+
+      if (data) {
+        const usuario: Usuario = {
+          id: data.id,
+          nombre: data.nombre ?? null,
+          nombre_usuario: data.nombre_usuario ?? null,
+          correo: data.email ?? user.email ?? '',
+          telefono: data.telefono ?? null,
+          idioma: data.idioma ?? 'es',
+          notificaciones: data.notificaciones ?? 1,
+          tipo: data.tipo ?? 'normal',
+          activo: data.activo ?? 1,
+          foto_url: data.foto_url ?? null,
+        };
+        _sessionCache = { usuario, ts: Date.now() };
+        return usuario;
+      }
+    } catch (e) {
+      console.error('obtenerUsuarioActivo perfil error:', e);
+    }
+
+    // fallback si no hay datos en BD
+    const fallback: Usuario = {
+      id: user.id,
+      nombre: null,
+      nombre_usuario: null,
+      correo: user.email ?? '',
+      telefono: null,
+      idioma: 'es',
+      notificaciones: 1,
+      tipo: 'normal',
+      activo: 1,
+      foto_url: null,
+    };
+    _sessionCache = { usuario: fallback, ts: Date.now() };
+    return fallback;
+
+  } catch (e) {
+    console.error('obtenerUsuarioActivo error:', e);
+    return null;
+  }
+}
 export async function buscarUsuarioPorCorreo(correo: string): Promise<any | null> {
   try {
     // Supabase no permite consultar la tabla usuarios sin sesión activa (RLS).
@@ -171,7 +220,8 @@ export async function buscarUsuarioPorCorreo(correo: string): Promise<any | null
     });
     // Devolvemos un objeto truthy si no hay error (correo registrado)
     return error ? null : { email: correo };
-  } catch {
+  } catch (err) {
+    console.error('buscarUsuarioPorCorreo error:', err);
     return null;
   }
 }
@@ -185,7 +235,8 @@ export async function resetContrasena(
     const { error } = await supabase.auth.updateUser({ password: nueva_contrasena });
     if (error) return { exito: false, error: 'Error al restablecer contraseña.' };
     return { exito: true };
-  } catch {
+  } catch (err) {
+    console.error('resetContrasena error:', err);
     return { exito: false, error: 'Error al restablecer contraseña.' };
   }
 }
@@ -202,8 +253,10 @@ export async function actualizarPerfil(
 
     const { error } = await supabase.from('usuarios').update(update).eq('id', usuario_id);
     if (error) return { exito: false, error: 'Error al actualizar perfil.' };
+    invalidarSesionCache(); // forzar recarga del perfil
     return { exito: true };
-  } catch {
+  } catch (err) {
+    console.error('actualizarPerfil error:', err);
     return { exito: false, error: 'Error al actualizar perfil.' };
   }
 }
@@ -217,7 +270,8 @@ export async function actualizarPreferencias(
     if (campos.idioma          !== undefined) update.idioma          = campos.idioma;
     if (campos.notificaciones  !== undefined) update.notificaciones  = campos.notificaciones;
     await supabase.from('usuarios').update(update).eq('id', usuario_id);
-  } catch {}
+    invalidarSesionCache();
+  } catch (err) { console.error('actualizarPreferencias error:', err); }
 }
 
 export async function cambiarContrasena(
@@ -239,7 +293,8 @@ export async function cambiarContrasena(
     const { error } = await supabase.auth.updateUser({ password: contrasena_nueva });
     if (error) return { exito: false, error: 'Error al cambiar contraseña.' };
     return { exito: true };
-  } catch {
+  } catch (err) {
+    console.error('cambiarContrasena error:', err);
     return { exito: false, error: 'Error al cambiar contraseña.' };
   }
 }
@@ -256,7 +311,8 @@ export async function cargarFavoritos(usuarioId: string): Promise<number[]> {
       .eq('usuario_id', usuarioId);
     if (error) return [];
     return data?.map((f: any) => f.estado_id) ?? [];
-  } catch {
+  } catch (err) {
+    console.error('cargarFavoritos error:', err);
     return [];
   }
 }
@@ -282,7 +338,8 @@ export async function alternarFavorito(usuarioId: string, estadoId: number): Pro
         .insert({ usuario_id: usuarioId, estado_id: estadoId });
     }
     return cargarFavoritos(usuarioId);
-  } catch {
+  } catch (err) {
+    console.error('alternarFavorito error:', err);
     return [];
   }
 }
@@ -293,103 +350,91 @@ export async function alternarFavorito(usuarioId: string, estadoId: number): Pro
 
 export async function obtenerItinerarios(usuario_id: string): Promise<Itinerario[]> {
   try {
-    const { data: itinerarios, error } = await supabase
+    // Una sola query con join — antes era N+1 (1 query por itinerario)
+    const { data, error } = await supabase
       .from('itinerarios')
-      .select('id, usuario_id, nombre')
+      .select('id, usuario_id, nombre, itinerario_items(clave_paquete, orden_visita)')
       .eq('usuario_id', usuario_id)
       .order('id', { ascending: false });
 
-    if (error || !itinerarios) return [];
+    if (error || !data) return [];
 
-    for (const iti of itinerarios as any[]) {
-      const { data: items } = await supabase
-        .from('itinerario_items')
-        .select('clave_paquete')
-        .eq('itinerario_id', iti.id)
-        .order('orden_visita', { ascending: true });
-      iti.items = items?.map((i: any) => i.clave_paquete) ?? [];
-    }
-
-    return itinerarios as Itinerario[];
-  } catch {
+    return data.map((iti: any) => ({
+      id: iti.id,
+      usuario_id: iti.usuario_id,
+      nombre: iti.nombre,
+      items: (iti.itinerario_items ?? [])
+        .sort((a: any, b: any) => a.orden_visita - b.orden_visita)
+        .map((i: any) => i.clave_paquete),
+    }));
+  } catch (err) {
+    console.error('obtenerItinerarios error:', err);
     return [];
   }
 }
 
-export async function crearItinerario(usuario_id: string, nombre: string): Promise<Itinerario[]> {
-  try {
-    await supabase.from('itinerarios').insert({ usuario_id, nombre });
-    return obtenerItinerarios(usuario_id);
-  } catch {
-    return [];
-  }
-}
+// ── Helper: cualquier mutación + refresco automático de la lista
+const mutarItinerarios = async (usuario_id: string, fn: () => any): Promise<Itinerario[]> => {
+  try { await fn(); return obtenerItinerarios(usuario_id); }
+  catch (err) { console.error('mutarItinerarios error:', err); return []; }
+};
 
-export async function eliminarItinerario(usuario_id: string, itinerario_id: number): Promise<Itinerario[]> {
-  try {
+export const crearItinerario = (usuario_id: string, nombre: string) =>
+  mutarItinerarios(usuario_id, () =>
+    supabase.from('itinerarios').insert({ usuario_id, nombre }));
+
+export const renombrarItinerario = (usuario_id: string, itinerario_id: number, nuevo_nombre: string) =>
+  mutarItinerarios(usuario_id, () =>
+    supabase.from('itinerarios').update({ nombre: nuevo_nombre }).eq('id', itinerario_id).eq('usuario_id', usuario_id));
+
+export const eliminarItinerario = (usuario_id: string, itinerario_id: number) =>
+  mutarItinerarios(usuario_id, async () => {
     await supabase.from('itinerario_items').delete().eq('itinerario_id', itinerario_id);
     await supabase.from('itinerarios').delete().eq('id', itinerario_id).eq('usuario_id', usuario_id);
-    return obtenerItinerarios(usuario_id);
-  } catch {
-    return [];
-  }
-}
+  });
 
-export async function alternarDestinoItinerario(
-  usuario_id: string,
-  itinerario_id: number,
-  clave_paquete: string
-): Promise<Itinerario[]> {
-  try {
+export const alternarDestinoItinerario = (usuario_id: string, itinerario_id: number, clave_paquete: string) =>
+  mutarItinerarios(usuario_id, async () => {
     const { data: existente } = await supabase
-      .from('itinerario_items')
-      .select('id')
-      .eq('itinerario_id', itinerario_id)
-      .eq('clave_paquete', clave_paquete)
-      .maybeSingle();
-
+      .from('itinerario_items').select('id')
+      .eq('itinerario_id', itinerario_id).eq('clave_paquete', clave_paquete).maybeSingle();
     if (existente) {
       await supabase.from('itinerario_items').delete().eq('id', existente.id);
     } else {
       const { data: maxRow } = await supabase
-        .from('itinerario_items')
-        .select('orden_visita')
-        .eq('itinerario_id', itinerario_id)
-        .order('orden_visita', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+        .from('itinerario_items').select('orden_visita')
+        .eq('itinerario_id', itinerario_id).order('orden_visita', { ascending: false }).limit(1).maybeSingle();
       await supabase.from('itinerario_items').insert({
-        itinerario_id,
-        clave_paquete,
+        itinerario_id, clave_paquete,
         orden_visita: (maxRow?.orden_visita ?? 0) + 1,
       });
     }
+  });
 
-    return obtenerItinerarios(usuario_id);
-  } catch {
-    return [];
-  }
-}
+export const reordenarItinerarioItems = (usuario_id: string, itinerario_id: number, claves_ordenadas: string[]) =>
+  mutarItinerarios(usuario_id, () =>
+    Promise.all(claves_ordenadas.map((clave, i) =>
+      supabase.from('itinerario_items').update({ orden_visita: i + 1 })
+        .eq('itinerario_id', itinerario_id).eq('clave_paquete', clave)
+    )));
 
-export async function reordenarItinerarioItems(
-  usuario_id: string,
-  itinerario_id: number,
-  claves_ordenadas: string[]
-): Promise<Itinerario[]> {
-  try {
-    for (let i = 0; i < claves_ordenadas.length; i++) {
-      await supabase
-        .from('itinerario_items')
-        .update({ orden_visita: i + 1 })
-        .eq('itinerario_id', itinerario_id)
-        .eq('clave_paquete', claves_ordenadas[i]);
+export const duplicarItinerario = (usuario_id: string, itinerario_id: number, nuevo_nombre: string) =>
+  mutarItinerarios(usuario_id, async () => {
+    const { data: items } = await supabase
+      .from('itinerario_items').select('clave_paquete, orden_visita')
+      .eq('itinerario_id', itinerario_id).order('orden_visita', { ascending: true });
+    const { data: nuevo } = await supabase
+      .from('itinerarios').insert({ usuario_id, nombre: nuevo_nombre }).select('id').single();
+    if (nuevo && items?.length) {
+      await supabase.from('itinerario_items').insert(
+        (items as any[]).map(item => ({
+          itinerario_id: nuevo.id,
+          clave_paquete: item.clave_paquete,
+          orden_visita: item.orden_visita,
+        }))
+      );
     }
-    return obtenerItinerarios(usuario_id);
-  } catch {
-    return [];
-  }
-}
+  });
 
 // ══════════════════════════════════════════════════════════════════════════
 //  RUTAS SUGERIDAS
@@ -403,7 +448,8 @@ export async function obtenerRutasSugeridas(): Promise<any[]> {
       .order('id', { ascending: true });
     if (error) return [];
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('obtenerRutasSugeridas error:', err);
     return [];
   }
 }
@@ -411,27 +457,30 @@ export async function obtenerRutasSugeridas(): Promise<any[]> {
 export async function crearRutaSugerida(ruta: { titulo: string; estado: string; nivel: string }): Promise<void> {
   try {
     await supabase.from('sugerencias_rutas').insert({ ...ruta, activo: 1 });
-  } catch {}
+  } catch (err) { console.error('crearRutaSugerida error:', err); }
 }
 
 export async function actualizarRutaSugerida(id: string, ruta: { titulo: string; estado: string; nivel: string }): Promise<void> {
   try {
     await supabase.from('sugerencias_rutas').update(ruta).eq('id', id);
-  } catch {}
+  } catch (err) { console.error('actualizarRutaSugerida error:', err); }
 }
 
 export async function eliminarRutaSugerida(id: string): Promise<void> {
   try {
     await supabase.from('sugerencias_rutas').delete().eq('id', id);
-  } catch {}
+  } catch (err) { console.error('eliminarRutaSugerida error:', err); }
 }
 
-export async function toggleActivoRutaSugerida(id: string): Promise<void> {
+// ── Helper: toggle campo activo en cualquier tabla
+const toggleActivo = async (tabla: string, campo: string, valor: any): Promise<void> => {
   try {
-    const { data } = await supabase.from('sugerencias_rutas').select('activo').eq('id', id).maybeSingle();
-    await supabase.from('sugerencias_rutas').update({ activo: data?.activo === 1 ? 0 : 1 }).eq('id', id);
-  } catch {}
-}
+    const { data } = await supabase.from(tabla).select('activo').eq(campo, valor).maybeSingle();
+    await supabase.from(tabla).update({ activo: data?.activo === 1 ? 0 : 1 }).eq(campo, valor);
+  } catch (err) { console.error(`toggleActivo(${tabla}) error:`, err); }
+};
+
+export const toggleActivoRutaSugerida  = (id: string)         => toggleActivo('sugerencias_rutas', 'id', id);
 
 // ══════════════════════════════════════════════════════════════════════════
 //  DESTINOS (tabla `estados` en Supabase)
@@ -442,7 +491,8 @@ export async function obtenerTodosLosDestinos(): Promise<any[]> {
     const { data, error } = await supabase.from('estados').select('*').order('id', { ascending: true });
     if (error) return [];
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('obtenerTodosLosDestinos error:', err);
     return [];
   }
 }
@@ -450,26 +500,21 @@ export async function obtenerTodosLosDestinos(): Promise<any[]> {
 export async function crearDestino(destino: { nombre: string; categoria: string; descripcion: string; precio: number }): Promise<void> {
   try {
     await supabase.from('estados').insert({ ...destino, activo: 1 });
-  } catch {}
+  } catch (err) { console.error('crearDestino error:', err); }
 }
 
 export async function actualizarDestino(id: number, destino: { nombre: string; categoria: string; descripcion: string; precio: number }): Promise<void> {
   try {
     await supabase.from('estados').update(destino).eq('id', id);
-  } catch {}
+  } catch (err) { console.error('actualizarDestino error:', err); }
 }
 
-export async function toggleActivoDestinoAdmin(id: number): Promise<void> {
-  try {
-    const { data } = await supabase.from('estados').select('activo').eq('id', id).maybeSingle();
-    await supabase.from('estados').update({ activo: data?.activo === 1 ? 0 : 1 }).eq('id', id);
-  } catch {}
-}
+export const toggleActivoDestinoAdmin  = (id: number)          => toggleActivo('estados', 'id', id);
 
 export async function eliminarDestino(id: number): Promise<void> {
   try {
     await supabase.from('estados').delete().eq('id', id);
-  } catch {}
+  } catch (err) { console.error('eliminarDestino error:', err); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -485,7 +530,8 @@ export async function guardarReserva(
   personas: number,
   total: number,
   metodo: string,
-  estado: string = 'confirmada'
+  estado: string = 'confirmada',
+  notas?: string
 ): Promise<boolean> {
   try {
     // Convierte DD/MM/AAAA → YYYY-MM-DD si viene en formato mexicano
@@ -493,27 +539,29 @@ export async function guardarReserva(
       ? fecha.split('/').reverse().join('-')
       : fecha;
 
-    const { error } = await supabase
-      .from('reservas')
-      .insert({ usuario_id, folio, destino, paquete, fecha: fechaISO, personas, total, metodo, estado });
-    if (error) console.error('guardarReserva error:', error.message, error.details, error.hint);
+    const fila: Record<string, any> = { usuario_id, folio, destino, paquete, fecha: fechaISO, personas, total, metodo, estado };
+    if (notas?.trim()) fila.notas = notas.trim();
+
+    const { error } = await supabase.from('reservas').insert(fila);
     return !error;
-  } catch (e) {
-    console.error('guardarReserva excepción:', e);
+  } catch (err) {
+    console.error('guardarReserva error:', err);
     return false;
   }
 }
 
-export async function cargarReservas(usuario_id: string): Promise<any[]> {
+export async function cargarReservas(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('reservas')
       .select('*')
       .eq('usuario_id', usuario_id)
-      .order('creado_en', { ascending: false });
+      .order('creado_en', { ascending: false })
+      .range(offset, offset + limite - 1);
     if (error) return [];
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('cargarReservas error:', err);
     return [];
   }
 }
@@ -529,7 +577,8 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
       ...r,
       nombre_usuario: r.usuarios?.nombre ?? '',
     }));
-  } catch {
+  } catch (err) {
+    console.error('cargarTodasLasReservas error:', err);
     return [];
   }
 }
@@ -537,7 +586,7 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
 export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
   try {
     await supabase.from('reservas').update({ estado }).eq('id', id);
-  } catch {}
+  } catch (err) { console.error('actualizarEstadoReserva error:', err); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -553,7 +602,8 @@ export async function cargarResenas(destino: string): Promise<any[]> {
       .order('created_at', { ascending: false });
     if (error) return [];
     return (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' }));
-  } catch {
+  } catch (err) {
+    console.error('cargarResenas error:', err);
     return [];
   }
 }
@@ -574,7 +624,8 @@ export async function guardarResena(
       `Tu reseña de ${destino} ayuda a otros viajeros a decidir.`
     );
     return { exito: true };
-  } catch {
+  } catch (err) {
+    console.error('guardarResena error:', err);
     return { exito: false, error: 'Error al guardar reseña.' };
   }
 }
@@ -593,20 +644,21 @@ export async function agregarHistorial(
     await supabase
       .from('historial')
       .insert({ usuario_id, tipo, titulo, detalle, creado_en: new Date().toISOString() });
-  } catch {}
+  } catch (err) { console.error('agregarHistorial error:', err); }
 }
 
-export async function cargarHistorial(usuario_id: string): Promise<any[]> {
+export async function cargarHistorial(usuario_id: string, limite = 30, offset = 0): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('historial')
       .select('*')
       .eq('usuario_id', usuario_id)
       .order('creado_en', { ascending: false })
-      .limit(50);
+      .range(offset, offset + limite - 1);
     if (error) return [];
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('cargarHistorial error:', err);
     return [];
   }
 }
@@ -625,20 +677,22 @@ export async function crearNotificacion(
     await supabase
       .from('notificaciones')
       .insert({ usuario_id, tipo, titulo, mensaje, leida: false, creado_en: new Date().toISOString() });
-  } catch {}
+  } catch (err) { console.error('crearNotificacion error:', err); }
 }
 
-export async function cargarNotificaciones(usuario_id: string): Promise<any[]> {
+export async function cargarNotificaciones(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('notificaciones')
       .select('*')
       .eq('usuario_id', usuario_id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limite - 1);
     if (error) return [];
     // Mapear leida boolean → 0/1 para compatibilidad con las pantallas
     return (data ?? []).map((n: any) => ({ ...n, leida: n.leida ? 1 : 0 }));
-  } catch {
+  } catch (err) {
+    console.error('cargarNotificaciones error:', err);
     return [];
   }
 }
@@ -646,13 +700,13 @@ export async function cargarNotificaciones(usuario_id: string): Promise<any[]> {
 export async function marcarNotificacionLeida(id: number): Promise<void> {
   try {
     await supabase.from('notificaciones').update({ leida: true }).eq('id', id);
-  } catch {}
+  } catch (err) { console.error('marcarNotificacionLeida error:', err); }
 }
 
 export async function marcarTodasLeidas(usuario_id: string): Promise<void> {
   try {
     await supabase.from('notificaciones').update({ leida: true }).eq('usuario_id', usuario_id);
-  } catch {}
+  } catch (err) { console.error('marcarTodasLeidas error:', err); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -676,7 +730,8 @@ export async function cargarTodosLosUsuarios(): Promise<any[]> {
       activo: u.activo ?? 1,
       reservas_count: (reservas ?? []).filter((r: any) => r.usuario_id === u.id).length,
     }));
-  } catch {
+  } catch (err) {
+    console.error('cargarTodosLosUsuarios error:', err);
     return [];
   }
 }
@@ -684,12 +739,7 @@ export async function cargarTodosLosUsuarios(): Promise<any[]> {
 export async function cambiarTipoUsuario(usuario_id: string, tipo: string): Promise<void> {
   try {
     await supabase.from('usuarios').update({ tipo }).eq('id', usuario_id);
-  } catch {}
+  } catch (err) { console.error('cambiarTipoUsuario error:', err); }
 }
 
-export async function toggleActivoUsuarioAdmin(usuario_id: string): Promise<void> {
-  try {
-    const { data } = await supabase.from('usuarios').select('activo').eq('id', usuario_id).maybeSingle();
-    await supabase.from('usuarios').update({ activo: data?.activo === 1 ? 0 : 1 }).eq('id', usuario_id);
-  } catch {}
-}
+export const toggleActivoUsuarioAdmin  = (usuario_id: string) => toggleActivo('usuarios', 'id', usuario_id);

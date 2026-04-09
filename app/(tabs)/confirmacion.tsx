@@ -1,43 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated, Image, ScrollView,
-  StatusBar, StyleSheet, Text, TouchableOpacity, View,
+  Animated, ScrollView,
+  StyleSheet, Text, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { BookingStepLayout } from '../../components/BookingStepLayout';
 import CodigoBarrasOxxo from '../../components/CodigoBarrasOxxo';
 import { sombra } from '../../lib/estilos';
-
-const PASOS = ['Reserva', 'Pago', 'Confirmación'];
-
-const IndicadorPasos = ({ actual }: { actual: number }) => (
-  <View style={es.indicadorPasos}>
-    {PASOS.map((paso, i) => {
-      const activo   = i === actual;
-      const completo = i < actual;
-      return (
-        <React.Fragment key={paso}>
-          <View style={es.filaPaso}>
-            <View style={[es.circuloPaso, activo && es.circuloActivo, completo && es.circuloCompleto]}>
-              {completo || activo
-                ? <Text style={es.checkPaso}>✓</Text>
-                : <Text style={es.numPaso}>{i + 1}</Text>}
-            </View>
-            <Text style={[es.etiquetaPaso, (activo || completo) && es.etiquetaActiva]}>{paso}</Text>
-          </View>
-          {i < PASOS.length - 1 && (
-            <View style={[es.lineaPaso, (completo || actual > i) && es.lineaCompleta]} />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </View>
-);
+import { useIdioma } from '../../lib/IdiomaContext';
 
 export default function ConfirmacionScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero, email, folio, metodo, ref_oxxo } =
+  const { nombre, paquete, precio, personas, fecha, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo } =
     useLocalSearchParams<Record<string, string>>();
+  const { t } = useIdioma();
+  const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
 
   const { width } = useWindowDimensions();
   const anchoBarcode = Math.min(width - 64, 340);
@@ -54,37 +31,32 @@ export default function ConfirmacionScreen() {
         Animated.timing(slideY,   { toValue: 0,  duration: 400, useNativeDriver: true }),
       ]),
     ]).start();
-  }, []);
+  }, [escala, opacidad, slideY]);
 
   const etiquetaMetodo: Record<string, string> = {
-    tarjeta: '💳 Tarjeta de crédito/débito',
-    spei:    '🏦 Transferencia SPEI',
-    oxxo:    '🏪 OXXO Pay',
+    tarjeta: t('pago_metodo_tarjeta'),
+    spei:    t('pago_metodo_spei'),
+    oxxo:    t('pago_metodo_oxxo'),
   };
 
   const detalles = [
-    { label: 'Viajero',      valor: nombre_viajero,                              icono: '👤' },
-    { label: 'Destino',      valor: nombre,                                       icono: '📍' },
-    { label: 'Paquete',      valor: paquete,                                      icono: '🎒' },
-    { label: 'Fecha',        valor: fecha,                                        icono: '📅' },
-    { label: 'Personas',     valor: personas,                                     icono: '👥' },
-    { label: 'Método',       valor: etiquetaMetodo[metodo ?? ''] ?? metodo,       icono: '💰' },
-    { label: 'Total pagado', valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: '✅' },
-  ];
+    { label: t('conf_viajero'),  valor: nombre_viajero,                              icono: '👤' },
+    { label: t('conf_telefono'), valor: telefono,                                    icono: '📱' },
+    { label: t('conf_destino'),  valor: nombre,                                      icono: '📍' },
+    { label: t('conf_paquete'),  valor: paquete,                                     icono: '🎒' },
+    { label: t('conf_fecha'),    valor: fecha,                                       icono: '📅' },
+    { label: t('conf_personas'), valor: personas,                                    icono: '👥' },
+    { label: t('conf_metodo'),   valor: etiquetaMetodo[metodo ?? ''] ?? metodo,      icono: '💰' },
+    { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: '✅' },
+  ].filter(d => d.valor);
 
   return (
-    <View style={es.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={require('../../assets/images/mapa.png')} style={es.imagenMapa} resizeMode="contain" />
-
-      <SafeAreaView style={es.area}>
-        <View style={es.header}>
-          <Image source={require('../../assets/images/logo.png')} style={es.logo} resizeMode="contain" />
-          <Text style={es.headerTitulo}>Mexcursión</Text>
-        </View>
-
-        <IndicadorPasos actual={2} />
-
+    <BookingStepLayout
+      currentStep={2}
+      steps={PASOS}
+      showLogoOnly
+      brandTitle="Mexcursión"
+    >
         <ScrollView contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false}>
 
           <Animated.View style={[es.circuloCheck, { transform: [{ scale: escala }] }]}>
@@ -95,12 +67,12 @@ export default function ConfirmacionScreen() {
 
           <Animated.View style={{ opacity: opacidad, transform: [{ translateY: slideY }], alignItems: 'center', width: '100%' }}>
 
-            <Text style={es.titulo}>¡Reserva confirmada!</Text>
-            <Text style={es.subtitulo}>Tu aventura por México está lista. Guarda tu folio.</Text>
+            <Text style={es.titulo}>{t('conf_titulo')}</Text>
+            <Text style={es.subtitulo}>{t('conf_subtitulo')}</Text>
 
             <View style={es.tarjetaFolio}>
               <View style={es.folioHeader}>
-                <Text style={es.folioHeaderTexto}>Folio de reserva</Text>
+                <Text style={es.folioHeaderTexto}>{t('conf_folio')}</Text>
               </View>
               <View style={es.folioCuerpo}>
                 <Text style={es.folioNum}>{folio}</Text>
@@ -112,7 +84,7 @@ export default function ConfirmacionScreen() {
 
             <View style={es.tarjetaDetalle}>
               <View style={es.detalleHeader}>
-                <Text style={es.detalleTitulo}>Detalle de tu viaje</Text>
+                <Text style={es.detalleTitulo}>{t('conf_detalle')}</Text>
               </View>
               {detalles.map((d, i) => (
                 <View key={i} style={[es.filaDetalle, i < detalles.length - 1 && es.filaDetalleBorde]}>
@@ -123,6 +95,13 @@ export default function ConfirmacionScreen() {
               ))}
             </View>
 
+            {!!notas && (
+              <View style={es.cajaNota}>
+                <Text style={es.cajaNotaTitulo}>{t('conf_notas')}</Text>
+                <Text style={es.cajaNotaTexto}>{notas}</Text>
+              </View>
+            )}
+
             {metodo === 'oxxo' ? (
               <CodigoBarrasOxxo
                 referencia={ref_oxxo ?? folio ?? '00000000'}
@@ -131,9 +110,7 @@ export default function ConfirmacionScreen() {
               />
             ) : (
               <View style={es.nota}>
-                <Text style={es.notaTexto}>
-                  📱  Guarda este folio — lo necesitarás al presentarte en el destino.
-                </Text>
+                <Text style={es.notaTexto}>{t('conf_aviso')}</Text>
               </View>
             )}
 
@@ -142,7 +119,7 @@ export default function ConfirmacionScreen() {
               onPress={() => router.replace('/(tabs)/menu' as any)}
               activeOpacity={0.85}
             >
-              <Text style={es.textoBtnPrimario}>Explorar más destinos</Text>
+              <Text style={es.textoBtnPrimario}>{t('conf_explorar')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -150,38 +127,17 @@ export default function ConfirmacionScreen() {
               onPress={() => router.replace('/(tabs)/mis_reservas' as any)}
               activeOpacity={0.85}
             >
-              <Text style={es.textoBtnSecundario}>Ver mis reservas</Text>
+              <Text style={es.textoBtnSecundario}>{t('conf_mis_reservas')}</Text>
             </TouchableOpacity>
 
             <View style={{ height: 20 }} />
           </Animated.View>
         </ScrollView>
-      </SafeAreaView>
-    </View>
+    </BookingStepLayout>
   );
 }
 
 const es = StyleSheet.create({
-  contenedor:         { flex: 1, backgroundColor: '#FAF7F0' },
-  imagenMapa:         { opacity: 0.1, position: 'absolute', width: '90%', height: '100%', alignSelf: 'center' },
-  area:               { flex: 1 },
-
-  header:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee', gap: 8 },
-  logo:               { width: 36, height: 36 },
-  headerTitulo:       { fontSize: 17, fontWeight: '800', color: '#333' },
-
-  indicadorPasos:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  filaPaso:           { alignItems: 'center', gap: 4 },
-  circuloPaso:        { width: 28, height: 28, borderRadius: 14, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
-  circuloActivo:      { backgroundColor: '#3AB7A5' },
-  circuloCompleto:    { backgroundColor: '#3AB7A5' },
-  checkPaso:          { color: '#fff', fontSize: 13, fontWeight: '700' },
-  numPaso:            { fontSize: 12, fontWeight: '700', color: '#aaa' },
-  etiquetaPaso:       { fontSize: 10, color: '#aaa', fontWeight: '500' },
-  etiquetaActiva:     { color: '#3AB7A5', fontWeight: '700' },
-  lineaPaso:          { flex: 1, height: 2, backgroundColor: '#eee', marginHorizontal: 6, marginBottom: 14 },
-  lineaCompleta:      { backgroundColor: '#3AB7A5' },
-
   scroll:             { padding: 20, alignItems: 'center', maxWidth: 700, alignSelf: 'center', width: '100%' },
 
   circuloCheck:       { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(58,183,165,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 18, marginTop: 10 },
@@ -236,6 +192,9 @@ const es = StyleSheet.create({
 
   nota:               { width: '100%', backgroundColor: '#fff8e1', borderRadius: 14, padding: 14, marginBottom: 20, borderLeftWidth: 3, borderLeftColor: '#e9c46a' },
   notaTexto:          { fontSize: 13, color: '#8a6200', lineHeight: 20 },
+  cajaNota:           { width: '100%', backgroundColor: '#f0faf9', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#3AB7A5' },
+  cajaNotaTitulo:     { fontSize: 12, fontWeight: '700', color: '#3AB7A5', marginBottom: 4 },
+  cajaNotaTexto:      { fontSize: 13, color: '#555', lineHeight: 20 },
 
   btnPrimario: { 
     width: '100%', 

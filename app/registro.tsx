@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, Image,
-  ScrollView,
-  StyleSheet, Text, TextInput, TouchableOpacity, View
+    Alert, Image,
+    ScrollView,
+    StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,9 +21,13 @@ export default function RegistroScreen() {
   const [errores, setErrores]                 = useState<ErroresType>({});
   const [cargando, setCargando]               = useState(false);
   const [verContrasena, setVerContrasena]     = useState(false);
+  const [verificando, setVerificando]         = useState(true);
 
   useEffect(() => {
-    obtenerUsuarioActivo().then(u => { if (u) router.replace('/(tabs)/menu'); });
+    obtenerUsuarioActivo().then(u => {
+      if (u) router.push('/(tabs)/menu');
+      else setVerificando(false);
+    });
   }, []);
 
   const actualizar = (clave: keyof FormType, valor: string) => {
@@ -77,12 +81,14 @@ export default function RegistroScreen() {
       Alert.alert(
         'Confirma tu correo',
         'Te enviamos un enlace a ' + form.correo + '. Ábrelo para activar tu cuenta y luego inicia sesión.',
-        [{ text: 'Entendido', onPress: () => router.replace('/login') }]
+        [{ text: 'Entendido', onPress: () => router.push('/login') }]
       );
       return;
     }
-    router.replace('/(tabs)/menu');
+    router.push('/(tabs)/menu');
   };
+
+  if (verificando) return <View style={{ flex: 1, backgroundColor: '#FAF7F0' }} />;
 
   return (
     <View style={estilos.contenedor}>
