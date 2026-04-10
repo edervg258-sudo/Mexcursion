@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm run web",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "npm install",
+  "env": {
+    "EXPO_PUBLIC_SUPABASE_URL": "@supabase-url",
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
+    "EXPO_PUBLIC_FIREBASE_API_KEY": "@firebase-api-key",
+    "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "@google-maps-api-key",
+    "EXPO_PUBLIC_SENTRY_DSN": "@sentry-dsn"
+  }
+}

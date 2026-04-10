@@ -63,10 +63,10 @@ export default function ReservaScreen() {
     router.push({
       pathname: '/(tabs)/pago',
       params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
-    } as any);
+    } as never);
   };
 
-  const Campo = ({ icono, label, valor, onChange, error, placeholder, teclado = 'default', seguro = false }: any) => (
+  const Campo = ({ icono, label, valor, onChange, error, placeholder, teclado = 'default', seguro = false }: { icono?: string; label: string; valor: string; onChange: (v: string) => void; error?: string; placeholder?: string; teclado?: string; seguro?: boolean }) => (
     <View style={es.grupoCampo}>
       <Text style={es.label}>{label}</Text>
       <View style={[es.cajaInput, !!error && es.cajaInputError]}>

@@ -384,7 +384,7 @@ export default function AdminScreen() {
                 onChangeText={f.set}
                 placeholder={f.ph}
                 placeholderTextColor={Tema.textoMuted}
-                keyboardType={(f as any).numeric ? 'numeric' : 'default'}
+                keyboardType={(f as { label: string; val: string; set: (v: string) => void; ph: string; numeric?: boolean }).numeric ? 'numeric' : 'default'}
               />
             </View>
           ))}

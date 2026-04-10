@@ -30,6 +30,7 @@ import {
 import { Tema } from '../../lib/tema';
 import { SkeletonLista } from './skeletonloader';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as any;
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
@@ -153,7 +154,7 @@ const cardPressOut = (id: number) => {
 
   const estados = useMemo(() => {
     const idsActivos: Set<number> = destinosBD.length > 0
-      ? new Set(destinosBD.filter((d: any) => d.activo !== 0).map((d: any) => Number(d.id)))
+      ? new Set(destinosBD.filter((d: Record<string, unknown>) => d.activo !== 0).map((d: Record<string, unknown>) => Number(d.id)))
       : new Set(TODOS_LOS_ESTADOS.map(e => e.id));
 
     return TODOS_LOS_ESTADOS
@@ -251,7 +252,7 @@ const cardPressOut = (id: number) => {
           setTimeout(() => router.push({
             pathname: '/(tabs)/detalle',
             params: { nombre: item.nombre, categoria: item.categoria },
-          } as any), 0)
+          } as never), 0)
         }
         accessibilityLabel={`${item.nombre}, ${item.categoria}, desde ${item.precio.toLocaleString()} MXN`}
         accessibilityHint="Toca para ver detalles y reservar"
@@ -315,7 +316,7 @@ const cardPressOut = (id: number) => {
             title={t('menu_subtitulo')}
             subtitle={nombreUsuario ? t('menu_saludo', { nombre: nombreUsuario }) : undefined}
             showInlineLogo={!esPC}
-            onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)}
+            onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
           />
         </View>
 
@@ -325,9 +326,8 @@ const cardPressOut = (id: number) => {
                 borderColor: searchFocusAnim.interpolate({
                   inputRange: [0, 1], outputRange: [Tema.borde, Tema.primario],
                 }),
-                borderWidth: searchFocusAnim.interpolate({
-                  inputRange: [0, 1], outputRange: [1, 2],
-                }) as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                borderWidth: searchFocusAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) as any,
               }]}>
                 <Image source={require('../../assets/images/busqueda.png')} style={estilos.iconoBusquedaImg} contentFit="contain" />
                 <TextInput
@@ -474,8 +474,8 @@ const cardPressOut = (id: number) => {
                 <AnimatedFlashList
                   data={estadosFiltrados}
                   estimatedItemSize={200}
-                  keyExtractor={(item: any) => String(item.id)}
-                  renderItem={renderizarEstado as any}
+                  keyExtractor={(item: Estado) => String(item.id)}
+                  renderItem={renderizarEstado}
                   contentContainerStyle={estilos.contenidoLista}
                   showsVerticalScrollIndicator={false}
                 />

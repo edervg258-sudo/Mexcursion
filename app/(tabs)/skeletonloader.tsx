@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
 
 // ============================================================
 //  SkeletonLoader.tsx — componente reutilizable
@@ -27,14 +27,14 @@ const usePulso = () => {
 export const Bloque = ({
   ancho = '100%', alto = 16, radio = 8, estilo = {},
 }: {
-  ancho?: number | string; alto?: number; radio?: number; estilo?: any;
+  ancho?: number | string; alto?: number; radio?: number; estilo?: ViewStyle;
 }) => {
   const opacidad = usePulso();
   return (
     <Animated.View
       style={[
         s.bloque,
-        { width: ancho as any, height: alto, borderRadius: radio, opacity: opacidad },
+        { width: ancho as number | `${number}%` | 'auto', height: alto, borderRadius: radio, opacity: opacidad },
         estilo,
       ]}
     />

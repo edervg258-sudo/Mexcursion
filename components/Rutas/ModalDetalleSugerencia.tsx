@@ -1,5 +1,6 @@
 import {
     BottomSheetBackdrop,
+    BottomSheetBackdropProps,
     BottomSheetModal,
     BottomSheetScrollView,
     BottomSheetView,
@@ -15,19 +16,19 @@ import {
     View,
 } from 'react-native';
 
-import { PAQUETES_POR_ESTADO } from '../../lib/constantes';
+import { Paquete, PAQUETES_POR_ESTADO, Sugerencia } from '../../lib/constantes';
 import { s } from '../../lib/estilos_rutas';
 import { TraduccionClave } from '../../lib/traducciones';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  rutaDetalle: any;
+  rutaDetalle: Sugerencia | null;
   idioma: 'es' | 'en';
   t: (clave: TraduccionClave, vars?: Record<string, string | number> | undefined) => string;
   colorNivel: (nivel: string, opacity?: number) => string;
   imagenDeEstado: (estado: string) => ImageSourcePropType;
-  iniciarAgregarSugerida: (ruta: any) => void;
+  iniciarAgregarSugerida: (ruta: Sugerencia) => void;
 }
 
 export function ModalDetalleSugerencia({
@@ -56,7 +57,7 @@ export function ModalDetalleSugerencia({
   }, [onClose]);
 
   const renderBackdrop = useCallback(
-    (props: any) => (
+    (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...props}
         disappearsOnIndex={-1}
@@ -77,7 +78,7 @@ export function ModalDetalleSugerencia({
       [];
 
     const paqueteEncontrado =
-      paqList.find((p: any) => p.nivel === rutaDetalle.nivel) ??
+      paqList.find((p: Paquete) => p.nivel === rutaDetalle.nivel) ??
       paqList[0] ??
       null;
 
@@ -111,7 +112,7 @@ export function ModalDetalleSugerencia({
       paquete: paqueteEncontrado,
       imagenes: imgs,
     };
-  }, [rutaDetalle?.estado, rutaDetalle?.nivel, rutaDetalle?.imagen, imagenDeEstado]);
+  }, [rutaDetalle, imagenDeEstado]);
 
   if (!rutaDetalle) { return null; }
 

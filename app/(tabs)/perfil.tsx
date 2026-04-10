@@ -21,6 +21,16 @@ import { SkeletonPerfil } from './skeletonloader';
 
 type TipoModal = null | 'editarPerfil' | 'cambiarPassword' | 'notificaciones' | 'idioma' | 'tema' | 'ayuda' | 'acerca';
 
+type SesionUsuario = {
+  id: string;
+  nombre: string;
+  nombre_usuario?: string;
+  correo?: string;
+  telefono?: string;
+  tipo?: string;
+  [key: string]: unknown;
+};
+
 export default function PerfilScreen() {
   const { width }  = useWindowDimensions();
   const esPC       = width >= 768;
@@ -32,7 +42,7 @@ export default function PerfilScreen() {
   }, []);
 
   const [modalActivo, setModalActivo]       = useState<TipoModal>(null);
-  const [sesion, setSesion]                 = useState<any>(null);
+  const [sesion, setSesion]                 = useState<SesionUsuario | null>(null);
   const [cargando, setCargando]             = useState(true);
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const avatarAnim  = useRef(new Animated.Value(0.6)).current;
@@ -93,7 +103,7 @@ export default function PerfilScreen() {
         );
     if (!confirmar) { return; }
     await cerrarSesion();
-    setTimeout(() => router.replace('/login' as any), 0);
+    setTimeout(() => router.replace('/login' as never), 0);
   };
 
   const handleGuardarPerfil = async () => {
@@ -101,7 +111,7 @@ export default function PerfilScreen() {
     if (!sesion?.id) { return; }
     const r = await actualizarPerfil(sesion.id, { nombre: nombre.trim(), nombre_usuario: usuario.trim(), telefono: telefono.trim() });
     if (!r.exito) { return mensaje(r.error ?? 'Error al actualizar'); }
-    setSesion((ant: any) => ({ ...ant, nombre: nombre.trim(), nombre_usuario: usuario.trim(), telefono: telefono.trim() }));
+    setSesion((ant) => ant ? ({ ...ant, nombre: nombre.trim(), nombre_usuario: usuario.trim(), telefono: telefono.trim() }) : null);
     mensaje(t('prf_perfil_ok'));
     cerrarModal();
   };
@@ -134,8 +144,8 @@ export default function PerfilScreen() {
   };
 
   const ACCESOS_RAPIDOS = [
-    { etiqueta: t('prf_mis_reservas'), onPress: () => setTimeout(() => router.push('/(tabs)/mis_reservas' as any), 0) },
-    { etiqueta: t('prf_historial'),    onPress: () => setTimeout(() => router.push('/(tabs)/historial' as any), 0) },
+    { etiqueta: t('prf_mis_reservas'), onPress: () => setTimeout(() => router.push('/(tabs)/mis_reservas' as never), 0) },
+    { etiqueta: t('prf_historial'),    onPress: () => setTimeout(() => router.push('/(tabs)/historial' as never), 0) },
   ];
 
   const SECCIONES = [
@@ -250,7 +260,7 @@ export default function PerfilScreen() {
         <TopActionHeader
           title={t('prf_titulo')}
           showInlineLogo={!esPC}
-          onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)}
+          onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
         />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
@@ -320,7 +330,7 @@ export default function PerfilScreen() {
               style={estilos.botonAdmin}
               onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: true, speed: 50, bounciness: 2 }).start()}
               onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 6 }).start()}
-              onPress={() => setTimeout(() => router.push('/(tabs)/admin' as any), 0)}
+              onPress={() => setTimeout(() => router.push('/(tabs)/admin' as never), 0)}
               activeOpacity={1}
             >
               <Animated.View style={{ transform: [{ scale: adminAnim }] }}>

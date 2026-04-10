@@ -83,7 +83,7 @@ export default function MisReservasScreen() {
     queryKey: ['reservas-usuario', usuario?.id],
     queryFn: ({ pageParam = 0 }) =>
       usuario ? cargarReservas(usuario.id, LIMITE, pageParam as number) : Promise.resolve([]),
-    getNextPageParam: (lastPage: any[], allPages: any[][]) =>
+    getNextPageParam: (lastPage: Reserva[], allPages: Reserva[][]) =>
       lastPage.length === LIMITE ? allPages.reduce((n, p) => n + p.length, 0) : undefined,
     initialPageParam: 0,
     enabled: !!usuario,
@@ -124,7 +124,7 @@ export default function MisReservasScreen() {
     const estado = destinosDB.find(e => e.nombre === item.destino)
       || TODOS_LOS_ESTADOS.find(e => e.nombre === item.destino);
     setTimeout(() => router.push({
-      pathname: '/(tabs)/detalle' as any,
+      pathname: '/(tabs)/detalle' as never,
       params: { nombre: item.destino, categoria: estado?.categoria ?? 'Cultura' },
     }), 0);
   };
@@ -138,7 +138,7 @@ export default function MisReservasScreen() {
 
   const volverAReservar = (item: Reserva) => {
     setTimeout(() => router.push({
-      pathname: '/(tabs)/reserva' as any,
+      pathname: '/(tabs)/reserva' as never,
       params: {
         nombre: item.destino,
         paquete: item.paquete,

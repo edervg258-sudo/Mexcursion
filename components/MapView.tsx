@@ -16,7 +16,7 @@ interface MapViewProps {
   title?: string;
   description?: string;
   zoom?: number;
-  style?: any;
+  style?: object;
 }
 
 export function MapaInteractivo({
@@ -117,6 +117,7 @@ export function MapaInteractivo({
         onLoadEnd={() => setLoading(false)}
         onError={() => {
           // Fallback: mostrar mapa estático
+          // eslint-disable-next-line no-console
           console.warn('Error cargando mapa interactivo, usando fallback');
         }}
       />

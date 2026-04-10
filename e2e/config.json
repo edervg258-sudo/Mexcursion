@@ -1,0 +1,8 @@
+{
+  "setupFilesAfterEnv": ["<rootDir>/e2e/init.js"],
+  "testEnvironment": "detox/runners/jest",
+  "testTimeout": 120000,
+  "testRegex": "\\.e2e\\.js$",
+  "reporters": ["detox/runners/jest/reporter"],
+  "verbose": true
+}

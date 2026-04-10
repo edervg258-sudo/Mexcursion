@@ -28,7 +28,8 @@ export default function LoginScreen() {
       if (activa) { router.replace('/(tabs)/menu'); }
       else { setVerificandoSesion(false); }
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // router de expo-router es estable, no necesita ser dependencia
 
   const validar = (): boolean => {
     let valido = true;

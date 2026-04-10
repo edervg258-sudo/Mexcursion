@@ -116,7 +116,7 @@ export default function ConfirmacionScreen() {
 
             <TouchableOpacity
               style={es.btnPrimario}
-              onPress={() => router.replace('/(tabs)/menu' as any)}
+              onPress={() => router.replace('/(tabs)/menu' as never)}
               activeOpacity={0.85}
             >
               <Text style={es.textoBtnPrimario}>{t('conf_explorar')}</Text>
@@ -124,7 +124,7 @@ export default function ConfirmacionScreen() {
 
             <TouchableOpacity
               style={es.btnSecundario}
-              onPress={() => router.replace('/(tabs)/mis_reservas' as any)}
+              onPress={() => router.replace('/(tabs)/mis_reservas' as never)}
               activeOpacity={0.85}
             >
               <Text style={es.textoBtnSecundario}>{t('conf_mis_reservas')}</Text>

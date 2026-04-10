@@ -65,7 +65,7 @@ export default function HistorialScreen() {
     queryKey: ['historial-usuario', usuario?.id],
     queryFn: ({ pageParam = 0 }) =>
       usuario ? cargarHistorial(usuario.id, LIMITE, pageParam as number) : Promise.resolve([]),
-    getNextPageParam: (lastPage: any[], allPages: any[][]) =>
+    getNextPageParam: (lastPage: Evento[], allPages: Evento[][]) =>
       lastPage.length === LIMITE ? allPages.reduce((n, p) => n + p.length, 0) : undefined,
     initialPageParam: 0,
     enabled: !!usuario,
@@ -130,7 +130,7 @@ export default function HistorialScreen() {
     <TabChrome
       esPC={esPC}
       title={t('hist_titulo')}
-      onBack={() => router.replace('/(tabs)/perfil' as any)}
+      onBack={() => router.replace('/(tabs)/perfil' as never)}
       headerRight={<View style={s.headerSpacer} />}
     >
       <View style={s.subheader}>

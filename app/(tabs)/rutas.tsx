@@ -15,9 +15,10 @@ import { ModalNuevoItinerario }    from '../../components/Rutas/ModalNuevoItiner
 import { VistaDetalleItinerario }  from '../../components/Rutas/VistaDetalleItinerario';
 import { TabChrome }               from '../../components/TabChrome';
 import {
-  COLORES_NIVEL, Nivel, PAQUETES_POR_ESTADO,
+  COLORES_NIVEL, Nivel, Paquete, PAQUETES_POR_ESTADO, Sugerencia,
   SUGERENCIAS_RUTAS, TODOS_LOS_ESTADOS, parsearClaveRuta,
 } from '../../lib/constantes';
+import { TraduccionClave } from '../../lib/traducciones';
 import { s } from '../../lib/estilos_rutas';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { SkeletonFilas } from './skeletonloader';
@@ -86,7 +87,7 @@ export default function RutasScreen() {
 
   const [usuarioId,         setUsuarioId]         = useState<string | null>(null);
   const [itinerarios,       setItinerarios]        = useState<Itinerario[]>([]);
-  const [rutasSugeridas,    setRutasSugeridas]     = useState<any[]>([]);
+  const [rutasSugeridas,    setRutasSugeridas]     = useState<Sugerencia[]>([]);
   const [cargando,          setCargando]           = useState(true);
   const [itinerarioActivo,  setItinerarioActivo]   = useState<Itinerario | null>(null);
 
@@ -94,7 +95,7 @@ export default function RutasScreen() {
   const [modalNuevoVisible, setModalNuevoVisible]  = useState(false);
   const [nuevoNombre,       setNuevoNombre]        = useState('');
   const [modalRutaVisible,  setModalRutaVisible]   = useState(false);
-  const [rutaDetalle,       setRutaDetalle]        = useState<any | null>(null);
+  const [rutaDetalle,       setRutaDetalle]        = useState<Sugerencia | null>(null);
   const [modalItiVisible,   setModalItiVisible]    = useState(false);
   const [nuevoNombreIti,    setNuevoNombreIti]     = useState('');
   const [claveParaAgregar,  setClaveParaAgregar]   = useState<string | null>(null);
@@ -133,18 +134,18 @@ export default function RutasScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
     };
     cargar();
-  }, []));
+  }, [fadeAnim, t]));
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const imagenDeEstado = useCallback((estado: string): ImageSourcePropType =>
     TODOS_LOS_ESTADOS.find(e => e.nombre === estado)?.imagen
     ?? require('../../assets/images/mapa.png'), []);
 
-  const calcularTotales = useCallback((items: any[]) => {
+  const calcularTotales = useCallback((items: { estado: string; nivel: string; titulo?: string; clave?: string }[]) => {
     let costoTotal = 0, diasTotales = 0;
     items.forEach(({ estado, nivel }) => {
       const paqL = PAQUETES_POR_ESTADO[estado] ?? PAQUETES_POR_ESTADO['default'];
-      const paq  = paqL?.find((p: any) => p.nivel === nivel) ?? paqL?.[0];
+      const paq  = paqL?.find((p: Paquete) => p.nivel === nivel) ?? paqL?.[0];
       if (paq) {
         costoTotal  += parseInt(paq.precioTotal.replace(/[^0-9]/g, ''), 10) || 0;
         diasTotales += paq.diasRecomendados;
@@ -191,27 +192,29 @@ export default function RutasScreen() {
     setItinerarioActivo(itis.find(i => i.id === itinerarioActivo.id) ?? null);
   };
 
-  const compartirItinerario = async (items: any[], nombre: string) => {
+  type ItinerarioItem = { clave: string; titulo: string; estado: string; nivel: string };
+  const compartirItinerario = async (items: ItinerarioItem[], nombre: string) => {
     const { costoTotal, diasTotales } = calcularTotales(items);
     let msg = `🗺️ *${t('rut_mis_viajes')}: ${nombre}*\n\n`;
     items.forEach((it, i) => {
-      msg += `${i + 1}. ${it.titulo} (${t(('rut_' + it.nivel) as any)})\n`;
+      msg += `${i + 1}. ${it.titulo} (${t(('rut_' + it.nivel) as TraduccionClave)})\n`;
     });
     msg += `\n⌛ ~${diasTotales} ${t('rut_dia_plural')}\n💰 $${costoTotal.toLocaleString()} MXN\n\n${t('rut_comp_footer')}`;
     try {
       await Share.share({ message: msg, title: nombre });
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.warn('[compartirItinerario]', e);
     }
   };
 
   // ── Acciones: rutas sugeridas ──────────────────────────────────────────────
-  const abrirDetalleSugerida = (item: any) => {
+  const abrirDetalleSugerida = (item: Sugerencia) => {
     setRutaDetalle(item);
     setModalRutaVisible(true);
   };
 
-  const iniciarAgregarSugerida = (item: any) => {
+  const iniciarAgregarSugerida = (item: Sugerencia) => {
     setClaveParaAgregar(`${item.estado}|${item.nivel}`);
     setModalRutaVisible(false);
     setModalItiVisible(true);
@@ -244,7 +247,7 @@ export default function RutasScreen() {
   };
 
   // Función para renderizar rutas sugeridas (igual que estados, pero en grid)
-  const renderizarRutaSugerida = (item: any) => {
+  const renderizarRutaSugerida = (item: Sugerencia) => {
     const anim = obtenerAnimCard(item.id);
 
     return (
@@ -284,7 +287,7 @@ export default function RutasScreen() {
           <View style={s.sombraOverlay} />
 
           <View style={[s.badgeCategoria, { backgroundColor: colorNivel(item.nivel) }]}>
-            <Text style={s.textoBadge}>{t(('rut_' + item.nivel) as any)}</Text>
+            <Text style={s.textoBadge}>{t(('rut_' + item.nivel) as TraduccionClave)}</Text>
           </View>
 
           <Text style={s.nombreTarjeta} numberOfLines={2}>{item.titulo}</Text>
@@ -321,7 +324,7 @@ export default function RutasScreen() {
       acc[it.nivel] = (acc[it.nivel] ?? 0) + 1;
       return acc;
     }, {});
-    const nivelTop = t(('rut_' + (Object.entries(nivelMasUsado).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'medio')) as any);
+    const nivelTop = t(('rut_' + (Object.entries(nivelMasUsado).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'medio')) as TraduccionClave);
 
     return (
       <VistaDetalleItinerario

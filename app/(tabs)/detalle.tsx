@@ -22,13 +22,14 @@ import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
 import { Itinerario, alternarDestinoItinerario, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = Math.min(W, 800);
 
-if (Platform.OS === 'android' && !(globalThis as any).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -46,7 +47,7 @@ const ARROW_STYLE = {
 
 const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: string }) => {
   const [indice, setIndice] = useState(0);
-  const scrollRef = useRef<any>(null);
+  const scrollRef = useRef<{ scrollTo: (opts: { x: number; animated: boolean }) => void } | null>(null);
   const ancho = Math.min(W - 28 * 2, CARD_W - 28);
   const dotAnims = useRef(imagenes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
@@ -182,7 +183,7 @@ export default function DetalleScreen() {
   }, [paqueteAnims]);
 
   const claveRuta  = (nivel: string) => `${nombre}|${nivel}`;
-  const navegarPestana = useCallback((ruta: string) => setTimeout(() => router.replace(ruta as any), 0), []);
+  const navegarPestana = useCallback((ruta: string) => setTimeout(() => router.replace(ruta as never), 0), []);
   const estaActiva = useCallback((ruta: string) => rutaActual.endsWith(ruta.replace('/(tabs)', '')), [rutaActual]);
 
   const estaEnRuta = (nivel: string) => {
@@ -219,11 +220,11 @@ export default function DetalleScreen() {
   };
 
   const irAReserva = (paquete: Paquete) => {
-    setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as any, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as any) } }), 0);
+    setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
   };
 
   const irAResenas = () => {
-    setTimeout(() => router.push({ pathname:'/(tabs)/resenas' as any, params:{ nombre } }), 0);
+    setTimeout(() => router.push({ pathname:'/(tabs)/resenas' as never, params:{ nombre } }), 0);
   };
 
   // ── Contenido ──────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ export default function DetalleScreen() {
         subtitle={String(categoria ?? '')}
         showInlineLogo={!esPC}
         onBackPress={() => router.back()}
-        onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)}
+        onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
         maxWidth={800}
       />
 
@@ -295,7 +296,7 @@ export default function DetalleScreen() {
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
                       <Text style={estilos.emojiPaquete}>{paquete.emoji}</Text>
                       <View>
-                        <Text style={estilos.etiquetaPaquete}>{t(('rut_' + paquete.nivel) as any)}</Text>
+                        <Text style={estilos.etiquetaPaquete}>{t(('rut_' + paquete.nivel) as TraduccionClave)}</Text>
                         <Text style={estilos.precioPaquete}>{paquete.precioTotal}</Text>
                       </View>
                     </View>
@@ -444,7 +445,7 @@ export default function DetalleScreen() {
                 return (
                   <TouchableOpacity key={p.ruta} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
                     <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width:28, height:28 }} contentFit="contain" transition={100} />
-                    <Text style={[estilos.etiquetaPestana, activa && estilos.etiquetaPestanaActiva]}>{t(('tab_' + p.ruta.replace('/(tabs)/', '')) as any)}</Text>
+                    <Text style={[estilos.etiquetaPestana, activa && estilos.etiquetaPestanaActiva]}>{t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}</Text>
                   </TouchableOpacity>
                 );
               })}

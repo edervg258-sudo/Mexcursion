@@ -111,7 +111,7 @@ export default function ResenasScreen() {
                   return (
                     <View key={n} style={es.filaBarra}>
                       <Text style={es.numBarra}>{n}★</Text>
-                      <View style={es.barraFondo}><View style={[es.barraRelleno, { width: `${pct}%` as any }]} /></View>
+                      <View style={es.barraFondo}><View style={[es.barraRelleno, { width: `${pct}%` as `${number}%` }]} /></View>
                       <Text style={es.contBarra}>{count}</Text>
                     </View>
                   );
@@ -141,7 +141,7 @@ export default function ResenasScreen() {
     <TabChrome
       esPC={esPC}
       title={t('rsn_titulo')}
-      onBack={() => router.replace('/(tabs)/perfil' as any)}
+      onBack={() => router.replace('/(tabs)/perfil' as never)}
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >

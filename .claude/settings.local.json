@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const fs=require\\(''fs''\\);const p=''C:/Users/usuario/MiPrimerApp/lib/constantes.ts'';let c=fs.readFileSync\\(p,''utf8''\\);c=c.replace\\(/precioTotal:''\\([^'']+\\) por persona''/g,\"\"precioTotal:''$1''\"\"\\);fs.writeFileSync\\(p,c\\);console.log\\(''done''\\);\")",
+      "Bash(npx expo:*)",
+      "Bash(git add:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(rm -f .git/index.lock)"
+    ]
+  }
+}

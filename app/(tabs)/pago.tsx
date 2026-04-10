@@ -129,7 +129,7 @@ export default function PagoScreen() {
     setMostrarMercadoPago(false);
   };
 
-  const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: any) => (
+  const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: { label: string; valor: string; onChange: (v: string) => void; placeholder?: string; teclado?: string; seguro?: boolean }) => (
     <View style={es.grupoCampo}>
       <Text style={es.label}>{label}</Text>
       <View style={es.cajaInput}>

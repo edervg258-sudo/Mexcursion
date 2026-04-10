@@ -12,16 +12,19 @@ import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { TraduccionClave } from '../../lib/traducciones';
 import { SkeletonLista } from './skeletonloader';
 
-if (Platform.OS === 'android' && !(globalThis as any).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
+type FavoritoItem = { id: number; nombre: string; categoria: string; precio: number; imagen: ReturnType<typeof require> };
+
+if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 // ─── FavCard — tarjeta con animaciones de entrada, escala y eliminación ──────
 const FavCard = ({ item, idx, t, onPress, onRemove }: {
-  item: any; idx: number; t: any;
-  onPress: (item: any) => void;
+  item: FavoritoItem; idx: number; t: (clave: TraduccionClave, vars?: Record<string, string | number>) => string;
+  onPress: (item: FavoritoItem) => void;
   onRemove: (id: number) => void;
 }) => {
   const entradaAnim = useRef(new Animated.Value(0)).current;
@@ -29,11 +32,8 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
   const escalaFav   = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.spring(entradaAnim, {
-      toValue: 1, useNativeDriver: true,
-      tension: 55, friction: 10,
-      delay: idx * 65,
-    } as any).start();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Animated.spring as any)(entradaAnim, { toValue: 1, useNativeDriver: true, tension: 55, friction: 10, delay: idx * 65 }).start();
   }, [entradaAnim, idx]);
 
   const pressIn  = () => Animated.spring(escalaCard, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 2 }).start();
@@ -87,7 +87,7 @@ export default function FavoritosScreen() {
     configurarBarraAndroid();
   }, []);
 
-  const [estadosFavoritos, setEstadosFavoritos] = useState<any[]>([]);
+  const [estadosFavoritos, setEstadosFavoritos] = useState<FavoritoItem[]>([]);
   const [usuarioId, setUsuarioId]       = useState<string | null>(null);
   const [cargando, setCargando]   = useState(true);
   const [recargando, setRecargando] = useState(false);
@@ -114,12 +114,12 @@ export default function FavoritosScreen() {
       ]);
       
       const mapeados = destinosDB
-        .filter((d: any) => idsFav.includes(d.id))
-        .map((d: any) => {
+        .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+        .map((d: Record<string, unknown>) => {
           const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
           return {
-            id: d.id, nombre: d.nombre, categoria: d.categoria,
-            precio: d.precio, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
+            id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
+            precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
           };
         });
       setEstadosFavoritos(mapeados);
@@ -134,10 +134,10 @@ export default function FavoritosScreen() {
     setRecargando(true);
     const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
     const mapeados = destinosDB
-      .filter((d: any) => idsFav.includes(d.id))
-      .map((d: any) => {
+      .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+      .map((d: Record<string, unknown>) => {
         const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-        return { id: d.id, nombre: d.nombre, categoria: d.categoria, precio: d.precio, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
+        return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
       });
     setEstadosFavoritos(mapeados);
     setRecargando(false);
@@ -153,7 +153,7 @@ export default function FavoritosScreen() {
   // ── Contenido ──────────────────────────────────────────────────────────
   const Contenido = () => (
     <View style={{ flex: 1 }}>
-      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0)} />
+      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)} />
 
       <View style={s.contenedorCentrado}>
         {cargando ? (
@@ -163,7 +163,7 @@ export default function FavoritosScreen() {
             <Text style={s.textoVacio}>❤️</Text>
             <Text style={s.tituloVacio}>{t('fav_vacios')}</Text>
             <Text style={s.subtituloVacio}>{t('fav_vacios2')}</Text>
-            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as any), 0)}>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
               <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
           </View>
@@ -177,8 +177,8 @@ export default function FavoritosScreen() {
                   item={item}
                   idx={index}
                   t={t}
-                  onPress={(it: any) => setTimeout(() => router.push({
-                    pathname: '/(tabs)/detalle' as any,
+                  onPress={(it: FavoritoItem) => setTimeout(() => router.push({
+                    pathname: '/(tabs)/detalle' as never,
                     params: { nombre: it.nombre, categoria: it.categoria },
                   }), 0)}
                   onRemove={quitarFavorito}

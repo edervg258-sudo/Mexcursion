@@ -48,7 +48,9 @@ LogBox.ignoreLogs(IGNORED_WARNINGS);
 
 // Ignorar en web (Expo Web)
 if (typeof window !== 'undefined') {
+  // eslint-disable-next-line no-console
   const originalWarn = console.warn;
+  // eslint-disable-next-line no-console
   console.warn = (...args) => {
     if (typeof args[0] === 'string' && IGNORED_WARNINGS.some(msg => args[0].includes(msg))) {
       return;
@@ -111,7 +113,7 @@ export default function RootLayout() {
         setUserId(session.user.id);
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
         // Sentry
-        setUser({ id: session.user.id, email: session.user.email });
+        setUser({ id: session.user.id, email: session.user.email ?? undefined });
       }
       if (event === 'SIGNED_OUT') {
         setUserId('');
@@ -133,9 +135,9 @@ export default function RootLayout() {
     // Tap en una notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       if (response.notification.request.content.data?.ruta) {
-        setTimeout(() => router.push(response.notification.request.content.data.ruta as any), 0);
+        setTimeout(() => router.push(response.notification.request.content.data.ruta as never), 0);
       } else if (response.notification.request.content.data?.notificacion_id) {
-        setTimeout(() => router.push('/(tabs)/notificaciones' as any), 0);
+        setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0);
       }
     });
 

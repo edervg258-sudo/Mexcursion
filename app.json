@@ -69,16 +69,7 @@
           }
         }
       ],
-      "expo-sqlite",
-
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "mercursion",
-          "organization": "your-org"
-        }
-      ]
+      "expo-sqlite"
     ],
 
     "experiments": {
