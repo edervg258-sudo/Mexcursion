@@ -27,10 +27,10 @@ const COLOR_ESTADO_BASE: Record<string, { fondo: string; texto: string }> = {
 };
 
 function formatearFecha(fecha: string): string {
-  if (!fecha) return '—';
+  if (!fecha) { return '—'; }
   // YYYY-MM-DD o YYYY-MM-DDTHH:... → DD/MM/AAAA
   const solo = fecha.split('T')[0];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(solo)) return solo.split('-').reverse().join('/');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(solo)) { return solo.split('-').reverse().join('/'); }
   return fecha;
 }
 
@@ -78,7 +78,7 @@ export default function MisReservasScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    refetch: refetchReservas,
+    refetch: _refetchReservas,
   } = useInfiniteQuery({
     queryKey: ['reservas-usuario', usuario?.id],
     queryFn: ({ pageParam = 0 }) =>

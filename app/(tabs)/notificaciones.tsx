@@ -36,13 +36,13 @@ function formatearFecha(
   try {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1)  return t('notif_ahora');
-    if (mins < 60) return t('notif_hace_min', { n: mins });
+    if (mins < 1)  { return t('notif_ahora'); }
+    if (mins < 60) { return t('notif_hace_min', { n: mins }); }
     const horas = Math.floor(mins / 60);
-    if (horas < 24) return horas === 1 ? t('notif_hace_h_s', { n: horas }) : t('notif_hace_h_p', { n: horas });
+    if (horas < 24) { return horas === 1 ? t('notif_hace_h_s', { n: horas }) : t('notif_hace_h_p', { n: horas }); }
     const dias = Math.floor(horas / 24);
-    if (dias === 1) return t('notif_ayer');
-    if (dias < 7)   return t('notif_hace_d', { n: dias });
+    if (dias === 1) { return t('notif_ayer'); }
+    if (dias < 7)   { return t('notif_hace_d', { n: dias }); }
     return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   } catch { return ''; }
 }
@@ -75,7 +75,7 @@ export default function NotificacionesScreen() {
   }, []));
 
   const cargarMas = async () => {
-    if (!usuarioId || cargandoMas) return;
+    if (!usuarioId || cargandoMas) { return; }
     setCargandoMas(true);
     const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
     setNotifs(prev => [...prev, ...mas]);
@@ -93,7 +93,7 @@ export default function NotificacionesScreen() {
 
   const marcarTodas = async () => {
     setNotifs(n => n.map(x => ({ ...x, leida: 1 })));
-    if (usuarioId) await marcarTodasLeidasBD(usuarioId);
+    if (usuarioId) { await marcarTodasLeidasBD(usuarioId); }
   };
 
   const renderItem = ({ item }: { item: Notif }) => (

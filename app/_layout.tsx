@@ -4,6 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import * as ExpoNotifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -14,6 +15,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { configurarBarraAndroid } from '../lib/android-ui';
+import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { IdiomaProvider } from '../lib/IdiomaContext';
 import {
     configurarNotificaciones,
@@ -23,6 +25,7 @@ import {
 import '../lib/react-19-filter'; // Importar filtro de advertencias
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
+import { initSentry, setUser } from '../lib/sentry';
 type NotificationSubscription = { remove: () => void };
 
 // Elimina el outline azul del browser en todos los TextInput (web)
@@ -90,6 +93,11 @@ export default function RootLayout() {
     configurarNotificaciones();
   }, []);
 
+  // Inicializar Sentry
+  useEffect(() => {
+    initSentry();
+  }, []);
+
   // Sesión: redirect en cambios de auth
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -99,6 +107,15 @@ export default function RootLayout() {
       // Registrar push token al iniciar sesión
       if (event === 'SIGNED_IN' && session?.user?.id) {
         registrarParaPush(session.user.id).catch(() => {});
+        // Analytics
+        setUserId(session.user.id);
+        logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
+        // Sentry
+        setUser({ id: session.user.id, email: session.user.email });
+      }
+      if (event === 'SIGNED_OUT') {
+        setUserId('');
+        setUser({ id: '', email: '' });
       }
     });
     return () => subscription.unsubscribe();
@@ -106,10 +123,9 @@ export default function RootLayout() {
 
   // Listeners de notificaciones push
   useEffect(() => {
-    if (!notificationsDisponibles()) return;
+    if (!notificationsDisponibles()) { return; }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const Notifications = ExpoNotifications;
 
     // Notificación recibida con la app en primer plano
     notifListener.current = Notifications.addNotificationReceivedListener(() => {});

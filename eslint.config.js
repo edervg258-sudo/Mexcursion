@@ -3,7 +3,6 @@ const { defineConfig } = require('eslint/config');
 const expoConfig = require("eslint-config-expo/flat");
 const typescriptPlugin = require('@typescript-eslint/eslint-plugin');
 const typescriptParser = require('@typescript-eslint/parser');
-const reactHooksPlugin = require('eslint-plugin-react-hooks');
 
 module.exports = defineConfig([
   expoConfig,
@@ -21,19 +20,19 @@ module.exports = defineConfig([
     },
     plugins: {
       '@typescript-eslint': typescriptPlugin,
-      'react-hooks': reactHooksPlugin,
+      // 'react-hooks' ya viene incluido en eslint-config-expo, no redefinir
     },
     rules: {
       // TypeScript rules
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/prefer-const': 'error',
+      // '@typescript-eslint/prefer-const' no existe, se usa la regla nativa 'prefer-const'
       '@typescript-eslint/no-var-requires': 'error',
-      
-      // React hooks rules
+
+      // React hooks rules (las reglas siguen funcionando via eslint-config-expo)
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      
+
       // General rules
       'no-console': 'warn',
       'prefer-const': 'error',

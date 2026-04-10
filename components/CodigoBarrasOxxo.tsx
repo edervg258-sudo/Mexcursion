@@ -66,7 +66,7 @@ export function generarReferenciaOxxo(folio: string): string {
   let suma = 0;
   digitos.forEach((d, i) => {
     let n = i % 2 === 0 ? d * 2 : d;
-    if (n > 9) n -= 9;
+    if (n > 9) { n -= 9; }
     suma += n;
   });
   const verificador = (10 - (suma % 10)) % 10;

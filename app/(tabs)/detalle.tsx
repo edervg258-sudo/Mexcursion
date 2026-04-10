@@ -18,8 +18,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Estrellas } from '../../components/Estrellas';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
-import { PAQUETES_POR_ESTADO, PESTANAS, Paquete } from '../../lib/constantes';
+import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
 import { Itinerario, alternarDestinoItinerario, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
@@ -136,6 +137,9 @@ export default function DetalleScreen() {
   const { bottom: bottomInset } = useSafeAreaInsets();
   const { t, idioma } = useIdioma();
 
+  // Obtener datos del estado
+  const estado = TODOS_LOS_ESTADOS.find(e => e.nombre === nombre);
+
   useEffect(() => {
     configurarBarraAndroid();
   }, []);
@@ -152,7 +156,7 @@ export default function DetalleScreen() {
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       const usuario = await obtenerUsuarioActivo();
-      if (!usuario) return;
+      if (!usuario) { return; }
       setUsuarioId(usuario.id);
       setItinerarios(await obtenerItinerarios(usuario.id));
     };
@@ -196,13 +200,13 @@ export default function DetalleScreen() {
   };
 
   const agregarAItinerario = async (id_itinerario: number) => {
-    if (!usuarioId || !paqueteSeleccionado) return;
+    if (!usuarioId || !paqueteSeleccionado) { return; }
     setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
     setModalVisible(false);
   };
 
   const crearYNuevoItinerario = async () => {
-    if (!usuarioId || !paqueteSeleccionado || !nuevoNombre.trim()) return;
+    if (!usuarioId || !paqueteSeleccionado || !nuevoNombre.trim()) { return; }
     const nombreNuevo = nuevoNombre.trim();
     setItinerarios(await crearItinerarioYAgregarDestino({
       usuarioId,
@@ -250,6 +254,18 @@ export default function DetalleScreen() {
               <Animated.View style={{ transform: [{ scale: resenasAnim }] }}>
                 <Text style={estilos.txtBtnResenas}>{t('det_ver_resenas')}</Text>
               </Animated.View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={estilos.btnCompartir}
+              onPress={() => {
+                // TODO: Implementar compartir
+                Alert.alert('Compartir', 'Funcionalidad de compartir próximamente disponible');
+              }}
+              activeOpacity={0.8}
+              accessibilityLabel="Compartir destino"
+              accessibilityHint="Comparte este destino con amigos"
+            >
+              <Text style={estilos.txtBtnCompartir}>📤 Compartir</Text>
             </TouchableOpacity>
           </View>
 
@@ -370,6 +386,21 @@ export default function DetalleScreen() {
             );
           })}
           <View style={{ height:20 }} />
+
+          {/* Mapa interactivo */}
+          {estado && (
+            <View style={estilos.seccionMapa}>
+              <Text style={estilos.tituloMapa}>{t('det_ubicacion')}</Text>
+              <MapaInteractivo
+                latitude={estado.latitude}
+                longitude={estado.longitude}
+                title={estado.nombre}
+                description={estado.descripcion}
+                zoom={8}
+                style={estilos.mapa}
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -518,7 +549,9 @@ const estilos = StyleSheet.create({
   heroBadge:             { backgroundColor:'#3AB7A5', paddingHorizontal:12, paddingVertical:4, borderRadius:20 },
   heroBadgeTexto:        { color:'#fff', fontWeight:'700', fontSize:12 },
   btnResenas:            { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1.5, borderColor:'#e9c46a', backgroundColor:'#fef9e7' },
+  btnCompartir:          { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1.5, borderColor:'#3AB7A5', backgroundColor:'#f0faf9', marginLeft: 8 },
   txtBtnResenas:         { fontSize:13, fontWeight:'700', color:'#c8a000' },
+  txtBtnCompartir:       { fontSize:13, fontWeight:'700', color:'#3AB7A5' },
   subtitulo:             { fontSize:18, fontWeight:'800', color:'#333', marginBottom:14 },
   tarjetaPaquete:        { borderRadius:18, borderWidth:2, marginBottom:16, overflow:'hidden', backgroundColor:'#fff' },
   cabeceraPaquete:       { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:16, paddingVertical:14 },
@@ -578,5 +611,10 @@ const estilos = StyleSheet.create({
   modalBtnCrear: { backgroundColor: '#333', borderRadius: 10, padding: 12, alignItems: 'center' },
   modalBtnCrearTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
   modalBtnCerrar: { marginTop: 10, padding: 10 },
-  modalBtnCerrarTxt: { color: '#888', fontSize: 14, fontWeight: '600' }
+  modalBtnCerrarTxt: { color: '#888', fontSize: 14, fontWeight: '600' },
+
+  // ── Mapa ──
+  seccionMapa: { marginTop: 20, marginBottom: 20 },
+  tituloMapa: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 12, textAlign: 'center' },
+  mapa: { height: 250, borderRadius: 12, overflow: 'hidden' }
 });

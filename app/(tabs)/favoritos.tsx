@@ -130,7 +130,7 @@ export default function FavoritosScreen() {
   }, [fadeAnim]));
 
   const onRefresh = useCallback(async () => {
-    if (!usuarioId) return;
+    if (!usuarioId) { return; }
     setRecargando(true);
     const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
     const mapeados = destinosDB
@@ -144,7 +144,7 @@ export default function FavoritosScreen() {
   }, [usuarioId]);
 
   const quitarFavorito = async (id: number) => {
-    if (!usuarioId) return;
+    if (!usuarioId) { return; }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setEstadosFavoritos(ant => ant.filter(f => f.id !== id));
     await alternarFavorito(usuarioId, id);

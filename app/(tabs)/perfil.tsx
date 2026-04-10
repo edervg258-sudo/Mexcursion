@@ -10,6 +10,7 @@ import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { useTemaContext } from '../../lib/TemaContext';
 import {
     actualizarPerfil, actualizarPreferencias,
     cambiarContrasena,
@@ -18,12 +19,13 @@ import {
 } from '../../lib/supabase-db';
 import { SkeletonPerfil } from './skeletonloader';
 
-type TipoModal = null | 'editarPerfil' | 'cambiarPassword' | 'notificaciones' | 'idioma' | 'ayuda' | 'acerca';
+type TipoModal = null | 'editarPerfil' | 'cambiarPassword' | 'notificaciones' | 'idioma' | 'tema' | 'ayuda' | 'acerca';
 
 export default function PerfilScreen() {
   const { width }  = useWindowDimensions();
   const esPC       = width >= 768;
   const { t, idioma, cambiarIdioma } = useIdioma();
+  const { isDark, toggleTema } = useTemaContext();
 
   useEffect(() => {
     configurarBarraAndroid();
@@ -39,7 +41,7 @@ export default function PerfilScreen() {
   const adminAnim   = useRef(new Animated.Value(1)).current;
 
   const getRowAnim = (key: string) => {
-    if (!animsRow.has(key)) animsRow.set(key, new Animated.Value(1));
+    if (!animsRow.has(key)) { animsRow.set(key, new Animated.Value(1)); }
     return animsRow.get(key)!;
   };
   const rowPressIn  = (key: string) => Animated.spring(getRowAnim(key), { toValue: 0.97, useNativeDriver: true, speed: 60, bounciness: 2 }).start();
@@ -89,28 +91,28 @@ export default function PerfilScreen() {
             { text: t('prf_cerrar_sesion'), style: 'destructive', onPress: () => resolve(true) },
           ])
         );
-    if (!confirmar) return;
+    if (!confirmar) { return; }
     await cerrarSesion();
     setTimeout(() => router.replace('/login' as any), 0);
   };
 
   const handleGuardarPerfil = async () => {
-    if (!nombre.trim() || !usuario.trim()) return mensaje(t('prf_err_nombre'));
-    if (!sesion?.id) return;
+    if (!nombre.trim() || !usuario.trim()) { return mensaje(t('prf_err_nombre')); }
+    if (!sesion?.id) { return; }
     const r = await actualizarPerfil(sesion.id, { nombre: nombre.trim(), nombre_usuario: usuario.trim(), telefono: telefono.trim() });
-    if (!r.exito) return mensaje(r.error ?? 'Error al actualizar');
+    if (!r.exito) { return mensaje(r.error ?? 'Error al actualizar'); }
     setSesion((ant: any) => ({ ...ant, nombre: nombre.trim(), nombre_usuario: usuario.trim(), telefono: telefono.trim() }));
     mensaje(t('prf_perfil_ok'));
     cerrarModal();
   };
 
   const handleCambiarPassword = async () => {
-    if (!passActual.trim())          return mensaje(t('prf_err_pass_actual'));
-    if (passNueva.length < 6)        return mensaje(t('prf_err_pass_corta'));
-    if (passNueva !== passConfirmar) return mensaje(t('prf_err_pass_match'));
-    if (!sesion?.id) return;
+    if (!passActual.trim())          { return mensaje(t('prf_err_pass_actual')); }
+    if (passNueva.length < 6)        { return mensaje(t('prf_err_pass_corta')); }
+    if (passNueva !== passConfirmar) { return mensaje(t('prf_err_pass_match')); }
+    if (!sesion?.id) { return; }
     const r = await cambiarContrasena(sesion.id, passActual, passNueva);
-    if (!r.exito) return mensaje(r.error ?? 'Error al cambiar contraseña');
+    if (!r.exito) { return mensaje(r.error ?? 'Error al cambiar contraseña'); }
     mensaje(t('prf_pass_ok'));
     setPassActual(''); setPassNueva(''); setPassConfirmar('');
     cerrarModal();
@@ -138,7 +140,7 @@ export default function PerfilScreen() {
 
   const SECCIONES = [
     { titulo: t('prf_cuenta'),       items: [{ etiqueta: t('prf_editar_perfil'), modal: 'editarPerfil'    as TipoModal }, { etiqueta: t('prf_cambiar_pass'),   modal: 'cambiarPassword' as TipoModal }] },
-    { titulo: t('prf_preferencias'), items: [{ etiqueta: t('prf_notificaciones'), modal: 'notificaciones' as TipoModal }, { etiqueta: t('prf_idioma'),         modal: 'idioma'          as TipoModal }] },
+    { titulo: t('prf_preferencias'), items: [{ etiqueta: t('prf_notificaciones'), modal: 'notificaciones' as TipoModal }, { etiqueta: t('prf_idioma'),         modal: 'idioma'          as TipoModal }, { etiqueta: t('prf_tema'),           modal: 'tema'            as TipoModal }] },
     { titulo: t('prf_ayuda'),        items: [{ etiqueta: t('prf_centro_ayuda'),  modal: 'ayuda'           as TipoModal }, { etiqueta: t('prf_acerca'),         modal: 'acerca'          as TipoModal }] },
   ];
 
@@ -190,10 +192,23 @@ export default function PerfilScreen() {
           <Text style={estilos.modalTitulo}>{t('prf_idioma_titulo')}</Text>
           {[{ clave: 'es', etiqueta: t('prf_idioma_es') }, { clave: 'en', etiqueta: t('prf_idioma_en') }].map(op => (
             <TouchableOpacity key={op.clave} style={[estilos.filaIdioma, idioma === op.clave && estilos.filaIdiomaActiva]} onPress={() => handleIdioma(op.clave)}>
-              <Text style={[estilos.textoIdioma, idioma === op.clave && estilos.textoIdiomaActivo]}>{op.etiqueta}</Text>
-              {idioma === op.clave && <Text style={estilos.checkIdioma}>✓</Text>}
+              <Text style={[estilos.idiomaTexto, idioma === op.clave && estilos.idiomaTextoActivo]}>{op.etiqueta}</Text>
+              {idioma === op.clave && <Text style={{ color: '#3AB7A5', fontSize: 16 }}>✓</Text>}
             </TouchableOpacity>
           ))}
+        </View>
+      );
+      case 'tema': return (
+        <View style={estilos.modalContenido}>
+          <Text style={estilos.modalTitulo}>{t('prf_tema_titulo')}</Text>
+          <View style={estilos.filaSwitch}>
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.switchEtiqueta}>{t('prf_tema_oscuro')}</Text>
+              <Text style={estilos.switchDescripcion}>{t('prf_tema_desc')}</Text>
+            </View>
+            <Switch value={isDark} onValueChange={toggleTema} trackColor={{ false: '#ccc', true: '#3AB7A5' }} thumbColor="#fff" />
+          </View>
+          <Text style={estilos.notifEstado}>{t('prf_tema_estado')} {isDark ? t('prf_tema_on') : t('prf_tema_off')}</Text>
         </View>
       );
       case 'ayuda': return (
@@ -229,7 +244,7 @@ export default function PerfilScreen() {
 
   // ── Contenido principal ─────────────────────────────────────────────────
   const renderContenidoPerfil = () => {
-    if (cargando) return <SkeletonPerfil />;
+    if (cargando) { return <SkeletonPerfil />; }
     return (
       <Animated.View style={[estilos.contenedorCentrado, { opacity: fadeAnim, flex: 1 }]}>
         <TopActionHeader

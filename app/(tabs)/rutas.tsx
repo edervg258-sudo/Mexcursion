@@ -37,7 +37,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const colorNivel = (nivel: string, opacity = 1) => {
   const base = COLORES_NIVEL[nivel as Nivel] ?? '#888';
-  if (opacity === 1) return base;
+  if (opacity === 1) { return base; }
   const r = parseInt(base.slice(1, 3), 16);
   const g = parseInt(base.slice(3, 5), 16);
   const b = parseInt(base.slice(5, 7), 16);
@@ -48,9 +48,41 @@ const colorNivel = (nivel: string, opacity = 1) => {
 //  COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function RutasScreen() {
-  const { width } = useWindowDimensions();
-  const esPC      = width >= 768;
+  const { width }  = useWindowDimensions();
+  const esPC       = width >= 768;
   const { t, idioma } = useIdioma();
+
+  // Animaciones para tarjetas de rutas (igual que en menu.tsx)
+  const animsCard = useRef<Map<string, Animated.Value>>(new Map()).current;
+  const animsFav  = useRef<Map<string, Animated.Value>>(new Map()).current;
+
+  const obtenerAnimCard = (id: string) => {
+    if (!animsCard.has(id)) { animsCard.set(id, new Animated.Value(1)); }
+    return animsCard.get(id)!;
+  };
+
+  const _obtenerAnimFav = (id: string) => {
+    if (!animsFav.has(id)) { animsFav.set(id, new Animated.Value(1)); }
+    return animsFav.get(id)!;
+  };
+
+  const cardPressIn = (id: string) => {
+    Animated.spring(obtenerAnimCard(id), {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 2,
+    }).start();
+  };
+
+  const cardPressOut = (id: string) => {
+    Animated.spring(obtenerAnimCard(id), {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 6,
+    }).start();
+  };
 
   const [usuarioId,         setUsuarioId]         = useState<string | null>(null);
   const [itinerarios,       setItinerarios]        = useState<Itinerario[]>([]);
@@ -71,7 +103,7 @@ export default function RutasScreen() {
 
   // ── Android navigation bar ─────────────────────────────────────────────────
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== 'android') { return; }
     NavigationBar.setVisibilityAsync('visible');
     NavigationBar.setButtonStyleAsync('dark');
   }, []);
@@ -123,7 +155,7 @@ export default function RutasScreen() {
 
   // ── Acciones: itinerarios ──────────────────────────────────────────────────
   const handleCrearItinerario = async () => {
-    if (!usuarioId || !nuevoNombre.trim()) return;
+    if (!usuarioId || !nuevoNombre.trim()) { return; }
     const res = await crearItinerario(usuarioId, nuevoNombre.trim());
     setItinerarios(res);
     setNuevoNombre('');
@@ -134,23 +166,23 @@ export default function RutasScreen() {
     Alert.alert(t('rut_eliminar_viaje_titulo'), t('rut_eliminar_viaje_msg'), [
       { text: t('rut_cancelar'), style: 'cancel' },
       { text: t('rut_eliminar'), style: 'destructive', onPress: async () => {
-        if (!usuarioId) return;
+        if (!usuarioId) { return; }
         const res = await eliminarItinerario(usuarioId, id);
         setItinerarios(res);
-        if (itinerarioActivo?.id === id) setItinerarioActivo(null);
+        if (itinerarioActivo?.id === id) { setItinerarioActivo(null); }
       }},
     ]);
   };
 
   const handleQuitarItem = async (clave: string) => {
-    if (!usuarioId || !itinerarioActivo) return;
+    if (!usuarioId || !itinerarioActivo) { return; }
     const itis = await alternarDestinoItinerario(usuarioId, itinerarioActivo.id, clave);
     setItinerarios(itis);
     setItinerarioActivo(itis.find(i => i.id === itinerarioActivo.id) ?? null);
   };
 
   const moverItem = async (idx: number, dir: -1 | 1) => {
-    if (!usuarioId || !itinerarioActivo?.items) return;
+    if (!usuarioId || !itinerarioActivo?.items) { return; }
     const arr = [...itinerarioActivo.items];
     const [item] = arr.splice(idx, 1);
     arr.splice(idx + dir, 0, item);
@@ -186,7 +218,7 @@ export default function RutasScreen() {
   };
 
   const agregarSugeridaAItinerario = async (itiId: number) => {
-    if (!usuarioId || !claveParaAgregar) return;
+    if (!usuarioId || !claveParaAgregar) { return; }
     const res = await alternarDestinoItinerario(usuarioId, itiId, claveParaAgregar);
     setItinerarios(res);
     setModalItiVisible(false);
@@ -195,7 +227,7 @@ export default function RutasScreen() {
   };
 
   const crearItiYAgregar = async () => {
-    if (!usuarioId || !claveParaAgregar || !nuevoNombreIti.trim()) return;
+    if (!usuarioId || !claveParaAgregar || !nuevoNombreIti.trim()) { return; }
     const nombreBuscado = nuevoNombreIti.trim();
     const nuevos = await crearItinerario(usuarioId, nombreBuscado);
     setItinerarios(nuevos);
@@ -211,11 +243,76 @@ export default function RutasScreen() {
     Alert.alert('✅', t('rut_toast_creado_agr_msg'));
   };
 
+  // Función para renderizar rutas sugeridas (igual que estados, pero en grid)
+  const renderizarRutaSugerida = (item: any) => {
+    const anim = obtenerAnimCard(item.id);
+
+    return (
+      <Animated.View
+        key={item.id}
+        style={[
+          s.tarjetaContenedor,
+          { width: '48%' }, // 2 columnas en grid
+          {
+            transform: [{ scale: anim }],
+            opacity: anim,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+          style={({ pressed }) => [
+            s.tarjeta,
+            pressed && Platform.OS !== 'android' && { opacity: 0.85 },
+          ]}
+          onPressIn={() => cardPressIn(item.id)}
+          onPressOut={() => cardPressOut(item.id)}
+          onPress={() => abrirDetalleSugerida(item)}
+          accessibilityLabel={`${item.titulo} en ${item.estado}, nivel ${item.nivel}`}
+          accessibilityHint="Toca para ver detalles de la ruta sugerida"
+          accessibilityRole="button"
+        >
+          <ExpoImage
+            source={typeof item.imagen === 'string' ? { uri: item.imagen } : imagenDeEstado(item.estado)}
+            style={s.imagenTarjeta}
+            contentFit="cover"
+            transition={200}
+            placeholder="#f0f0f0"
+            cachePolicy="memory-disk"
+            recyclingKey={String(item.id)}
+          />
+          <View style={s.sombraOverlay} />
+
+          <View style={[s.badgeCategoria, { backgroundColor: colorNivel(item.nivel) }]}>
+            <Text style={s.textoBadge}>{t(('rut_' + item.nivel) as any)}</Text>
+          </View>
+
+          <Text style={s.nombreTarjeta} numberOfLines={2}>{item.titulo}</Text>
+          <Text style={s.precioTarjeta}>{item.estado}</Text>
+        </TouchableOpacity>
+
+        {/* Botón de favorito para rutas (opcional) */}
+        <TouchableOpacity
+          onPress={() => {
+            // TODO: Implementar favoritos para rutas
+            Alert.alert('Favoritos', 'Funcionalidad próximamente disponible');
+          }}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={s.botonFavorito}
+          accessibilityLabel="Agregar ruta a favoritos"
+          accessibilityHint="Toca para guardar esta ruta sugerida"
+        >
+          <Text style={{ fontSize: 16 }}>❤️</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
   // ── Vista detalle itinerario ───────────────────────────────────────────────
   if (itinerarioActivo) {
     const items = (itinerarioActivo.items ?? []).map(clave => {
       const sg = rutasSugeridas.find(r => String(r.id) === clave);
-      if (sg) return { clave, titulo: sg.titulo, estado: sg.estado, nivel: sg.nivel };
+      if (sg) { return { clave, titulo: sg.titulo, estado: sg.estado, nivel: sg.nivel }; }
       const p = parsearClaveRuta(clave);
       return { clave, titulo: p.estado, estado: p.estado, nivel: p.nivel };
     });
@@ -337,34 +434,7 @@ export default function RutasScreen() {
                 <Text style={s.seccionSub}>{t('rut_inspiracion')}</Text>
               </View>
               <View style={s.gridSugeridas}>
-                {sugeridas.map(item => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={s.tarjetaSug}
-                    onPress={() => abrirDetalleSugerida(item)}
-                    activeOpacity={0.85}
-                  >
-                    <ExpoImage
-                      source={typeof item.imagen === 'string' ? { uri: item.imagen } : imagenDeEstado(item.estado)}
-                      style={s.imgSug}
-                      contentFit="cover"
-                      transition={300}
-                      cachePolicy="memory-disk"
-                      recyclingKey={String(item.id)}
-                    />
-                    <View style={s.gradienteSug} />
-                    <View style={[s.badgeNivel, { backgroundColor: colorNivel(item.nivel) }]}>
-                      <Text style={s.badgeNivelTxt}>{t(('rut_' + item.nivel) as any)}</Text>
-                    </View>
-                    <View style={s.infoSug}>
-                      <Text style={s.tituloSug} numberOfLines={1}>{item.titulo}</Text>
-                      <Text style={s.estadoSug}>{item.estado}</Text>
-                      <View style={s.tapHint}>
-                        <Text style={s.tapHintTxt}>Ver detalles →</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {sugeridas.map(item => renderizarRutaSugerida(item))}
               </View>
             </>
           )}

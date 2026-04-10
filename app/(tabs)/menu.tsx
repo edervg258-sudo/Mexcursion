@@ -15,9 +15,6 @@ import {
     useWindowDimensions,
     View
 } from 'react-native';
-
-const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as any;
-
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
@@ -32,6 +29,8 @@ import {
 } from '../../lib/supabase-db';
 import { Tema } from '../../lib/tema';
 import { SkeletonLista } from './skeletonloader';
+
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as any;
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
@@ -76,17 +75,17 @@ export default function MenuScreen() {
   const dropdownSlide  = useRef(new Animated.Value(-8)).current;
 
   const obtenerAnimFav = (id: number) => {
-    if (!animsFav.has(id)) animsFav.set(id, new Animated.Value(1));
+    if (!animsFav.has(id)) { animsFav.set(id, new Animated.Value(1)); }
     return animsFav.get(id)!;
   };
 
   const obtenerAnimChip = (key: string) => {
-    if (!animsChip.has(key)) animsChip.set(key, new Animated.Value(1));
+    if (!animsChip.has(key)) { animsChip.set(key, new Animated.Value(1)); }
     return animsChip.get(key)!;
   };
 
   const obtenerAnimCard = (id: number) => {
-    if (!animsCard.has(id)) animsCard.set(id, new Animated.Value(1));
+    if (!animsCard.has(id)) { animsCard.set(id, new Animated.Value(1)); }
     return animsCard.get(id)!;
   };
 
@@ -143,7 +142,7 @@ const cardPressOut = (id: number) => {
   const cargando = loadingUsr || loadingFavs || loadingDest;
 
   useEffect(() => {
-    if (loadingUsr) return;
+    if (loadingUsr) { return; }
     // usuario === null → sin sesión confirmada; undefined → aún no cargó
     if (usuario === null) {
       setTimeout(() => router.replace('/login'), 0);
@@ -178,7 +177,7 @@ const cardPressOut = (id: number) => {
       await queryClient.cancelQueries({ queryKey: ['favoritos', usuarioId] });
       const prev = queryClient.getQueryData<number[]>(['favoritos', usuarioId]) || [];
       queryClient.setQueryData<number[]>(['favoritos', usuarioId], (old = []) => {
-        if (old.includes(idDestino)) return old.filter((id) => id !== idDestino);
+        if (old.includes(idDestino)) { return old.filter((id) => id !== idDestino); }
         return [...old, idDestino];
       });
       return { prev };
@@ -192,7 +191,7 @@ const cardPressOut = (id: number) => {
   });
 
   const manejarFavorito = (id: number) => {
-    if (!usuarioId) return;
+    if (!usuarioId) { return; }
 
     const anim = obtenerAnimFav(id);
     Animated.sequence([
@@ -219,8 +218,8 @@ const cardPressOut = (id: number) => {
       .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
       .filter((e) => categoriaActiva === 'Todos' || (e.categoria as string) === categoriaActiva)
       .sort((a, b) => {
-        if (orden === 'mas_caro') return b.precio - a.precio;
-        if (orden === 'mas_barato') return a.precio - b.precio;
+        if (orden === 'mas_caro') { return b.precio - a.precio; }
+        if (orden === 'mas_barato') { return a.precio - b.precio; }
         return a.nombre.localeCompare(b.nombre);
       })
   ), [estados, busqueda, categoriaActiva, orden]);
@@ -254,6 +253,9 @@ const cardPressOut = (id: number) => {
             params: { nombre: item.nombre, categoria: item.categoria },
           } as any), 0)
         }
+        accessibilityLabel={`${item.nombre}, ${item.categoria}, desde ${item.precio.toLocaleString()} MXN`}
+        accessibilityHint="Toca para ver detalles y reservar"
+        accessibilityRole="button"
       >
         <Image source={item.imagen} style={estilos.imagenTarjeta} contentFit="cover" transition={200} placeholder="#f0f0f0" />
         <View style={estilos.sombraOverlay} />
@@ -272,6 +274,9 @@ const cardPressOut = (id: number) => {
         onPress={() => manejarFavorito(item.id)}
         android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
         style={estilos.botonFavorito}
+        accessibilityLabel={item.favorito ? "Quitar de favoritos" : "Agregar a favoritos"}
+        accessibilityHint="Toca para alternar favorito"
+        accessibilityRole="button"
       >
         <Animated.View
           style={{
@@ -316,30 +321,36 @@ const cardPressOut = (id: number) => {
 
         <View style={estilos.contenedorCentrado}>
           <View style={[estilos.filaBusqueda, { zIndex: 20 }]}>
-            <Animated.View style={[estilos.cajaBusqueda, {
-              borderColor: searchFocusAnim.interpolate({
-                inputRange: [0, 1], outputRange: [Tema.borde, Tema.primario],
-              }),
-              borderWidth: searchFocusAnim.interpolate({
-                inputRange: [0, 1], outputRange: [1, 2],
-              }) as any,
-            }]}>
-              <Image source={require('../../assets/images/busqueda.png')} style={estilos.iconoBusquedaImg} contentFit="contain" />
-              <TextInput
-                style={estilos.inputBusqueda}
-                placeholder={t('menu_buscar')}
-                placeholderTextColor={Tema.textoMuted}
-                value={busqueda}
-                onChangeText={setBusqueda}
-                onFocus={() => Animated.spring(searchFocusAnim, { toValue: 1, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
-                onBlur={() => Animated.spring(searchFocusAnim, { toValue: 0, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
-              />
-              {busqueda.length > 0 && (
-                <TouchableOpacity onPress={() => setBusqueda('')}>
-                  <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </Animated.View>
+              <Animated.View style={[estilos.cajaBusqueda, {
+                borderColor: searchFocusAnim.interpolate({
+                  inputRange: [0, 1], outputRange: [Tema.borde, Tema.primario],
+                }),
+                borderWidth: searchFocusAnim.interpolate({
+                  inputRange: [0, 1], outputRange: [1, 2],
+                }) as any,
+              }]}>
+                <Image source={require('../../assets/images/busqueda.png')} style={estilos.iconoBusquedaImg} contentFit="contain" />
+                <TextInput
+                  style={estilos.inputBusqueda}
+                  placeholder={t('menu_buscar')}
+                  placeholderTextColor={Tema.textoMuted}
+                  value={busqueda}
+                  onChangeText={setBusqueda}
+                  onFocus={() => Animated.spring(searchFocusAnim, { toValue: 1, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
+                  onBlur={() => Animated.spring(searchFocusAnim, { toValue: 0, useNativeDriver: false, speed: 30, bounciness: 2 }).start()}
+                  accessibilityLabel="Buscar destinos"
+                  accessibilityHint="Escribe para filtrar destinos por nombre"
+                />
+                {busqueda.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setBusqueda('')}
+                    accessibilityLabel="Limpiar búsqueda"
+                    accessibilityRole="button"
+                  >
+                    <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
 
             <View style={{ position: 'relative' }}>
               <TouchableOpacity
@@ -363,6 +374,9 @@ const cardPressOut = (id: number) => {
                   }
                 }}
                 activeOpacity={1}
+                accessibilityLabel={`Ordenar por: ${etiquetaOrdenActual}`}
+                accessibilityHint="Toca para cambiar el orden de los resultados"
+                accessibilityRole="button"
               >
                 <Image source={require('../../assets/images/filtro.png')} style={estilos.iconoFiltroImg} contentFit="contain" />
                 <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>

@@ -25,56 +25,43 @@ export default function RegistroScreen() {
 
   useEffect(() => {
     obtenerUsuarioActivo().then(u => {
-      if (u) router.push('/(tabs)/menu');
-      else setVerificando(false);
+      if (u) { router.push('/(tabs)/menu'); }
+      else { setVerificando(false); }
     });
   }, []);
 
   const actualizar = (clave: keyof FormType, valor: string) => {
     setForm(prev => ({ ...prev, [clave]: valor }));
-    if (errores[clave]) setErrores(prev => ({ ...prev, [clave]: undefined }));
+    if (errores[clave]) { setErrores(prev => ({ ...prev, [clave]: undefined })); }
   };
 
   const validar = (): boolean => {
     const nuevos: ErroresType = {};
-    if (!form.nombre.trim())
-      nuevos.nombre = 'Ingresa tu nombre completo';
-    if (!form.nombre_usuario.trim())
-      nuevos.nombre_usuario = 'Ingresa un nombre de usuario';
-    else if (form.nombre_usuario.length < 3)
-      nuevos.nombre_usuario = 'El usuario debe tener al menos 3 caracteres';
-    else if (!/^[a-zA-Z0-9_]+$/.test(form.nombre_usuario))
-      nuevos.nombre_usuario = 'Solo letras, números y guión bajo';
-    if (!form.correo.trim())
-      nuevos.correo = 'Ingresa tu correo electrónico';
-    else if (!/\S+@\S+\.\S+/.test(form.correo))
-      nuevos.correo = 'Ingresa un correo válido';
-    if (!form.telefono.trim())
-      nuevos.telefono = 'Ingresa tu número de teléfono';
-    else if (form.telefono.replace(/\D/g, '').length < 10)
-      nuevos.telefono = 'El teléfono debe tener al menos 10 dígitos';
-    if (!form.contrasena.trim())
-      nuevos.contrasena = 'Ingresa una contraseña';
-    else if (form.contrasena.length < 6)
-      nuevos.contrasena = 'La contraseña debe tener al menos 6 caracteres';
+    if (!form.nombre.trim()) { nuevos.nombre = 'Ingresa tu nombre completo'; }
+    if (!form.nombre_usuario.trim()) { nuevos.nombre_usuario = 'Ingresa un nombre de usuario'; }
+    else if (form.nombre_usuario.length < 3) { nuevos.nombre_usuario = 'El usuario debe tener al menos 3 caracteres'; }
+    else if (!/^[a-zA-Z0-9_]+$/.test(form.nombre_usuario)) { nuevos.nombre_usuario = 'Solo letras, números y guión bajo'; }
+    if (!form.correo.trim()) { nuevos.correo = 'Ingresa tu correo electrónico'; }
+    else if (!/\S+@\S+\.\S+/.test(form.correo)) { nuevos.correo = 'Ingresa un correo válido'; }
+    if (!form.telefono.trim()) { nuevos.telefono = 'Ingresa tu número de teléfono'; }
+    else if (form.telefono.replace(/\D/g, '').length < 10) { nuevos.telefono = 'El teléfono debe tener al menos 10 dígitos'; }
+    if (!form.contrasena.trim()) { nuevos.contrasena = 'Ingresa una contraseña'; }
+    else if (form.contrasena.length < 6) { nuevos.contrasena = 'La contraseña debe tener al menos 6 caracteres'; }
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
 
   const handleRegistro = async () => {
-    if (!validar()) return;
+    if (!validar()) { return; }
     setCargando(true);
     const resultado = await registrarUsuario(
       form.nombre, form.nombre_usuario, form.correo, form.contrasena, form.telefono
     );
     setCargando(false);
     if (!resultado.exito) {
-      if (resultado.error?.includes('correo'))
-        setErrores({ correo: resultado.error });
-      else if (resultado.error?.includes('usuario'))
-        setErrores({ nombre_usuario: resultado.error });
-      else
-        Alert.alert('Error', resultado.error ?? 'Error al registrar');
+      if (resultado.error?.includes('correo')) { setErrores({ correo: resultado.error }); }
+      else if (resultado.error?.includes('usuario')) { setErrores({ nombre_usuario: resultado.error }); }
+      else { Alert.alert('Error', resultado.error ?? 'Error al registrar'); }
       return;
     }
     if (resultado.confirmar) {
@@ -88,7 +75,7 @@ export default function RegistroScreen() {
     router.push('/(tabs)/menu');
   };
 
-  if (verificando) return <View style={{ flex: 1, backgroundColor: '#FAF7F0' }} />;
+  if (verificando) { return <View style={{ flex: 1, backgroundColor: '#FAF7F0' }} />; }
 
   return (
     <View style={estilos.contenedor}>

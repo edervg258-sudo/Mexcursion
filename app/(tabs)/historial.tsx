@@ -28,12 +28,12 @@ function tiempoRelativo(iso: string, t: (k: TraduccionClave, v?: Record<string, 
   try {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t('hist_ahora');
-    if (mins < 60) return t('hist_hace_min', { n: mins });
+    if (mins < 1) { return t('hist_ahora'); }
+    if (mins < 60) { return t('hist_hace_min', { n: mins }); }
     const horas = Math.floor(mins / 60);
-    if (horas < 24) return t('hist_hace_h', { n: horas });
+    if (horas < 24) { return t('hist_hace_h', { n: horas }); }
     const dias = Math.floor(horas / 24);
-    if (dias < 7) return t('hist_hace_d', { n: dias });
+    if (dias < 7) { return t('hist_hace_d', { n: dias }); }
     return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   } catch { return ''; }
 }
@@ -60,7 +60,7 @@ export default function HistorialScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    refetch: refetchHistorial,
+    refetch: _refetchHistorial,
   } = useInfiniteQuery({
     queryKey: ['historial-usuario', usuario?.id],
     queryFn: ({ pageParam = 0 }) =>

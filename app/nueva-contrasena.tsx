@@ -26,18 +26,18 @@ export default function NuevaContrasenaScreen() {
     if (nueva.length < 6) {
       setErrorNueva('La contraseña debe tener al menos 6 caracteres');
       valido = false;
-    } else setErrorNueva('');
+    } else { setErrorNueva(''); }
 
     if (nueva !== confirmar) {
       setErrorConfirmar('Las contraseñas no coinciden');
       valido = false;
-    } else setErrorConfirmar('');
+    } else { setErrorConfirmar(''); }
 
     return valido;
   };
 
   const handleReset = async () => {
-    if (!validar()) return;
+    if (!validar()) { return; }
     setCargando(true);
     const resultado = await resetContrasena(correo ?? '', nueva);
     setCargando(false);
@@ -88,7 +88,7 @@ export default function NuevaContrasenaScreen() {
                     style={estilos.campoInterno}
                     secureTextEntry={!verNueva}
                     value={nueva}
-                    onChangeText={t => { setNueva(t); if (errorNueva) setErrorNueva(''); }}
+                    onChangeText={t => { setNueva(t); if (errorNueva) { setErrorNueva(''); } }}
                   />
                   <TouchableOpacity onPress={() => setVerNueva(v => !v)} style={estilos.botonOjo}>
                     <Text style={estilos.textoOjo}>{verNueva ? '◎' : '◉'}</Text>
@@ -105,7 +105,7 @@ export default function NuevaContrasenaScreen() {
                     style={estilos.campoInterno}
                     secureTextEntry={!verConfirmar}
                     value={confirmar}
-                    onChangeText={t => { setConfirmar(t); if (errorConfirmar) setErrorConfirmar(''); }}
+                    onChangeText={t => { setConfirmar(t); if (errorConfirmar) { setErrorConfirmar(''); } }}
                   />
                   <TouchableOpacity onPress={() => setVerConfirmar(v => !v)} style={estilos.botonOjo}>
                     <Text style={estilos.textoOjo}>{verConfirmar ? '◎' : '◉'}</Text>

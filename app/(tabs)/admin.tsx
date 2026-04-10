@@ -146,7 +146,7 @@ export default function AdminScreen() {
     setFormPrecio(String(d.precio)); setFormDesc(d.descripcion);
   };
   const guardarDestino = async () => {
-    if (!formNombre || !formCategoria || !formPrecio) return;
+    if (!formNombre || !formCategoria || !formPrecio) { return; }
     if (modoForm === 'nuevo') {
       await crearDestino({ nombre: formNombre, categoria: formCategoria, descripcion: formDesc, precio: Number(formPrecio) });
     } else if (destinoEdit) {
@@ -182,7 +182,7 @@ export default function AdminScreen() {
     setFormTituloRuta(r.titulo); setFormEstadoRuta(r.estado); setFormNivelRuta(r.nivel);
   };
   const guardarRuta = async () => {
-    if (!formTituloRuta || !formEstadoRuta || !formNivelRuta) return;
+    if (!formTituloRuta || !formEstadoRuta || !formNivelRuta) { return; }
     if (modoFormRuta === 'nuevo') {
       await crearRutaSugerida({ titulo: formTituloRuta, estado: formEstadoRuta, nivel: formNivelRuta });
     } else if (rutaEdit) {
@@ -237,16 +237,16 @@ export default function AdminScreen() {
 
   const formatTiempo = (fecha: string) => {
     const seg = Math.floor((ahora.getTime() - new Date(fecha).getTime()) / 1000);
-    if (seg < 60)    return 'Hace un momento';
-    if (seg < 3600)  return `Hace ${Math.floor(seg / 60)} min`;
-    if (seg < 86400) return `Hace ${Math.floor(seg / 3600)}h`;
+    if (seg < 60)    { return 'Hace un momento'; }
+    if (seg < 3600)  { return `Hace ${Math.floor(seg / 60)} min`; }
+    if (seg < 86400) { return `Hace ${Math.floor(seg / 3600)}h`; }
     return `Hace ${Math.floor(seg / 86400)}d`;
   };
 
   // Top destinos reales: agrupar reservas por destino
   const topDestinos = Object.entries(
     reservas.reduce<Record<string, number>>((acc, r) => {
-      if (r.destino) acc[r.destino] = (acc[r.destino] ?? 0) + 1;
+      if (r.destino) { acc[r.destino] = (acc[r.destino] ?? 0) + 1; }
       return acc;
     }, {})
   )

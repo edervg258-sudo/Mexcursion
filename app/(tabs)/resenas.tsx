@@ -40,8 +40,8 @@ export default function ResenasScreen() {
     const cargar = async () => {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
-      if (usuario) setUsuarioId(usuario.id);
-      if (nombre) setResenas(await cargarResenas(nombre));
+      if (usuario) { setUsuarioId(usuario.id); }
+      if (nombre) { setResenas(await cargarResenas(nombre)); }
       setCargando(false);
     };
     cargar();
@@ -52,7 +52,7 @@ export default function ResenasScreen() {
     : '0.0';
 
   const enviarResena = async () => {
-    if (miEstrellas === 0 || !miTexto.trim() || !usuarioId || !nombre) return;
+    if (miEstrellas === 0 || !miTexto.trim() || !usuarioId || !nombre) { return; }
     setEnviando(true);
     const resultado = await guardarResena(usuarioId, nombre, miEstrellas, miTexto.trim());
     setEnviando(false);

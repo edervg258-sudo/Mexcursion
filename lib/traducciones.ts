@@ -1,7 +1,3 @@
-// ============================================================
-//  lib/traducciones.ts  —  Strings ES / EN para toda la app
-// ============================================================
-
 export type Idioma = 'es' | 'en';
 
 const T = {
@@ -210,6 +206,29 @@ const T = {
   det_inicia_sesion:    { es: 'Inicia sesión',                en: 'Sign in'                    },
   det_inicia_sesion2:   { es: 'Debes iniciar sesión para agregar a tus rutas.', en: 'You must sign in to add to your routes.' },
   det_incluido:         { es: 'Incluido en paquete',          en: 'Included in package'        },
+  det_ubicacion:        { es: '📍 Ubicación',                 en: '📍 Location' },
+
+  // Sistema de Feedback
+  feedback_titulo:          { es: 'Calificar viaje a',            en: 'Rate your trip to' },
+  feedback_subtitulo:       { es: 'Tu opinión nos ayuda a mejorar', en: 'Your feedback helps us improve' },
+  feedback_calificacion_general: { es: 'Calificación general',    en: 'Overall rating' },
+  feedback_aspectos:        { es: 'Calificar aspectos',           en: 'Rate aspects' },
+  feedback_transporte:      { es: 'Transporte',                   en: 'Transportation' },
+  feedback_hotel:           { es: 'Hotel',                        en: 'Hotel' },
+  feedback_actividades:     { es: 'Actividades',                  en: 'Activities' },
+  feedback_atencion:        { es: 'Atención al cliente',          en: 'Customer service' },
+  feedback_precio:          { es: 'Relación precio-calidad',      en: 'Value for money' },
+  feedback_comentario:      { es: 'Comentario',                   en: 'Comment' },
+  feedback_placeholder_comentario: { es: 'Comparte tu experiencia...', en: 'Share your experience...' },
+  feedback_enviar:          { es: 'Enviar reseña',                en: 'Send review' },
+  feedback_dejar_resena:    { es: '✨ Dejar reseña',               en: '✨ Leave review' },
+  feedback_gracias:         { es: '¡Gracias!',                    en: 'Thank you!' },
+  feedback_recibido:        { es: 'Tu reseña ha sido enviada',    en: 'Your review has been sent' },
+  feedback_error:           { es: 'Error',                        en: 'Error' },
+  feedback_error_envio:     { es: 'No se pudo enviar la reseña',  en: 'Could not send review' },
+  feedback_calificacion_requerida: { es: 'Selecciona una calificación', en: 'Select a rating' },
+  opcional:                 { es: 'opcional',                     en: 'optional' },
+  enviando:                 { es: 'Enviando...',                  en: 'Sending...' },
 
   // ── Reseñas ───────────────────────────────────────────────
   rsn_titulo:           { es: 'Reseñas',                      en: 'Reviews'                    },
@@ -273,6 +292,14 @@ const T = {
   prf_idioma_titulo:    { es: 'Idioma',                       en: 'Language'                   },
   prf_idioma_es:        { es: 'Español',                      en: 'Spanish'                 },
   prf_idioma_en:        { es: 'English',                      en: 'English'                 },
+  // Tema
+  prf_tema:             { es: 'Tema',                         en: 'Theme'                     },
+  prf_tema_titulo:      { es: 'Tema de la app',               en: 'App theme'                 },
+  prf_tema_oscuro:      { es: 'Modo oscuro',                  en: 'Dark mode'                 },
+  prf_tema_desc:        { es: 'Cambiar entre tema claro y oscuro', en: 'Switch between light and dark theme' },
+  prf_tema_on:          { es: '🌙 Activado',                   en: '🌙 Enabled'                 },
+  prf_tema_off:         { es: '☀️ Desactivado',                en: '☀️ Disabled'               },
+  prf_tema_estado:      { es: 'Tema oscuro:',                 en: 'Dark theme:'               },
   // Ayuda
   prf_ayuda_titulo:     { es: 'Centro de ayuda',              en: 'Help center'                },
   prf_ayuda_p1:         { es: '¿Cómo agrego un destino a favoritos?', en: 'How do I add a destination to favorites?' },

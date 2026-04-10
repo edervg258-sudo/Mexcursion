@@ -13,6 +13,7 @@ web-build/
 .env.local
 .env.development
 .env.production
+.env.staging
 
 # IDE
 .vscode/

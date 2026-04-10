@@ -28,9 +28,9 @@ export default function ReservaScreen() {
 
   const validar = () => {
     const e: Record<string, string> = {};
-    if (!nombre_viajero.trim()) e.nombre = t('rsv_err_nombre');
-    if (!email.includes('@'))   e.email  = t('rsv_err_correo');
-    if (!telefono.trim())       e.tel    = t('rsv_err_telefono');
+    if (!nombre_viajero.trim()) { e.nombre = t('rsv_err_nombre'); }
+    if (!email.includes('@'))   { e.email  = t('rsv_err_correo'); }
+    if (!telefono.trim())       { e.tel    = t('rsv_err_telefono'); }
 
     // Validar fecha real y futura (formato DD/MM/AAAA)
     const partes = fecha.split('/');
@@ -45,7 +45,7 @@ export default function ReservaScreen() {
       && fechaObj.getMonth() === mes - 1
       && fechaObj.getDate() === dia
       && fechaObj >= hoy;
-    if (!fechaValida) e.fecha = t('rsv_err_fecha');
+    if (!fechaValida) { e.fecha = t('rsv_err_fecha'); }
 
     setErrores(e);
     return Object.keys(e).length === 0;
@@ -53,13 +53,13 @@ export default function ReservaScreen() {
 
   const formatFecha = (v: string) => {
     const d = v.replace(/\D/g, '').slice(0, 8);
-    if (d.length <= 2) return d;
-    if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+    if (d.length <= 2) { return d; }
+    if (d.length <= 4) { return `${d.slice(0, 2)}/${d.slice(2)}`; }
     return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
   };
 
   const continuar = () => {
-    if (!validar()) return;
+    if (!validar()) { return; }
     router.push({
       pathname: '/(tabs)/pago',
       params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
@@ -74,7 +74,7 @@ export default function ReservaScreen() {
         <TextInput
           style={es.input}
           value={valor}
-          onChangeText={(t: string) => { onChange(t); if (error) setErrores(e => ({ ...e })); }}
+          onChangeText={(t: string) => { onChange(t); if (error) { setErrores(e => ({ ...e })); } }}
           placeholder={placeholder}
           placeholderTextColor="#bbb"
           keyboardType={teclado}

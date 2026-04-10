@@ -6,6 +6,7 @@ import {
   TextInput, TouchableOpacity, View
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
+import { PagoMercadoPago } from '../../components/PagoMercadoPago';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
@@ -13,22 +14,24 @@ import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActi
 type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
 
 export default function PagoScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero, email, telefono, notas } =
+  const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
     useLocalSearchParams<Record<string, string>>();
   const { t } = useIdioma();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
+    { id: 'mercadopago', emoji: '💳', label: 'MercadoPago',   sub: 'Pago seguro en línea' },
     { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: t('pago_credito_debito') },
     { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
     { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
   ];
 
-  const [metodo, setMetodo]         = useState<MetodoPago>('tarjeta');
+  const [metodo, setMetodo]         = useState<MetodoPago>('mercadopago');
   const [numTarjeta, setNum]        = useState('');
   const [vencimiento, setVenc]      = useState('');
   const [cvv, setCvv]               = useState('');
   const [titular, setTitular]       = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [mostrarMercadoPago, setMostrarMercadoPago] = useState(false);
 
   const formatTarjeta = (v: string) =>
     v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
@@ -43,6 +46,17 @@ export default function PagoScreen() {
   );
 
   const pagar = async () => {
+    if (metodo === 'mercadopago') {
+      // Para MercadoPago, mostrar el checkout
+      setMostrarMercadoPago(true);
+      return;
+    }
+
+    // Para otros métodos, procesar normalmente
+    await procesarPago();
+  };
+
+  const procesarPago = async () => {
     setProcesando(true);
     const folio = 'MX' + Math.random().toString(36).slice(2, 8).toUpperCase();
 
@@ -69,33 +83,50 @@ export default function PagoScreen() {
 
       if (!ok) {
         setProcesando(false);
-        Alert.alert(t('pago_error'), t('pago_error_guardar'));
+        Alert.alert(t('pago_error'), t('pago_error_msg'));
         return;
       }
 
-      await agregarHistorial(
-        usuario.id,
-        'reserva',
-        'Nueva reserva',
-        `Reserva ${folio} — ${nombre}, paquete ${paquete}, $${parseInt(precio ?? '0').toLocaleString()} MXN`
-      );
+      // Crear notificación
       await crearNotificacion(
         usuario.id,
-        'reserva',
-        'Reserva confirmada',
-        `Tu reserva ${folio} para ${nombre} ha sido confirmada. Fecha: ${fecha}`
+        'pago_exitoso',
+        `Pago confirmado - Folio: ${folio}`,
+        { folio, metodo }
       );
+
+      // Agregar al historial
+      await agregarHistorial(
+        usuario.id,
+        'pago',
+        `Pago realizado con ${metodo} - Folio: ${folio}`,
+        { folio, metodo, monto: parseInt(precio ?? '0') * parseInt(personas ?? '1') }
+      );
+
+      setProcesando(false);
+      router.push({
+        pathname: '/(tabs)/confirmacion',
+        params: { folio, metodo }
+      });
     } catch {
       setProcesando(false);
-      Alert.alert(t('pago_error_inesperado'), t('pago_error_pago'));
-      return;
+      Alert.alert(t('pago_error'), t('pago_error_msg'));
     }
+  };
 
-    setProcesando(false);
-    router.replace({
-      pathname: '/(tabs)/confirmacion',
-      params: { nombre, paquete, precio, personas, fecha, nombre_viajero, email, telefono, notas, folio, metodo, ref_oxxo: refOxxo },
-    } as any);
+  const handlePagoMercadoPagoSuccess = async (_paymentId: string) => {
+    setMostrarMercadoPago(false);
+    // Procesar como pago exitoso
+    await procesarPago();
+  };
+
+  const handlePagoMercadoPagoError = (error: string) => {
+    setMostrarMercadoPago(false);
+    Alert.alert('Error en pago', error);
+  };
+
+  const handlePagoMercadoPagoCancel = () => {
+    setMostrarMercadoPago(false);
   };
 
   const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: any) => (
@@ -116,6 +147,18 @@ export default function PagoScreen() {
       </View>
     </View>
   );
+
+  if (mostrarMercadoPago) {
+    return (
+      <PagoMercadoPago
+        amount={parseInt(precio ?? '0') * parseInt(personas ?? '1')}
+        description={`Reserva ${nombre} - ${paquete}`}
+        onSuccess={handlePagoMercadoPagoSuccess}
+        onError={handlePagoMercadoPagoError}
+        onCancel={handlePagoMercadoPagoCancel}
+      />
+    );
+  }
 
   return (
     <BookingStepLayout

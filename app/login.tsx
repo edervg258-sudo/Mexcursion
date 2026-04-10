@@ -25,8 +25,8 @@ export default function LoginScreen() {
 
   useEffect(() => {
     haySesionActiva().then(activa => {
-      if (activa) router.replace('/(tabs)/menu');
-      else setVerificandoSesion(false);
+      if (activa) { router.replace('/(tabs)/menu'); }
+      else { setVerificandoSesion(false); }
     });
   }, []);
 
@@ -38,7 +38,7 @@ export default function LoginScreen() {
     } else if (!/\S+@\S+\.\S+/.test(correo)) {
       setErrorCorreo('Ingresa un correo válido');
       valido = false;
-    } else setErrorCorreo('');
+    } else { setErrorCorreo(''); }
 
     if (!contrasena.trim()) {
       setErrorContrasena('Ingresa tu contraseña');
@@ -46,13 +46,13 @@ export default function LoginScreen() {
     } else if (contrasena.length < 6) {
       setErrorContrasena('La contraseña debe tener al menos 6 caracteres');
       valido = false;
-    } else setErrorContrasena('');
+    } else { setErrorContrasena(''); }
 
     return valido;
   };
 
   const handleLogin = async () => {
-    if (!validar()) return;
+    if (!validar()) { return; }
 
     setCargando(true);
     const resultado = await iniciarSesion(correo.trim(), contrasena);
@@ -60,10 +60,8 @@ export default function LoginScreen() {
 
     if (!resultado.exito) {
       const msg = resultado.error ?? 'Error al iniciar sesión';
-      if (msg.toLowerCase().includes('contraseña'))
-        setErrorContrasena(msg);
-      else
-        setErrorCorreo(msg);
+      if (msg.toLowerCase().includes('contraseña')) { setErrorContrasena(msg); }
+      else { setErrorCorreo(msg); }
       return;
     }
 
@@ -126,7 +124,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={correo}
-                  onChangeText={t => { setCorreo(t); if (errorCorreo) setErrorCorreo(''); }}
+                  onChangeText={t => { setCorreo(t); if (errorCorreo) { setErrorCorreo(''); } }}
                 />
                 {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
               </View>
@@ -139,7 +137,7 @@ export default function LoginScreen() {
                     style={estilos.campoInterno}
                     secureTextEntry={!verContrasena}
                     value={contrasena}
-                    onChangeText={t => { setContrasena(t); if (errorContrasena) setErrorContrasena(''); }}
+                    onChangeText={t => { setContrasena(t); if (errorContrasena) { setErrorContrasena(''); } }}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <Text style={estilos.textoOjo}>{verContrasena ? '◎' : '◉'}</Text>
@@ -188,7 +186,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={correoRecup}
-                onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) setErrorCorreoRecup(''); }}
+                onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) { setErrorCorreoRecup(''); } }}
               />
               {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
             </View>

@@ -46,7 +46,7 @@ export function AdminDashboard({ stats, cargando, esPC }: AdminDashboardProps) {
     </View>
   );
 
-  const QuickActions = () => (
+  const _QuickActions = () => (
     <View style={estilos.quickActions}>
       <Text style={estilos.sectionTitle}>Acciones rápidas</Text>
       <View style={[estilos.actionsGrid, esPC && estilos.actionsGridPC]}>
