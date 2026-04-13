@@ -14,12 +14,9 @@ RUN npm ci
 COPY . .
 RUN npx expo export --platform web
 
-# Instalar serve para servir archivos estáticos
-RUN npm install -g serve
+# Puerto estándar de Railway
+EXPOSE 3000
 
-# Puerto que Railway usa (8081 para healthcheck)
-EXPOSE 8081
-
-# Servir la carpeta dist (escuchar en todas las interfaces)
-CMD ["serve", "dist", "-l", "8081", "-n"]
+# Servir la carpeta dist
+CMD ["npx", "serve", "dist", "-p", "3000", "-s"]
 
