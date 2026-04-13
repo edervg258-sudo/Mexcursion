@@ -17,6 +17,6 @@ RUN echo "Cache bust 1" && npx expo export --platform web
 # Puerto estándar de Railway
 EXPOSE 3000
 
-# Servir la carpeta dist
-CMD ["npx", "serve", "dist", "-p", "3000", "-s"]
+# Servir la carpeta dist con Python (más confiable)
+CMD ["python3", "-m", "http.server", "3000", "--directory", "dist"]
 
