@@ -1,34 +1,25 @@
-# Etapa 1: Construir la app Expo para web
-FROM node:20-alpine AS builder
+# Build y serve en un solo paso - más simple para Railway
+FROM node:20-alpine
 
-# Instalar dependencias de sistema necesarias para Expo
+# Instalar git necesario para Expo
 RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Copiar archivos de dependencias
+# Copiar dependencias primero (cache de Docker)
 COPY package*.json ./
-
-# Instalar dependencias (incluyendo devDependencies para el build)
 RUN npm ci
 
-# Copiar todo el código
+# Copiar código y construir
 COPY . .
-
-# Construir la app para web
-ENV NODE_ENV=production
 RUN npx expo export --platform web
 
-# Etapa 2: Servidor nginx para producción
-FROM nginx:alpine
+# Instalar serve para servir archivos estáticos
+RUN npm install -g serve
 
-# Copiar los archivos estáticos construidos
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Puerto que Railway usa
+EXPOSE 3000
 
-# Copiar configuración nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Servir la carpeta dist
+CMD ["serve", "dist", "-l", "3000"]
 
-# Puerto expuesto
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
