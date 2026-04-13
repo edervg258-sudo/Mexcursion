@@ -20,6 +20,6 @@ RUN npm install -g serve
 # Puerto que Railway usa (8081 para healthcheck)
 EXPOSE 8081
 
-# Servir la carpeta dist
-CMD ["serve", "dist", "-l", "8081"]
+# Servir la carpeta dist (escuchar en todas las interfaces)
+CMD ["serve", "dist", "-l", "8081", "-n"]
 
