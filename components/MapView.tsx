@@ -3,7 +3,7 @@
 // ============================================================
 
 import React from 'react';
-import { View, StyleSheet, Platform, Dimensions, Text, TouchableOpacity } from 'react-native';
+import { Alert, View, StyleSheet, Platform, Dimensions, Text, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTemaContext } from '../lib/TemaContext';
 import { MapaEstatico } from './MapaEstatico';
@@ -109,12 +109,6 @@ export function MapaInteractivo({
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState={false}
-        renderLoading={() => (
-          <View style={estilos.loading}>
-            <Text style={estilos.loadingText}>Cargando mapa...</Text>
-          </View>
-        )}
-        onLoadEnd={() => setLoading(false)}
         onError={() => {
           // Fallback: mostrar mapa estático
           // eslint-disable-next-line no-console

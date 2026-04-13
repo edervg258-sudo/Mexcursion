@@ -9,6 +9,7 @@ import { Estrellas } from '../../components/Estrellas';
 import { TabChrome } from '../../components/TabChrome';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { cargarResenas, guardarResena, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
 type ResenaDB = {
@@ -27,6 +28,7 @@ export default function ResenasScreen() {
   const { width }         = useWindowDimensions();
   const esPC              = width >= 768;
   const { t } = useIdioma();
+  const { tema } = useTemaContext();
 
   const [resenas, setResenas]         = useState<ResenaDB[]>([]);
   const [cargando, setCargando]       = useState(true);
@@ -67,18 +69,18 @@ export default function ResenasScreen() {
   };
 
   const renderResena = ({ item }: { item: ResenaDB }) => (
-    <View style={es.tarjeta}>
+    <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
       <View style={es.headerResena}>
         <View style={es.avatarCirculo}>
           <Text style={es.avatarLetra}>{(item.nombre ?? 'V')[0].toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={es.usuario}>{item.nombre ?? 'Viajero'}</Text>
-          <Text style={es.fecha}>{formatearMes(item.creado_en)}</Text>
+          <Text style={[es.usuario, { color: tema.texto }]}>{item.nombre ?? 'Viajero'}</Text>
+          <Text style={[es.fecha, { color: tema.textoMuted }]}>{formatearMes(item.creado_en)}</Text>
         </View>
         <Estrellas valor={item.calificacion} tamaño={14} />
       </View>
-      <Text style={es.textoResena}>{item.comentario}</Text>
+      <Text style={[es.textoResena, { color: tema.textoSecundario }]}>{item.comentario}</Text>
     </View>
   );
 
@@ -86,7 +88,7 @@ export default function ResenasScreen() {
     <>
       {nombre ? (
         <View style={es.subheader}>
-          <Text style={es.subtitulo}>{nombre}</Text>
+          <Text style={[es.subtitulo, { color: tema.textoMuted }]}>{nombre}</Text>
         </View>
       ) : null}
       {cargando ? (
@@ -98,29 +100,29 @@ export default function ResenasScreen() {
           renderItem={renderResena}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={es.lista}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#aaa', marginTop: 12 }}>{t('rsn_sin_resenas')}</Text>}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', color: tema.textoMuted, marginTop: 12 }}>{t('rsn_sin_resenas')}</Text>}
           ListHeaderComponent={() => (
             <>
-              <View style={es.resumen}>
-                <Text style={es.promedioNum}>{promedio}</Text>
+              <View style={[es.resumen, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+                <Text style={[es.promedioNum, { color: tema.texto }]}>{promedio}</Text>
                 <Estrellas valor={Math.round(parseFloat(promedio))} tamaño={24} />
-                <Text style={es.totalResenas}>{resenas.length} {resenas.length !== 1 ? t('rsn_verificada_plural') : t('rsn_verificada_singular')}</Text>
+                <Text style={[es.totalResenas, { color: tema.textoMuted }]}>{resenas.length} {resenas.length !== 1 ? t('rsn_verificada_plural') : t('rsn_verificada_singular')}</Text>
                 {[5,4,3,2,1].map(n => {
                   const count = resenas.filter(r => r.calificacion === n).length;
                   const pct = resenas.length > 0 ? (count / resenas.length) * 100 : 0;
                   return (
                     <View key={n} style={es.filaBarra}>
-                      <Text style={es.numBarra}>{n}★</Text>
-                      <View style={es.barraFondo}><View style={[es.barraRelleno, { width: `${pct}%` as `${number}%` }]} /></View>
-                      <Text style={es.contBarra}>{count}</Text>
+                      <Text style={[es.numBarra, { color: tema.textoMuted }]}>{n}★</Text>
+                      <View style={[es.barraFondo, { backgroundColor: tema.borde }]}><View style={[es.barraRelleno, { width: `${pct}%` as `${number}%` }]} /></View>
+                      <Text style={[es.contBarra, { color: tema.textoMuted }]}>{count}</Text>
                     </View>
                   );
                 })}
               </View>
-              <View style={es.formulario}>
-                <Text style={es.formTitulo}>{t('rsn_deja_resena')}</Text>
+              <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+                <Text style={[es.formTitulo, { color: tema.texto }]}>{t('rsn_deja_resena')}</Text>
                 <Estrellas valor={miEstrellas} tamaño={32} seleccionable onSelect={setMiEstrellas} />
-                <TextInput style={es.inputResena} value={miTexto} onChangeText={setMiTexto} placeholder={t('rsn_placeholder')} placeholderTextColor="#bbb" multiline numberOfLines={3} textAlignVertical="top" />
+                <TextInput style={[es.inputResena, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]} value={miTexto} onChangeText={setMiTexto} placeholder={t('rsn_placeholder')} placeholderTextColor={tema.textoMuted} multiline numberOfLines={3} textAlignVertical="top" />
                 {enviado ? (
                   <View style={es.enviado}><Text style={es.textoEnviado}>{t('rsn_gracias')}</Text></View>
                 ) : (
@@ -129,7 +131,7 @@ export default function ResenasScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <Text style={es.seccion}>{t('rsn_de_viajeros')}</Text>
+              <Text style={[es.seccion, { color: tema.texto }]}>{t('rsn_de_viajeros')}</Text>
             </>
           )}
         />

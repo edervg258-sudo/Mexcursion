@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    Animated, Dimensions,
+    Animated, Dimensions, ScrollView,
     StatusBar, StyleSheet, Text, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,7 +42,7 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const [indice, setIndice] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const scrollRef = useRef<{ scrollTo: (opts: { x: number; animated: boolean }) => void } | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const siguiente = () => {
     if (indice < SLIDES.length - 1) {

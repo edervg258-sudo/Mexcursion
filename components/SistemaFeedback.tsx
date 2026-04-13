@@ -11,6 +11,7 @@ import { Estrellas } from './Estrellas';
 import { useTemaContext } from '../lib/TemaContext';
 import { useIdioma } from '../lib/IdiomaContext';
 import { logEvent } from '../lib/analytics';
+import { TraduccionClave } from '../lib/traducciones';
 
 interface SistemaFeedbackProps {
   destinoId: number;
@@ -43,7 +44,7 @@ export function SistemaFeedback({
 
   const enviarFeedback = async () => {
     if (calificacion === 0) {
-      Alert.alert(t('feedback_error'), t('feedback_calificacion_requerida'));
+      Alert.alert(t('feedback_error' as TraduccionClave), t('feedback_calificacion_requerida' as TraduccionClave));
       return;
     }
 
@@ -68,7 +69,7 @@ export function SistemaFeedback({
         tiene_comentario: comentario.length > 0
       });
 
-      Alert.alert(t('feedback_gracias'), t('feedback_recibido'));
+      Alert.alert(t('feedback_gracias' as TraduccionClave), t('feedback_recibido' as TraduccionClave));
       setModalVisible(false);
       onFeedbackEnviado?.();
 
@@ -84,7 +85,7 @@ export function SistemaFeedback({
       });
 
     } catch {
-      Alert.alert(t('error'), t('feedback_error_envio'));
+      Alert.alert(t('error' as TraduccionClave), t('feedback_error_envio' as TraduccionClave));
     } finally {
       setEnviando(false);
     }
@@ -98,10 +99,10 @@ export function SistemaFeedback({
     <View style={estilos.aspectoContainer}>
       <Text style={[estilos.aspectoLabel, { color: tema.texto }]}>{nombre}</Text>
       <Estrellas
-        calificacion={valor}
-        onCalificar={onChange}
-        tamano={20}
-        editable
+        valor={valor}
+        onSelect={onChange}
+        tamaño={20}
+        seleccionable
       />
     </View>
   );
@@ -122,10 +123,10 @@ export function SistemaFeedback({
           {t('feedback_calificacion_general')}
         </Text>
         <Estrellas
-          calificacion={calificacion}
-          onCalificar={setCalificacion}
-          tamano={30}
-          editable
+          valor={calificacion}
+          onSelect={setCalificacion}
+          tamaño={30}
+          seleccionable
         />
       </View>
 
@@ -198,7 +199,7 @@ export function SistemaFeedback({
           disabled={enviando}
         >
           <Text style={[estilos.textoBoton, { color: tema.texto }]}>
-            {t('cancelar')}
+            {t('cancelar' as TraduccionClave)}
           </Text>
         </TouchableOpacity>
 
@@ -211,7 +212,7 @@ export function SistemaFeedback({
           disabled={enviando || calificacion === 0}
         >
           <Text style={[estilos.textoBoton, { color: '#fff' }]}>
-            {enviando ? t('enviando') : t('feedback_enviar')}
+            {enviando ? t('enviando' as TraduccionClave) : t('feedback_enviar' as TraduccionClave)}
           </Text>
         </TouchableOpacity>
       </View>

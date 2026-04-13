@@ -15,6 +15,7 @@ import {
   marcarTodasLeidas as marcarTodasLeidasBD,
   obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
+import { useTemaContext } from '../../lib/TemaContext';
 
 type Notif = {
   id: number; tipo: string;
@@ -53,6 +54,7 @@ export default function NotificacionesScreen() {
   const { width }             = useWindowDimensions();
   const esPC                  = width >= 768;
   const { t }                 = useIdioma();
+  const { tema }              = useTemaContext();
   const [notifs, setNotifs]     = useState<Notif[]>([]);
   const [cargando, setCargando] = useState(true);
   const [cargandoMas, setCargandoMas] = useState(false);
@@ -98,7 +100,7 @@ export default function NotificacionesScreen() {
 
   const renderItem = ({ item }: { item: Notif }) => (
     <TouchableOpacity
-      style={[s.item, !item.leida && s.itemNoLeida]}
+      style={[s.item, { backgroundColor: tema.fondo }, !item.leida && { backgroundColor: tema.superficieBlanca, borderRadius: 12, paddingHorizontal: 12, marginHorizontal: -4 }]}
       onPress={() => marcarLeida(item.id)}
       activeOpacity={0.8}
     >
@@ -107,11 +109,11 @@ export default function NotificacionesScreen() {
       </View>
       <View style={{ flex: 1, gap: 3 }}>
         <View style={s.itemHeader}>
-          <Text style={[s.itemTitulo, !item.leida && { color: '#333' }]}>{item.titulo}</Text>
+          <Text style={[s.itemTitulo, { color: tema.textoSecundario }, !item.leida && { color: tema.texto }]}>{item.titulo}</Text>
           {!item.leida && <View style={[s.puntito, { backgroundColor: COLOR[item.tipo] ?? '#888' }]} />}
         </View>
-        <Text style={s.itemMensaje} numberOfLines={2}>{item.mensaje}</Text>
-        <Text style={s.itemFecha}>{formatearFecha(item.creado_en, t)}</Text>
+        <Text style={[s.itemMensaje, { color: tema.textoMuted }]} numberOfLines={2}>{item.mensaje}</Text>
+        <Text style={[s.itemFecha, { color: tema.textoMuted }]}>{formatearFecha(item.creado_en, t)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -123,8 +125,8 @@ export default function NotificacionesScreen() {
       </View>
       <View style={s.filtros}>
         {(['todas', 'no_leidas'] as const).map(f => (
-          <TouchableOpacity key={f} style={[s.chipFiltro, filtro === f && s.chipFiltroActivo]} onPress={() => setFiltro(f)}>
-            <Text style={[s.txtChip, filtro === f && s.txtChipActivo]}>
+          <TouchableOpacity key={f} style={[s.chipFiltro, { backgroundColor: tema.superficie, borderColor: tema.borde }, filtro === f && s.chipFiltroActivo]} onPress={() => setFiltro(f)}>
+            <Text style={[s.txtChip, { color: tema.textoSecundario }, filtro === f && s.txtChipActivo]}>
               {f === 'todas' ? t('notif_todas') : `${t('notif_no_leidas')}${noLeidas > 0 ? ` (${noLeidas})` : ''}`}
             </Text>
           </TouchableOpacity>
@@ -135,8 +137,8 @@ export default function NotificacionesScreen() {
       ) : visibles.length === 0 ? (
         <View style={s.vacio}>
           <Text style={s.vacioemoji}>🔔</Text>
-          <Text style={s.vacioTitulo}>{t('notif_vacio')}</Text>
-          <Text style={s.vacioSub}>{filtro === 'no_leidas' ? t('notif_leidas_sub') : t('notif_vacio_sub')}</Text>
+          <Text style={[s.vacioTitulo, { color: tema.texto }]}>{t('notif_vacio')}</Text>
+          <Text style={[s.vacioSub, { color: tema.textoMuted }]}>{filtro === 'no_leidas' ? t('notif_leidas_sub') : t('notif_vacio_sub')}</Text>
         </View>
       ) : (
         <FlatList
@@ -145,7 +147,7 @@ export default function NotificacionesScreen() {
           renderItem={renderItem}
           contentContainerStyle={s.lista}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={s.separador} />}
+          ItemSeparatorComponent={() => <View style={[s.separador, { backgroundColor: tema.borde }]} />}
           ListFooterComponent={hayMas && filtro === 'todas' ? (
             <TouchableOpacity style={s.btnCargarMas} onPress={cargarMas} disabled={cargandoMas} activeOpacity={0.8}>
               {cargandoMas

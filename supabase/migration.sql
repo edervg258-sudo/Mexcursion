@@ -11,6 +11,7 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS idioma          TEXT    DEFAULT 'e
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notificaciones  INT     DEFAULT 1;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo            TEXT    DEFAULT 'normal';
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo          INT     DEFAULT 1;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS push_token      TEXT;
 
 -- Política INSERT que faltaba (para el registro)
 CREATE POLICY IF NOT EXISTS "Los usuarios pueden insertar su propio perfil"
@@ -25,15 +26,15 @@ ALTER TABLE estados ADD COLUMN IF NOT EXISTS activo INT DEFAULT 1;
 -- Políticas de escritura para el admin
 CREATE POLICY IF NOT EXISTS "Admin puede insertar estados"
   ON estados FOR INSERT TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (es_admin());
 
 CREATE POLICY IF NOT EXISTS "Admin puede actualizar estados"
   ON estados FOR UPDATE TO authenticated
-  USING (true);
+  USING (es_admin());
 
 CREATE POLICY IF NOT EXISTS "Admin puede eliminar estados"
   ON estados FOR DELETE TO authenticated
-  USING (true);
+  USING (es_admin());
 
 -- ────────────────────────────────────────────────────────────
 -- 3. SUGERENCIAS_RUTAS — columna activo
@@ -43,15 +44,15 @@ ALTER TABLE sugerencias_rutas ADD COLUMN IF NOT EXISTS activo INT DEFAULT 1;
 -- Políticas de escritura para el admin
 CREATE POLICY IF NOT EXISTS "Admin puede insertar sugerencias"
   ON sugerencias_rutas FOR INSERT TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (es_admin());
 
 CREATE POLICY IF NOT EXISTS "Admin puede actualizar sugerencias"
   ON sugerencias_rutas FOR UPDATE TO authenticated
-  USING (true);
+  USING (es_admin());
 
 CREATE POLICY IF NOT EXISTS "Admin puede eliminar sugerencias"
   ON sugerencias_rutas FOR DELETE TO authenticated
-  USING (true);
+  USING (es_admin());
 
 -- ────────────────────────────────────────────────────────────
 -- 4. RESERVAS — columnas extra que la app usa
@@ -63,16 +64,53 @@ ALTER TABLE reservas ADD COLUMN IF NOT EXISTS fecha    TEXT;
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS personas INT;
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS metodo   TEXT;
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS estado   TEXT DEFAULT 'confirmada';
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS notas    TEXT;
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS creado_en TEXT;
+
+-- Idempotencia por folio (evita duplicados por reintentos)
+CREATE UNIQUE INDEX IF NOT EXISTS reservas_folio_unique_idx ON reservas (folio) WHERE folio IS NOT NULL;
+
+-- Validaciones de servidor para reservas
+CREATE OR REPLACE FUNCTION public.validar_reserva()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.folio IS NULL OR length(trim(NEW.folio)) < 4 THEN
+    RAISE EXCEPTION 'Folio inválido';
+  END IF;
+
+  IF NEW.personas IS NULL OR NEW.personas < 1 OR NEW.personas > 20 THEN
+    RAISE EXCEPTION 'Número de personas inválido';
+  END IF;
+
+  IF NEW.total IS NULL OR NEW.total < 0 THEN
+    RAISE EXCEPTION 'Total inválido';
+  END IF;
+
+  IF NEW.metodo IS NULL OR NEW.metodo NOT IN ('mercadopago', 'tarjeta', 'spei', 'oxxo') THEN
+    RAISE EXCEPTION 'Método de pago inválido';
+  END IF;
+
+  IF NEW.estado IS NULL OR NEW.estado NOT IN ('confirmada', 'pendiente', 'cancelada') THEN
+    RAISE EXCEPTION 'Estado de reserva inválido';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS reservas_validacion_trigger ON reservas;
+CREATE TRIGGER reservas_validacion_trigger
+  BEFORE INSERT OR UPDATE ON reservas
+  FOR EACH ROW EXECUTE FUNCTION public.validar_reserva();
 
 -- Política para que el admin vea todas las reservas
 CREATE POLICY IF NOT EXISTS "Admin puede ver todas las reservas"
   ON reservas FOR SELECT TO authenticated
-  USING (true);
+  USING (es_admin());
 
 CREATE POLICY IF NOT EXISTS "Admin puede actualizar cualquier reserva"
   ON reservas FOR UPDATE TO authenticated
-  USING (true);
+  USING (es_admin());
 
 -- ────────────────────────────────────────────────────────────
 -- 5. NOTIFICACIONES — relajar constraint de tipo
@@ -175,3 +213,34 @@ CREATE POLICY IF NOT EXISTS "Usuarios ven su historial"
 CREATE POLICY IF NOT EXISTS "Usuarios insertan en historial"
   ON historial FOR INSERT
   WITH CHECK (auth.uid() = usuario_id);
+
+-- ────────────────────────────────────────────────────────────
+-- 10. ANALYTICS_EVENTOS
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS analytics_eventos (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      UUID NULL REFERENCES usuarios(id) ON DELETE SET NULL,
+  event_name   TEXT NOT NULL,
+  properties   JSONB NOT NULL DEFAULT '{}'::jsonb,
+  platform     TEXT NOT NULL DEFAULT 'unknown',
+  app_version  TEXT NOT NULL DEFAULT '1.0.0',
+  created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE analytics_eventos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "Analytics insert auth"
+  ON analytics_eventos FOR INSERT TO authenticated
+  WITH CHECK (user_id IS NULL OR user_id = auth.uid());
+
+CREATE POLICY IF NOT EXISTS "Analytics insert anon"
+  ON analytics_eventos FOR INSERT TO anon
+  WITH CHECK (user_id IS NULL);
+
+CREATE POLICY IF NOT EXISTS "Analytics select own"
+  ON analytics_eventos FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE POLICY IF NOT EXISTS "Analytics select admin"
+  ON analytics_eventos FOR SELECT TO authenticated
+  USING (es_admin());

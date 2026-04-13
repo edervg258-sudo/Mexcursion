@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated, FlatList, Image, LayoutAnimation, Platform,
+    Animated, FlatList, Image, ImageSourcePropType, LayoutAnimation, Platform,
     RefreshControl, StyleSheet, Text,
     TouchableOpacity, UIManager, View, useWindowDimensions,
 } from 'react-native';
@@ -13,9 +13,10 @@ import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
+import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonLista } from './skeletonloader';
 
-type FavoritoItem = { id: number; nombre: string; categoria: string; precio: number; imagen: ReturnType<typeof require> };
+type FavoritoItem = { id: number; nombre: string; categoria: string; precio: number; imagen: ImageSourcePropType };
 
 if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -82,6 +83,7 @@ export default function FavoritosScreen() {
   const { width }        = useWindowDimensions();
   const esPC             = width >= 768;
   const { t } = useIdioma();
+  const { tema } = useTemaContext();
 
   useEffect(() => {
     configurarBarraAndroid();
@@ -159,10 +161,10 @@ export default function FavoritosScreen() {
         {cargando ? (
           <SkeletonLista cantidad={3} />
         ) : estadosFavoritos.length === 0 ? (
-          <View style={s.vacio}>
+          <View style={[s.vacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
             <Text style={s.textoVacio}>❤️</Text>
-            <Text style={s.tituloVacio}>{t('fav_vacios')}</Text>
-            <Text style={s.subtituloVacio}>{t('fav_vacios2')}</Text>
+            <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('fav_vacios')}</Text>
+            <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('fav_vacios2')}</Text>
             <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
               <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
@@ -185,22 +187,22 @@ export default function FavoritosScreen() {
                 />
               )}
               ListHeaderComponent={
-                <View style={s.resumenPanel}>
+                <View style={[s.resumenPanel, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
                   <View style={s.resumenTop}>
                     <View>
-                      <Text style={s.resumenEyebrow}>{t('fav_titulo')}</Text>
-                      <Text style={s.resumenNumero}>{estadosFavoritos.length}</Text>
+                      <Text style={[s.resumenEyebrow, { color: tema.textoMuted }]}>{t('fav_titulo')}</Text>
+                      <Text style={[s.resumenNumero, { color: tema.texto }]}>{estadosFavoritos.length}</Text>
                     </View>
                     <View style={s.resumenBadges}>
-                      <View style={s.resumenBadge}>
-                        <Text style={s.resumenBadgeTxt}>❤️ {estadosFavoritos.length}</Text>
+                      <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>❤️ {estadosFavoritos.length}</Text>
                       </View>
-                      <View style={s.resumenBadge}>
-                        <Text style={s.resumenBadgeTxt}>🧭 {totalCategorias}</Text>
+                      <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>🧭 {totalCategorias}</Text>
                       </View>
                     </View>
                   </View>
-                  <Text style={s.resumenSub} numberOfLines={2}>
+                  <Text style={[s.resumenSub, { color: tema.textoSecundario }]} numberOfLines={2}>
                     {previewFavoritos}
                   </Text>
                 </View>
@@ -216,7 +218,7 @@ export default function FavoritosScreen() {
   );
 
   return (
-    <TabChrome esPC={esPC} maxWidth={900} showLogoWhenNoTitle={false}>
+    <TabChrome esPC={esPC} maxWidth={900} showLogoWhenNoTitle={false} testID="favoritos-screen">
       <Contenido />
     </TabChrome>
   );

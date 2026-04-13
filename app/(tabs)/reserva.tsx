@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  KeyboardTypeOptions,
   ScrollView,
   StyleSheet, Text, TextInput,
   TouchableOpacity, View,
@@ -66,12 +67,15 @@ export default function ReservaScreen() {
     } as never);
   };
 
-  const Campo = ({ icono, label, valor, onChange, error, placeholder, teclado = 'default', seguro = false }: { icono?: string; label: string; valor: string; onChange: (v: string) => void; error?: string; placeholder?: string; teclado?: string; seguro?: boolean }) => (
+  const Campo = ({ icono, label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID }: { icono?: string; label: string; valor: string; onChange: (v: string) => void; error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean; testID?: string }) => (
     <View style={es.grupoCampo}>
       <Text style={es.label}>{label}</Text>
       <View style={[es.cajaInput, !!error && es.cajaInputError]}>
         {icono ? <Text style={es.iconoCampo}>{icono}</Text> : null}
         <TextInput
+          testID={testID}
+          accessibilityLabel={label}
+          accessibilityHint="Campo del formulario de reserva"
           style={es.input}
           value={valor}
           onChangeText={(t: string) => { onChange(t); if (error) { setErrores(e => ({ ...e })); } }}
@@ -94,7 +98,7 @@ export default function ReservaScreen() {
       title={t('rsv_datos_viaje')}
       subtitle={`${nombre} · ${t('rsv_paquete', { n: paquete ?? '' })}`}
     >
-        <ScrollView contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView testID="reserva-screen" contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           <View style={es.tarjetaResumen}>
             <View style={es.resumenHeader}>
@@ -139,10 +143,10 @@ export default function ReservaScreen() {
             </View>
           </View>
 
-          <Campo icono="👤" label={t('rsv_nombre')}      valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')} />
-          <Campo icono="✉️" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}  teclado="email-address" />
-          <Campo icono="📱" label={t('rsv_telefono')}             valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')}     teclado="phone-pad" />
-          <Campo icono="📅" label={t('rsv_fecha')} valor={fecha}  onChange={(v: string) => setFecha(formatFecha(v))} error={errores.fecha}  placeholder={t('rsv_ph_fecha')} />
+          <Campo testID="traveler-name-input" icono="👤" label={t('rsv_nombre')} valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')} />
+          <Campo testID="traveler-email-input" icono="✉️" label={t('rsv_correo')} valor={email} onChange={setEmail} error={errores.email} placeholder={t('rsv_ph_correo')} teclado="email-address" />
+          <Campo testID="traveler-phone-input" icono="📱" label={t('rsv_telefono')} valor={telefono} onChange={setTelefono} error={errores.tel} placeholder={t('rsv_ph_telefono')} teclado="phone-pad" />
+          <Campo testID="travel-date-input" icono="📅" label={t('rsv_fecha')} valor={fecha} onChange={(v: string) => setFecha(formatFecha(v))} error={errores.fecha} placeholder={t('rsv_ph_fecha')} />
 
           <View style={es.grupoCampo}>
             <Text style={es.label}>{t('rsv_notas')}</Text>
@@ -158,7 +162,14 @@ export default function ReservaScreen() {
             />
           </View>
 
-          <TouchableOpacity style={es.btnContinuar} onPress={continuar} activeOpacity={0.85}>
+          <TouchableOpacity
+            testID="reserve-continue-button"
+            style={es.btnContinuar}
+            onPress={continuar}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Continuar a pago"
+          >
             <Text style={es.textoContinuar}>{t('rsv_continuar')}</Text>
           </TouchableOpacity>
 

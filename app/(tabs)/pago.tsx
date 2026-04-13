@@ -1,22 +1,27 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert,
+  KeyboardTypeOptions,
   ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { PagoMercadoPago } from '../../components/PagoMercadoPago';
+import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { useTemaContext } from '../../lib/TemaContext';
 
-type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
+type MetodoPago = 'mercadopago' | 'tarjeta' | 'spei' | 'oxxo';
 
 export default function PagoScreen() {
   const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
     useLocalSearchParams<Record<string, string>>();
   const { t } = useIdioma();
+  const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
     { id: 'mercadopago', emoji: '💳', label: 'MercadoPago',   sub: 'Pago seguro en línea' },
@@ -32,6 +37,8 @@ export default function PagoScreen() {
   const [titular, setTitular]       = useState('');
   const [procesando, setProcesando] = useState(false);
   const [mostrarMercadoPago, setMostrarMercadoPago] = useState(false);
+  // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
+  const procesandoRef = useRef(false);
 
   const formatTarjeta = (v: string) =>
     v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
@@ -41,104 +48,140 @@ export default function PagoScreen() {
     return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
   };
 
-  const [refOxxo] = useState(
-    '85700000' + Math.floor(Math.random() * 100000000).toString().padStart(8, '0')
-  );
+  // Stable OXXO reference derived deterministically from booking params (no Math.random)
+  const [refOxxo] = useState(() => {
+    const seed = `${nombre ?? ''}${paquete ?? ''}${fecha ?? ''}${personas ?? ''}`;
+    let h = 0x811c9dc5;
+    for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 0x01000193) >>> 0; }
+    return '85700000' + (h % 100_000_000).toString().padStart(8, '0');
+  });
 
   const pagar = async () => {
     if (metodo === 'mercadopago') {
-      // Para MercadoPago, mostrar el checkout
       setMostrarMercadoPago(true);
       return;
     }
-
-    // Para otros métodos, procesar normalmente
     await procesarPago();
   };
 
-  const procesarPago = async () => {
+  const procesarPago = async (folioOverride?: string) => {
+    // Re-entrancy guard: reject if already processing (covers double-tap and MP callback races)
+    if (procesandoRef.current) {
+      return;
+    }
+    procesandoRef.current = true;
     setProcesando(true);
-    const folio = 'MX' + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+    const folio = folioOverride ?? ('MX' + Math.random().toString(36).slice(2, 8).toUpperCase());
+    addBreadcrumb({
+      category: 'payments',
+      message: 'payment_started',
+      data: { metodo, folio, nombre, paquete, precio, personas },
+    });
+
+    // 30-second timeout so a hung network doesn't spin forever
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 30_000)
+    );
 
     try {
-      const usuario = await obtenerUsuarioActivo();
-      if (!usuario) {
-        setProcesando(false);
-        Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
-        return;
-      }
+      await Promise.race([
+        (async () => {
+          const usuario = await obtenerUsuarioActivo();
+          if (!usuario) {
+            throw new Error('no_session');
+          }
 
-      const ok = await guardarReserva(
-        usuario.id,
-        folio,
-        nombre ?? '',
-        paquete ?? '',
-        fecha ?? '',
-        parseInt(personas ?? '1'),
-        parseInt(precio ?? '0'),
-        metodo,
-        'confirmada',
-        notas ?? undefined
-      );
+          const payload = [
+            usuario.id,
+            folio,
+            nombre ?? '',
+            paquete ?? '',
+            fecha ?? '',
+            parseInt(personas ?? '1'),
+            parseInt(precio ?? '0'),
+            metodo,
+            'confirmada',
+            notas ?? '',
+          ] as const;
 
-      if (!ok) {
-        setProcesando(false);
-        Alert.alert(t('pago_error'), t('pago_error_msg'));
-        return;
-      }
+          let ok = await guardarReserva(...payload);
+          // Reintento único para fallos transitorios de red/proveedor.
+          if (!ok) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            ok = await guardarReserva(...payload);
+          }
+          if (!ok) {
+            throw new Error('save_failed');
+          }
 
-      // Crear notificación
-      await crearNotificacion(
-        usuario.id,
-        'pago_exitoso',
-        `Pago confirmado - Folio: ${folio}`,
-        { folio, metodo }
-      );
+          await crearNotificacion(usuario.id, 'pago_exitoso', `Pago confirmado - Folio: ${folio}`, JSON.stringify({ folio, metodo }));
+          await agregarHistorial(usuario.id, 'pago', `Pago realizado con ${metodo} - Folio: ${folio}`, JSON.stringify({ folio, metodo, monto: parseInt(precio ?? '0') * parseInt(personas ?? '1') }));
+        })(),
+        timeoutPromise,
+      ]);
 
-      // Agregar al historial
-      await agregarHistorial(
-        usuario.id,
-        'pago',
-        `Pago realizado con ${metodo} - Folio: ${folio}`,
-        { folio, metodo, monto: parseInt(precio ?? '0') * parseInt(personas ?? '1') }
-      );
-
+      procesandoRef.current = false;
       setProcesando(false);
-      router.push({
-        pathname: '/(tabs)/confirmacion',
-        params: { folio, metodo }
+      addBreadcrumb({
+        category: 'payments',
+        message: 'payment_completed',
+        data: { metodo, folio },
       });
-    } catch {
+      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo } });
+    } catch (err) {
+      procesandoRef.current = false;
       setProcesando(false);
-      Alert.alert(t('pago_error'), t('pago_error_msg'));
+      captureApiError({
+        feature: 'payments',
+        action: 'process_payment',
+        error: err,
+        metadata: { metodo, folio, nombre, paquete },
+      });
+      if (err instanceof Error && err.message === 'no_session') {
+        Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
+      } else if (err instanceof Error && err.message === 'timeout') {
+        const normalized = normalizeError(err);
+        Alert.alert(t('pago_error'), userMessageForError(normalized));
+      } else {
+        const normalized = normalizeError(err);
+        Alert.alert(t('pago_error'), userMessageForError(normalized));
+      }
     }
   };
 
-  const handlePagoMercadoPagoSuccess = async (_paymentId: string) => {
+  const handlePagoMercadoPagoSuccess = async (paymentId: string) => {
     setMostrarMercadoPago(false);
-    // Procesar como pago exitoso
-    await procesarPago();
+    // Use the real MP payment ID as folio so retries are idempotent
+    const folio = `MP${paymentId}`.slice(0, 20);
+    await procesarPago(folio);
   };
-
   const handlePagoMercadoPagoError = (error: string) => {
     setMostrarMercadoPago(false);
-    Alert.alert('Error en pago', error);
+    const normalized = normalizeError(error);
+    captureApiError({
+      feature: 'payments',
+      action: 'mercadopago_checkout',
+      error,
+      metadata: { nombre, paquete, precio, personas },
+    });
+    Alert.alert('Error en pago', userMessageForError(normalized));
   };
+  const handlePagoMercadoPagoCancel = () => setMostrarMercadoPago(false);
 
-  const handlePagoMercadoPagoCancel = () => {
-    setMostrarMercadoPago(false);
-  };
-
-  const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: { label: string; valor: string; onChange: (v: string) => void; placeholder?: string; teclado?: string; seguro?: boolean }) => (
+  const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: {
+    label: string; valor: string; onChange: (v: string) => void;
+    placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean;
+  }) => (
     <View style={es.grupoCampo}>
-      <Text style={es.label}>{label}</Text>
-      <View style={es.cajaInput}>
+      <Text style={[es.label, { color: tema.textoSecundario }]}>{label}</Text>
+      <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
         <TextInput
-          style={es.input}
+          style={[es.input, { color: tema.texto }]}
           value={valor}
           onChangeText={onChange}
           placeholder={placeholder}
-          placeholderTextColor="#bbb"
+          placeholderTextColor={tema.textoMuted}
           keyboardType={teclado}
           secureTextEntry={seguro}
           autoCapitalize="characters"
@@ -167,148 +210,139 @@ export default function PagoScreen() {
       title={t('pago_titulo')}
       subtitle={`${nombre} · ${t('rsv_paquete', { n: paquete ?? '' })}`}
     >
-        <ScrollView contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView testID="pago-screen" contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-          <View style={es.tarjetaMonto}>
-            <Text style={es.montoLabel}>{t('pago_total')}</Text>
-            <Text style={es.monto}>${parseInt(precio ?? '0').toLocaleString()}<Text style={es.montoMXN}> MXN</Text></Text>
-            <View style={es.separadorMonto} />
-            <View style={es.filasMonto}>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_destino')}</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_personas')}</Text><Text style={es.datoPagoValor}>{personas}</Text></View>
-              <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_fecha')}</Text><Text style={es.datoPagoValor}>{fecha}</Text></View>
+        {/* Tarjeta monto — siempre verde, no necesita dark mode */}
+        <View style={es.tarjetaMonto}>
+          <Text style={es.montoLabel}>{t('pago_total')}</Text>
+          <Text style={es.monto}>${parseInt(precio ?? '0').toLocaleString()}<Text style={es.montoMXN}> MXN</Text></Text>
+          <View style={es.separadorMonto} />
+          <View style={es.filasMonto}>
+            <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_destino')}</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
+            <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_personas')}</Text><Text style={es.datoPagoValor}>{personas}</Text></View>
+            <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_fecha')}</Text><Text style={es.datoPagoValor}>{fecha}</Text></View>
+          </View>
+        </View>
+
+        {/* Métodos */}
+        <Text style={[es.seccionTitulo, { color: tema.textoSecundario }]}>{t('pago_selecciona')}</Text>
+        <View style={es.filaMetodos}>
+          {METODOS.map(m => (
+            <TouchableOpacity
+              key={m.id}
+              testID={`payment-method-${m.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Método de pago ${m.label}`}
+              accessibilityHint="Selecciona este método de pago"
+              style={[
+                es.btnMetodo,
+                { backgroundColor: tema.superficieBlanca, borderColor: tema.borde },
+                metodo === m.id && { borderColor: '#3AB7A5', backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' },
+              ]}
+              onPress={() => setMetodo(m.id as MetodoPago)}
+              activeOpacity={0.8}
+            >
+              <Text style={es.emojiMetodo}>{m.emoji}</Text>
+              <Text style={[es.labelMetodo, { color: tema.textoMuted }, metodo === m.id && es.labelMetodoActivo]}>{m.label}</Text>
+              <Text style={[es.subMetodo, { color: tema.textoMuted }, metodo === m.id && { color: '#3AB7A5' }]}>{m.sub}</Text>
+              {metodo === m.id && <View style={es.checkMetodo}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text></View>}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Tarjeta */}
+        {metodo === 'tarjeta' && (
+          <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+            <View style={[es.formularioHeader, { backgroundColor: tema.superficie, borderBottomColor: tema.borde }]}>
+              <Text style={[es.formularioTitulo, { color: tema.texto }]}>{t('pago_datos_tarjeta')}</Text>
+            </View>
+            <View style={es.formularioCuerpo}>
+              <Campo label={t('pago_num_tarjeta')} valor={numTarjeta} onChange={v => setNum(formatTarjeta(v))} placeholder="0000 0000 0000 0000" teclado="numeric" />
+              <Campo label={t('pago_titular')} valor={titular} onChange={setTitular} placeholder="NOMBRE APELLIDO" />
+              <View style={es.filaDos}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[es.label, { color: tema.textoSecundario }]}>{t('pago_vencimiento')}</Text>
+                  <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
+                    <TextInput style={[es.input, { color: tema.texto }]} value={vencimiento} onChangeText={v => setVenc(formatVenc(v))} placeholder="MM/AA" placeholderTextColor={tema.textoMuted} keyboardType="numeric" />
+                  </View>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[es.label, { color: tema.textoSecundario }]}>CVV</Text>
+                  <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
+                    <TextInput style={[es.input, { color: tema.texto }]} value={cvv} onChangeText={v => setCvv(v.replace(/\D/g, '').slice(0, 4))} placeholder="•••" placeholderTextColor={tema.textoMuted} keyboardType="numeric" secureTextEntry />
+                  </View>
+                </View>
+              </View>
+              <View style={[es.cajaSegura, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
+                <Text style={es.textoSegura}>{t('pago_ssl')}</Text>
+              </View>
             </View>
           </View>
+        )}
 
-          <Text style={es.seccionTitulo}>{t('pago_selecciona')}</Text>
-          <View style={es.filaMetodos}>
-            {METODOS.map(m => (
-              <TouchableOpacity
-                key={m.id}
-                style={[es.btnMetodo, metodo === m.id && es.btnMetodoActivo]}
-                onPress={() => setMetodo(m.id as MetodoPago)}
-                activeOpacity={0.8}
-              >
-                <Text style={es.emojiMetodo}>{m.emoji}</Text>
-                <Text style={[es.labelMetodo, metodo === m.id && es.labelMetodoActivo]}>{m.label}</Text>
-                <Text style={[es.subMetodo, metodo === m.id && { color: '#3AB7A5' }]}>{m.sub}</Text>
-                {metodo === m.id && <View style={es.checkMetodo}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text></View>}
-              </TouchableOpacity>
-            ))}
+        {/* SPEI */}
+        {metodo === 'spei' && (
+          <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+            <View style={[es.formularioHeader, { backgroundColor: tema.superficie, borderBottomColor: tema.borde }]}>
+              <Text style={[es.formularioTitulo, { color: tema.texto }]}>{t('pago_spei_titulo')}</Text>
+            </View>
+            <View style={es.formularioCuerpo}>
+              {[t('pago_spei_paso1'), t('pago_spei_paso2'), t('pago_spei_paso3', { email: email ?? '' }), t('pago_spei_paso4')].map((txt, i) => (
+                <View key={i} style={es.filaInstruccion}>
+                  <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
+                  <Text style={[es.instruccionTexto, { color: tema.textoSecundario }]}>{txt}</Text>
+                </View>
+              ))}
+              <View style={[es.cajaClabe, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
+                <Text style={es.clabeLabel}>{t('pago_spei_clabe')}</Text>
+                <Text style={[es.clabe, { color: tema.texto }]}>032180000118359719</Text>
+                <Text style={es.clabeLabel}>HSBC · Mexcursion SA de CV</Text>
+              </View>
+            </View>
           </View>
+        )}
 
-          {metodo === 'tarjeta' && (
-            <View style={es.formulario}>
-              <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>{t('pago_datos_tarjeta')}</Text>
-              </View>
-              <View style={es.formularioCuerpo}>
-                <Campo
-                  label={t('pago_num_tarjeta')}
-                  valor={numTarjeta}
-                  onChange={(v: string) => setNum(formatTarjeta(v))}
-                  placeholder="0000 0000 0000 0000"
-                  teclado="numeric"
-                />
-                <Campo
-                  label={t('pago_titular')}
-                  valor={titular}
-                  onChange={setTitular}
-                  placeholder="NOMBRE APELLIDO"
-                />
-                <View style={es.filaDos}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={es.label}>{t('pago_vencimiento')}</Text>
-                    <View style={es.cajaInput}>
-                      <TextInput
-                        style={es.input}
-                        value={vencimiento}
-                        onChangeText={v => setVenc(formatVenc(v))}
-                        placeholder="MM/AA"
-                        placeholderTextColor="#bbb"
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={es.label}>CVV</Text>
-                    <View style={es.cajaInput}>
-                      <TextInput
-                        style={es.input}
-                        value={cvv}
-                        onChangeText={v => setCvv(v.replace(/\D/g, '').slice(0, 4))}
-                        placeholder="•••"
-                        placeholderTextColor="#bbb"
-                        keyboardType="numeric"
-                        secureTextEntry
-                      />
-                    </View>
-                  </View>
+        {/* OXXO */}
+        {metodo === 'oxxo' && (
+          <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+            <View style={[es.formularioHeader, { backgroundColor: tema.superficie, borderBottomColor: tema.borde }]}>
+              <Text style={[es.formularioTitulo, { color: tema.texto }]}>{t('pago_oxxo_titulo')}</Text>
+            </View>
+            <View style={es.formularioCuerpo}>
+              {[t('pago_oxxo_paso1'), t('pago_oxxo_paso2'), t('pago_oxxo_paso3'), t('pago_oxxo_paso4')].map((txt, i) => (
+                <View key={i} style={es.filaInstruccion}>
+                  <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
+                  <Text style={[es.instruccionTexto, { color: tema.textoSecundario }]}>{txt}</Text>
                 </View>
-                <View style={es.cajaSegura}>
-                  <Text style={es.textoSegura}>{t('pago_ssl')}</Text>
-                </View>
+              ))}
+              <View style={[es.cajaClabe, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
+                <Text style={es.clabeLabel}>{t('pago_oxxo_ref')}</Text>
+                <Text style={[es.clabe, { color: tema.texto }]}>{refOxxo}</Text>
+                <Text style={es.clabeLabel}>{t('pago_oxxo_monto', { precio: parseInt(precio ?? '0').toLocaleString() })}</Text>
               </View>
             </View>
-          )}
+          </View>
+        )}
 
-          {metodo === 'spei' && (
-            <View style={es.formulario}>
-              <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>{t('pago_spei_titulo')}</Text>
-              </View>
-              <View style={es.formularioCuerpo}>
-                {[t('pago_spei_paso1'), t('pago_spei_paso2'), t('pago_spei_paso3', { email: email ?? '' }), t('pago_spei_paso4')].map((txt, i) => (
-                  <View key={i} style={es.filaInstruccion}>
-                    <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
-                    <Text style={es.instruccionTexto}>{txt}</Text>
-                  </View>
-                ))}
-                <View style={es.cajaClabe}>
-                  <Text style={es.clabeLabel}>{t('pago_spei_clabe')}</Text>
-                  <Text style={es.clabe}>032180000118359719</Text>
-                  <Text style={es.clabeLabel}>HSBC · Mexcursion SA de CV</Text>
-                </View>
-              </View>
-            </View>
-          )}
+        <TouchableOpacity
+          testID="pay-submit-button"
+          accessibilityRole="button"
+          accessibilityLabel={metodo === 'tarjeta' ? 'Pagar ahora' : 'Confirmar pago'}
+          accessibilityHint="Confirma tu método de pago y continúa"
+          style={[es.btnPagar, procesando && { opacity: 0.7 }]}
+          onPress={pagar}
+          activeOpacity={0.85}
+          disabled={procesando}
+        >
+          {procesando
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={es.textoPagar}>
+                {metodo === 'tarjeta' ? t('pago_btn_pagar') : t('pago_btn_confirmar')}
+              </Text>}
+        </TouchableOpacity>
 
-          {metodo === 'oxxo' && (
-            <View style={es.formulario}>
-              <View style={es.formularioHeader}>
-                <Text style={es.formularioTitulo}>{t('pago_oxxo_titulo')}</Text>
-              </View>
-              <View style={es.formularioCuerpo}>
-                {[t('pago_oxxo_paso1'), t('pago_oxxo_paso2'), t('pago_oxxo_paso3'), t('pago_oxxo_paso4')].map((txt, i) => (
-                  <View key={i} style={es.filaInstruccion}>
-                    <View style={es.numerito}><Text style={es.numeritoTexto}>{i + 1}</Text></View>
-                    <Text style={es.instruccionTexto}>{txt}</Text>
-                  </View>
-                ))}
-                <View style={es.cajaClabe}>
-                  <Text style={es.clabeLabel}>{t('pago_oxxo_ref')}</Text>
-                  <Text style={es.clabe}>{refOxxo}</Text>
-                  <Text style={es.clabeLabel}>{t('pago_oxxo_monto', { precio: parseInt(precio ?? '0').toLocaleString() })}</Text>
-                </View>
-              </View>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[es.btnPagar, procesando && { opacity: 0.7 }]}
-            onPress={pagar}
-            activeOpacity={0.85}
-            disabled={procesando}
-          >
-            {procesando
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={es.textoPagar}>
-                  {metodo === 'tarjeta' ? t('pago_btn_pagar') : t('pago_btn_confirmar')}
-                </Text>}
-          </TouchableOpacity>
-
-          <View style={{ height: 20 }} />
-        </ScrollView>
+        <View style={{ height: 20 }} />
+      </ScrollView>
     </BookingStepLayout>
   );
 }
@@ -316,13 +350,7 @@ export default function PagoScreen() {
 const es = StyleSheet.create({
   scroll:             { padding: 16, maxWidth: 700, alignSelf: 'center', width: '100%' },
 
-  tarjetaMonto: { 
-    backgroundColor: '#3AB7A5', 
-    borderRadius: 20, 
-    padding: 20, 
-    marginBottom: 20, 
-    ...sombra({ color: '#3AB7A5', opacity: 0.35, radius: 10, offsetY: 4, elevation: 5 }),
-  },
+  tarjetaMonto:       { backgroundColor: '#3AB7A5', borderRadius: 20, padding: 20, marginBottom: 20, ...sombra({ color: '#3AB7A5', opacity: 0.35, radius: 10, offsetY: 4, elevation: 5 }) },
   montoLabel:         { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 4 },
   monto:              { color: '#fff', fontSize: 40, fontWeight: '800', lineHeight: 46 },
   montoMXN:           { fontSize: 20, fontWeight: '600' },
@@ -332,42 +360,35 @@ const es = StyleSheet.create({
   datoPagoLabel:      { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginBottom: 2 },
   datoPagoValor:      { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
-  seccionTitulo:      { fontSize: 14, fontWeight: '700', color: '#555', marginBottom: 10 },
+  seccionTitulo:      { fontSize: 14, fontWeight: '700', marginBottom: 10 },
   filaMetodos:        { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  btnMetodo:          { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fff', gap: 3, ...sombra({ opacity: 0.05, radius: 4, offsetY: 2, elevation: 1 }) },
-  btnMetodoActivo:    { borderColor: '#3AB7A5', backgroundColor: '#f0faf9', ...sombra({ opacity: 0.1, radius: 6, offsetY: 2, elevation: 3 }) },
+  btnMetodo:          { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1.5, gap: 3, ...sombra({ opacity: 0.05, radius: 4, offsetY: 2, elevation: 1 }) },
   emojiMetodo:        { fontSize: 24 },
-  labelMetodo:        { fontSize: 12, color: '#888', fontWeight: '600' },
+  labelMetodo:        { fontSize: 12, fontWeight: '600' },
   labelMetodoActivo:  { color: '#3AB7A5', fontWeight: '700' },
-  subMetodo:          { fontSize: 9, color: '#bbb' },
+  subMetodo:          { fontSize: 9 },
   checkMetodo:        { position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: 8, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
 
-  formulario:         { backgroundColor: '#fff', borderRadius: 18, marginBottom: 20, overflow: 'hidden', borderWidth: 1, borderColor: '#eee', ...sombra({ opacity: 0.08, radius: 6, offsetY: 2, elevation: 2 }) },
-  formularioHeader:   { backgroundColor: '#f8f8f8', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  formularioTitulo:   { fontSize: 14, fontWeight: '700', color: '#333' },
+  formulario:         { borderRadius: 18, marginBottom: 20, overflow: 'hidden', borderWidth: 1, ...sombra({ opacity: 0.08, radius: 6, offsetY: 2, elevation: 2 }) },
+  formularioHeader:   { paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1 },
+  formularioTitulo:   { fontSize: 14, fontWeight: '700' },
   formularioCuerpo:   { padding: 16, gap: 12 },
   grupoCampo:         { gap: 6 },
-  label:              { fontSize: 13, fontWeight: '600', color: '#555', marginLeft: 4 },
-  cajaInput:          { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5', paddingHorizontal: 16, height: 48 },
-  input:              { flex: 1, fontSize: 14, color: '#333', outlineWidth: 0 },
+  label:              { fontSize: 13, fontWeight: '600', marginLeft: 4 },
+  cajaInput:          { flexDirection: 'row', alignItems: 'center', borderRadius: 25, borderWidth: 1.5, paddingHorizontal: 16, height: 48 },
+  input:              { flex: 1, fontSize: 14 } as never,
   filaDos:            { flexDirection: 'row', gap: 12 },
-  cajaSegura:         { backgroundColor: '#f0faf9', borderRadius: 12, padding: 12, alignItems: 'center' },
+  cajaSegura:         { borderRadius: 12, padding: 12, alignItems: 'center' },
   textoSegura:        { fontSize: 12, color: '#3AB7A5', fontWeight: '500' },
 
   filaInstruccion:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   numerito:           { width: 22, height: 22, borderRadius: 11, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
   numeritoTexto:      { color: '#fff', fontSize: 11, fontWeight: '700' },
-  instruccionTexto:   { fontSize: 13, color: '#555', lineHeight: 20, flex: 1 },
-  cajaClabe:          { backgroundColor: '#f0faf9', borderRadius: 14, padding: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3AB7A5' },
+  instruccionTexto:   { fontSize: 13, lineHeight: 20, flex: 1 },
+  cajaClabe:          { borderRadius: 14, padding: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3AB7A5' },
   clabeLabel:         { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
-  clabe:              { fontSize: 18, fontWeight: '800', color: '#333', letterSpacing: 2 },
+  clabe:              { fontSize: 18, fontWeight: '800', letterSpacing: 2 },
 
-  btnPagar: { 
-    backgroundColor: '#DD331D', 
-    borderRadius: 25, 
-    paddingVertical: 16, 
-    alignItems: 'center', 
-    ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }),
-  },
+  btnPagar:           { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }) },
   textoPagar:         { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 });

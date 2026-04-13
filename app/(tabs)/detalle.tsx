@@ -22,6 +22,7 @@ import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
 import { Itinerario, alternarDestinoItinerario, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
@@ -47,7 +48,7 @@ const ARROW_STYLE = {
 
 const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: string }) => {
   const [indice, setIndice] = useState(0);
-  const scrollRef = useRef<{ scrollTo: (opts: { x: number; animated: boolean }) => void } | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const ancho = Math.min(W - 28 * 2, CARD_W - 28);
   const dotAnims = useRef(imagenes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
@@ -114,20 +115,23 @@ const extraerPrecio = (precioTotal: string) => {
 const Sidebar = React.memo(({ estaActiva, navegarPestana }: {
   estaActiva: (ruta: string) => boolean;
   navegarPestana: (ruta: string) => void;
-}) => (
-  <View style={estilos.sidebar}>
-    <Image source={require('../../assets/images/logo.png')} style={estilos.logoSidebar} contentFit="contain" transition={200} />
-    <View style={estilos.separadorSidebar} />
-    {PESTANAS.map(p => {
-      const activa = estaActiva(p.ruta);
-      return (
-        <TouchableOpacity key={p.ruta} style={[estilos.itemSidebar, activa && estilos.itemSidebarActivo]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
-          <Image source={activa ? p.iconoRojo : p.iconoGris} style={estilos.iconoSidebar} contentFit="contain" transition={150} />
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-));
+}) => {
+  const { tema } = useTemaContext();
+  return (
+    <View style={[estilos.sidebar, { backgroundColor: tema.superficieBlanca, borderRightColor: tema.borde }]}>
+      <Image source={require('../../assets/images/logo.png')} style={estilos.logoSidebar} contentFit="contain" transition={200} />
+      <View style={[estilos.separadorSidebar, { backgroundColor: tema.borde }]} />
+      {PESTANAS.map(p => {
+        const activa = estaActiva(p.ruta);
+        return (
+          <TouchableOpacity key={p.ruta} style={[estilos.itemSidebar, activa && estilos.itemSidebarActivo, activa && { backgroundColor: tema.primarioSuave }]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
+            <Image source={activa ? p.iconoRojo : p.iconoGris} style={estilos.iconoSidebar} contentFit="contain" transition={150} />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+});
 Sidebar.displayName = 'Sidebar';
 
 export default function DetalleScreen() {
@@ -137,6 +141,7 @@ export default function DetalleScreen() {
   const esPC       = width >= 768;
   const { bottom: bottomInset } = useSafeAreaInsets();
   const { t, idioma } = useIdioma();
+  const { tema, isDark } = useTemaContext();
 
   // Obtener datos del estado
   const estado = TODOS_LOS_ESTADOS.find(e => e.nombre === nombre);
@@ -270,7 +275,7 @@ export default function DetalleScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={estilos.subtitulo}>{t('det_elige_paquete')}</Text>
+          <Text style={[estilos.subtitulo, { color: tema.texto }]}>{t('det_elige_paquete')}</Text>
 
           {paquetes.map((paquete, idx) => {
             const expandido = paqueteExpandido === paquete.nivel;
@@ -281,7 +286,7 @@ export default function DetalleScreen() {
                 opacity: anim,
                 transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
               }}>
-              <View style={[estilos.tarjetaPaquete, { borderColor:paquete.color }]}>
+              <View style={[estilos.tarjetaPaquete, { borderColor:paquete.color, backgroundColor: tema.superficieBlanca }]}>
                 <TouchableOpacity
                   style={[estilos.cabeceraPaquete, { backgroundColor:paquete.color }]}
                   onPressIn={() => spring(cabAnims[idx], 0.97)}
@@ -312,10 +317,10 @@ export default function DetalleScreen() {
                     <CarruselImagenes imagenes={paquete.imagenesHotel} color={paquete.color} />
 
                     <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={estilos.tituloSeccion}>{t('det_hotel')}</Text></View>
-                      <Text style={estilos.nombreHotel}>{paquete.hotel}</Text>
+                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_hotel')}</Text></View>
+                      <Text style={[estilos.nombreHotel, { color: tema.texto }]}>{paquete.hotel}</Text>
                       <Estrellas valor={paquete.estrellas} tamaño={12} />
-                      <Text style={estilos.textoInfo}>{paquete.descripcionHotel[idioma]}</Text>
+                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{paquete.descripcionHotel[idioma]}</Text>
                       <Text style={estilos.precioLinea}>{paquete.precioHotel}</Text>
                       <View style={estilos.listaIncluye}>
                         {paquete.incluye[idioma].map(inc => (
@@ -326,32 +331,32 @@ export default function DetalleScreen() {
                       </View>
                     </View>
 
-                    <View style={estilos.divisor} />
+                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
 
                     <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={estilos.tituloSeccion}>{t('det_restaurante')}</Text></View>
-                      <Text style={estilos.nombreHotel}>{paquete.restaurante}</Text>
+                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_restaurante')}</Text></View>
+                      <Text style={[estilos.nombreHotel, { color: tema.texto }]}>{paquete.restaurante}</Text>
                       <Text style={estilos.tipoCocina}>{paquete.tipoCocina[idioma]}</Text>
-                      <Text style={estilos.textoInfo}>{t('det_platillo', { p: paquete.platillo[idioma] })}</Text>
+                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{t('det_platillo', { p: paquete.platillo[idioma] })}</Text>
                       <Text style={estilos.precioLinea}>{paquete.precioRestaurante}</Text>
                     </View>
 
-                    <View style={estilos.divisor} />
+                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
 
                     <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={estilos.tituloSeccion}>{t('det_transporte')}</Text></View>
-                      <Text style={estilos.textoInfo}>{paquete.transporte[idioma]}</Text>
+                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_transporte')}</Text></View>
+                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{paquete.transporte[idioma]}</Text>
                       <Text style={estilos.precioLinea}>{paquete.precioTransporte}</Text>
                     </View>
 
-                    <View style={estilos.divisor} />
+                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
 
                     <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={estilos.tituloSeccion}>{t('det_actividades')}</Text></View>
+                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_actividades')}</Text></View>
                       {paquete.actividades[idioma].map((act, i) => (
                         <View key={i} style={estilos.filaActividad}>
                           <View style={[estilos.puntoActividad, { backgroundColor:paquete.color }]} />
-                          <Text style={estilos.textoActividad}>{act}</Text>
+                          <Text style={[estilos.textoActividad, { color: tema.textoSecundario }]}>{act}</Text>
                         </View>
                       ))}
                     </View>
@@ -369,6 +374,7 @@ export default function DetalleScreen() {
                         </Animated.View>
                       </TouchableOpacity>
                       <TouchableOpacity
+                        testID="reserve-package-button"
                         style={[estilos.botonReservar, { backgroundColor:paquete.color }]}
                         onPressIn={() => spring(reservarAnims[idx], 0.93)}
                         onPressOut={() => spring(reservarAnims[idx], 1)}
@@ -391,7 +397,7 @@ export default function DetalleScreen() {
           {/* Mapa interactivo */}
           {estado && (
             <View style={estilos.seccionMapa}>
-              <Text style={estilos.tituloMapa}>{t('det_ubicacion')}</Text>
+              <Text style={[estilos.tituloMapa, { color: tema.texto }]}>{t('det_ubicacion')}</Text>
               <MapaInteractivo
                 latitude={estado.latitude}
                 longitude={estado.longitude}
@@ -413,10 +419,10 @@ export default function DetalleScreen() {
     // reserve/libere espacio al cambiar barStyle, lo que causaba re-layouts.
     // Con translucent, la StatusBar flota sobre el contenido y su altura
     // ya viene incluida en los insets de SafeAreaView → sin saltos.
-    <View style={estilos.contenedor}>
+    <View style={[estilos.contenedor, { backgroundColor: tema.fondo }]} testID="detail-screen">
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={tema.fondo}
         translucent={true}
       />
       <Image source={require('../../assets/images/mapa.png')} style={estilos.imagenMapa} contentFit="contain" transition={300} />
@@ -438,14 +444,14 @@ export default function DetalleScreen() {
           <View style={{ flex: 1 }}>
             {contenidoJSX}
           </View>
-          <View style={[estilos.envolturaBarra, { paddingBottom: Math.max(bottomInset, 8) }]}>
-            <View style={estilos.barraPestanas}>
+          <View style={[estilos.envolturaBarra, { paddingBottom: Math.max(bottomInset, 8), backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde }]}>
+            <View style={[estilos.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
               {PESTANAS.map(p => {
                 const activa = estaActiva(p.ruta);
                 return (
                   <TouchableOpacity key={p.ruta} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
                     <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width:28, height:28 }} contentFit="contain" transition={100} />
-                    <Text style={[estilos.etiquetaPestana, activa && estilos.etiquetaPestanaActiva]}>{t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}</Text>
+                    <Text style={[estilos.etiquetaPestana, { color: tema.textoMuted }, activa && estilos.etiquetaPestanaActiva]}>{t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -472,8 +478,8 @@ export default function DetalleScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={estilos.modalOverlay}>
-            <View style={estilos.modalContent}>
-              <Text style={estilos.modalTitle}>{t('det_add_itinerario')}</Text>
+            <View style={[estilos.modalContent, { backgroundColor: tema.superficieBlanca }]}>
+              <Text style={[estilos.modalTitle, { color: tema.texto }]}>{t('det_add_itinerario')}</Text>
               
               <ScrollView
                 style={{ maxHeight: 200, width: '100%', marginBottom: 15 }}
@@ -484,28 +490,28 @@ export default function DetalleScreen() {
                   return (
                     <TouchableOpacity
                       key={iti.id}
-                      style={[estilos.modalItiCard, yaEsta && estilos.modalItiCardActivo]}
+                      style={[estilos.modalItiCard, { backgroundColor: tema.superficie, borderColor: tema.borde }, yaEsta && estilos.modalItiCardActivo]}
                       onPress={() => agregarAItinerario(iti.id)}
                     >
-                      <Text style={[estilos.modalItiText, yaEsta && estilos.modalItiTextActivo]}>
+                      <Text style={[estilos.modalItiText, { color: tema.textoSecundario }, yaEsta && estilos.modalItiTextActivo]}>
                         {iti.nombre}{yaEsta ? ` ${t('det_quitar')}` : ''}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
                 {itinerarios.length === 0 && (
-                  <Text style={estilos.textoInfo}>{t('det_sin_itinerarios')}</Text>
+                  <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{t('det_sin_itinerarios')}</Text>
                 )}
               </ScrollView>
 
               <View style={{ width: '100%', marginBottom: 15 }}>
-                <Text style={estilos.modalLabel}>{t('det_nuevo_itinerario')}</Text>
+                <Text style={[estilos.modalLabel, { color: tema.textoMuted }]}>{t('det_nuevo_itinerario')}</Text>
                 <TextInput
-                  style={estilos.modalInput}
+                  style={[estilos.modalInput, { backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto }]}
                   placeholder={t('det_ej_itinerario')}
                   value={nuevoNombre}
                   onChangeText={setNuevoNombre}
-                  placeholderTextColor="#999"
+                  placeholderTextColor={tema.textoMuted}
                 />
                 <TouchableOpacity
                   style={[estilos.modalBtnCrear, !nuevoNombre.trim() && { opacity: 0.5 }]}
@@ -517,7 +523,7 @@ export default function DetalleScreen() {
               </View>
 
               <TouchableOpacity style={estilos.modalBtnCerrar} onPress={() => { setModalVisible(false); setNuevoNombre(''); }}>
-                <Text style={estilos.modalBtnCerrarTxt}>{t('det_cancelar')}</Text>
+                <Text style={[estilos.modalBtnCerrarTxt, { color: tema.textoMuted }]}>{t('det_cancelar')}</Text>
               </TouchableOpacity>
             </View>
           </View>

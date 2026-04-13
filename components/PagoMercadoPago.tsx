@@ -2,9 +2,11 @@
 //  components/PagoMercadoPago.tsx  —  Integración MercadoPago
 // ============================================================
 
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, Text } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
+import { normalizeError, userMessageForError } from '../lib/error-handling';
+import { addBreadcrumb, captureApiError } from '../lib/sentry';
 import { useTemaContext } from '../lib/TemaContext';
 
 interface PagoMercadoPagoProps {
@@ -25,56 +27,69 @@ export function PagoMercadoPago({
   const { isDark } = useTemaContext();
   const [loading, setLoading] = useState(true);
   const webViewRef = useRef<WebView>(null);
+  // Guard: prevent callback races (success/error/cancel) from WebView multi-events
+  const finishedRef = useRef(false);
 
-  // Generar checkout URL de MercadoPago
-  const generateCheckoutURL = () => {
+  // Stable URL: external_reference must not change between renders
+  const checkoutUrl = useMemo(() => {
     const baseUrl = 'https://www.mercadopago.com.mx/checkout/v1/redirect';
+    const externalRef = `mercursion-${amount}-${Date.now()}`;
     const params = new URLSearchParams({
       'public_key': process.env.EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY || 'TEST-123456789',
       'transaction_amount': amount.toString(),
       'title': description,
       'description': description,
       'currency_id': 'MXN',
-      'external_reference': `mercursion-${Date.now()}`,
+      'external_reference': externalRef,
       'back_url': 'mercursion://payment/success',
-      'auto_return': 'approved'
+      'auto_return': 'approved',
     });
-
     return `${baseUrl}?${params.toString()}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally computed once per mount
+
+  const extractPaymentId = (url: string): string => {
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    return urlParams.get('payment_id') || `mp-${Date.now()}`;
   };
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     const { url } = navState;
+    addBreadcrumb({
+      category: 'payments.webview',
+      message: 'navigation_state_change',
+      data: { url },
+    });
 
-    // Detectar éxito de pago
+    // Detectar éxito de pago — guard against duplicate WebView state changes
     if (url.includes('payment/success') || url.includes('approved')) {
-      const paymentId = extractPaymentId(url);
-      onSuccess(paymentId);
-      return false; // Prevenir navegación
+      if (!finishedRef.current) {
+        finishedRef.current = true;
+        onSuccess(extractPaymentId(url));
+      }
+      return false;
     }
 
     // Detectar error
     if (url.includes('payment/error') || url.includes('rejected')) {
-      onError('Pago rechazado o error');
+      if (!finishedRef.current) {
+        finishedRef.current = true;
+        onError('Pago rechazado o error');
+      }
       return false;
     }
 
     // Detectar cancelación
     if (url.includes('payment/cancel') || url.includes('cancelled')) {
-      onCancel();
+      if (!finishedRef.current) {
+        finishedRef.current = true;
+        onCancel();
+      }
       return false;
     }
 
-    return true; // Continuar navegación normal
+    return true;
   };
-
-  const extractPaymentId = (url: string): string => {
-    // Extraer payment_id de la URL
-    const urlParams = new URLSearchParams(url.split('?')[1]);
-    return urlParams.get('payment_id') || `mp-${Date.now()}`;
-  };
-
-  const checkoutUrl = generateCheckoutURL();
 
   return (
     <View style={estilos.container}>
@@ -97,10 +112,23 @@ export function PagoMercadoPago({
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState={false}
-        renderLoading={() => null}
-        onError={() => {
+        renderLoading={() => <></>}
+        onError={(syntheticEvent) => {
           setLoading(false);
-          Alert.alert('Error', 'No se pudo cargar el checkout de pago');
+          const webError = syntheticEvent.nativeEvent?.description ?? 'checkout_error';
+          const normalized = normalizeError(webError);
+          captureApiError({
+            feature: 'payments',
+            action: 'checkout_webview_error',
+            error: webError,
+            metadata: { amount, description },
+          });
+          const userMessage = userMessageForError(normalized);
+          if (!finishedRef.current) {
+            finishedRef.current = true;
+            onError(userMessage);
+          }
+          Alert.alert('Error', userMessage);
         }}
       />
     </View>

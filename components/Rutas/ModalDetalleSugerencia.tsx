@@ -18,6 +18,7 @@ import {
 
 import { Paquete, PAQUETES_POR_ESTADO, Sugerencia } from '../../lib/constantes';
 import { s } from '../../lib/estilos_rutas';
+import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 
 interface Props {
@@ -41,6 +42,7 @@ export function ModalDetalleSugerencia({
   imagenDeEstado,
   iniciarAgregarSugerida,
 }: Props) {
+  const { tema } = useTemaContext();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['70%', '95%'], []);
 
@@ -123,6 +125,8 @@ export function ModalDetalleSugerencia({
       onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       enablePanDownToClose={true}
+      backgroundStyle={{ backgroundColor: tema.superficieBlanca }}
+      handleIndicatorStyle={{ backgroundColor: tema.borde }}
     >
       <BottomSheetView style={{ flex: 1 }}>
         
@@ -161,8 +165,8 @@ export function ModalDetalleSugerencia({
           showsVerticalScrollIndicator={false}
           style={{ maxHeight: 420, paddingHorizontal: 20, paddingTop: 10 }}
         >
-          <Text style={s.modalTitulo}>{rutaDetalle.titulo}</Text>
-          <Text style={s.modalEstado}> {rutaDetalle.estado}</Text>
+          <Text style={[s.modalTitulo, { color: tema.texto }]}>{rutaDetalle.titulo}</Text>
+          <Text style={[s.modalEstado, { color: tema.textoMuted }]}> {rutaDetalle.estado}</Text>
 
           {/* Tags */}
           {rutaDetalle.estilo && (
@@ -170,8 +174,8 @@ export function ModalDetalleSugerencia({
               {(rutaDetalle.estilo as string)
                 .split(',')
                 .map((tag: string, i: number) => (
-                  <View key={i} style={s.modalTag}>
-                    <Text style={s.modalTagTxt}>{tag.trim()}</Text>
+                  <View key={i} style={[s.modalTag, { backgroundColor: tema.superficie }]}>
+                    <Text style={[s.modalTagTxt, { color: tema.textoSecundario }]}>{tag.trim()}</Text>
                   </View>
                 ))}
             </View>
@@ -179,18 +183,18 @@ export function ModalDetalleSugerencia({
 
           {/* Resumen */}
           <View style={s.modalResumenFila}>
-            <View style={s.modalResumenCard}>
-              <Text style={s.modalResumenEyebrow}>
+            <View style={[s.modalResumenCard, { backgroundColor: tema.superficie }]}>
+              <Text style={[s.modalResumenEyebrow, { color: tema.textoMuted }]}>
                 {t('rut_costo_persona')}
               </Text>
-              <Text style={s.modalResumenValor}>
+              <Text style={[s.modalResumenValor, { color: tema.texto }]}>
                 {paquete?.precioTotal ?? '-'}
               </Text>
             </View>
 
-            <View style={s.modalResumenCard}>
-              <Text style={s.modalResumenEyebrow}>Duración</Text>
-              <Text style={s.modalResumenValor}>
+            <View style={[s.modalResumenCard, { backgroundColor: tema.superficie }]}>
+              <Text style={[s.modalResumenEyebrow, { color: tema.textoMuted }]}>Duración</Text>
+              <Text style={[s.modalResumenValor, { color: tema.texto }]}>
                 {paquete?.diasRecomendados ?? 0}{' '}
                 {t(
                   (paquete?.diasRecomendados ?? 0) === 1
@@ -202,11 +206,11 @@ export function ModalDetalleSugerencia({
           </View>
 
           {/* Alojamiento */}
-          <View style={s.modalSeccion}>
-            <Text style={s.modalSeccionTitulo}>
+          <View style={[s.modalSeccion, { backgroundColor: tema.superficie }]}>
+            <Text style={[s.modalSeccionTitulo, { color: tema.textoMuted }]}>
                {t('rut_alojamiento')}
             </Text>
-            <Text style={s.modalSeccionVal}>
+            <Text style={[s.modalSeccionVal, { color: tema.texto }]}>
               {paquete?.hotel ?? rutaDetalle.hotel}
             </Text>
           </View>

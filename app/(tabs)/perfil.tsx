@@ -23,19 +23,22 @@ type TipoModal = null | 'editarPerfil' | 'cambiarPassword' | 'notificaciones' | 
 
 type SesionUsuario = {
   id: string;
-  nombre: string;
-  nombre_usuario?: string;
-  correo?: string;
-  telefono?: string;
-  tipo?: string;
-  [key: string]: unknown;
+  nombre: string | null;
+  nombre_usuario?: string | null;
+  correo?: string | null;
+  telefono?: string | null;
+  tipo?: string | null;
+  activo?: number;
+  notificaciones?: number;
+  idioma?: string;
+  foto_url?: string | null;
 };
 
 export default function PerfilScreen() {
   const { width }  = useWindowDimensions();
   const esPC       = width >= 768;
   const { t, idioma, cambiarIdioma } = useIdioma();
-  const { isDark, toggleTema } = useTemaContext();
+  const { isDark, toggleTema, tema } = useTemaContext();
 
   useEffect(() => {
     configurarBarraAndroid();
@@ -210,15 +213,15 @@ export default function PerfilScreen() {
       );
       case 'tema': return (
         <View style={estilos.modalContenido}>
-          <Text style={estilos.modalTitulo}>{t('prf_tema_titulo')}</Text>
+          <Text style={[estilos.modalTitulo, { color: tema.texto }]}>{t('prf_tema_titulo')}</Text>
           <View style={estilos.filaSwitch}>
             <View style={{ flex: 1 }}>
-              <Text style={estilos.switchEtiqueta}>{t('prf_tema_oscuro')}</Text>
-              <Text style={estilos.switchDescripcion}>{t('prf_tema_desc')}</Text>
+              <Text style={[estilos.switchEtiqueta, { color: tema.texto }]}>{t('prf_tema_oscuro')}</Text>
+              <Text style={[estilos.switchDescripcion, { color: tema.textoMuted }]}>{t('prf_tema_desc')}</Text>
             </View>
             <Switch value={isDark} onValueChange={toggleTema} trackColor={{ false: '#ccc', true: '#3AB7A5' }} thumbColor="#fff" />
           </View>
-          <Text style={estilos.notifEstado}>{t('prf_tema_estado')} {isDark ? t('prf_tema_on') : t('prf_tema_off')}</Text>
+          <Text style={[estilos.notifEstado, { color: tema.textoSecundario }]}>{t('prf_tema_estado')} {isDark ? t('prf_tema_on') : t('prf_tema_off')}</Text>
         </View>
       );
       case 'ayuda': return (
@@ -264,35 +267,35 @@ export default function PerfilScreen() {
         />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
-            <View style={estilos.infoUsuario}>
+            <View style={[estilos.infoUsuario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
               <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
                 <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
               </Animated.View>
               <View>
-                <Text style={estilos.nombreUsuario}>{sesion.nombre}</Text>
+                <Text style={[estilos.nombreUsuario, { color: tema.texto }]}>{sesion.nombre}</Text>
                 {!!sesion.nombre_usuario && (
                   <Text style={estilos.usernameUsuario}>@{sesion.nombre_usuario}</Text>
                 )}
-                <Text style={estilos.correoUsuario}>{sesion.correo}</Text>
+                <Text style={[estilos.correoUsuario, { color: tema.textoMuted }]}>{sesion.correo}</Text>
               </View>
             </View>
           )}
           {/* Accesos rápidos */}
           <View style={estilos.seccion}>
-            <Text style={estilos.tituloSeccion}>{t('prf_accesos')}</Text>
-            <View style={estilos.tarjetaOpciones}>
+            <Text style={[estilos.tituloSeccion, { color: tema.textoMuted }]}>{t('prf_accesos')}</Text>
+            <View style={[estilos.tarjetaOpciones, { backgroundColor: tema.superficieBlanca }]}>
               {ACCESOS_RAPIDOS.map((item, index) => (
                 <TouchableOpacity
                   key={item.etiqueta}
-                  style={[estilos.filaOpcion, index < ACCESOS_RAPIDOS.length - 1 && estilos.filaOpcionBorde]}
+                  style={[estilos.filaOpcion, index < ACCESOS_RAPIDOS.length - 1 && [estilos.filaOpcionBorde, { borderBottomColor: tema.borde }]]}
                   onPressIn={() => rowPressIn('acceso_' + index)}
                   onPressOut={() => rowPressOut('acceso_' + index)}
                   onPress={item.onPress}
                   activeOpacity={1}
                 >
                   <Animated.View style={[{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between' }, { transform: [{ scale: getRowAnim('acceso_' + index) }] }]}>
-                    <Text style={estilos.textoOpcion}>{item.etiqueta}</Text>
-                    <Text style={estilos.chevron}>{'>'}</Text>
+                    <Text style={[estilos.textoOpcion, { color: tema.texto }]}>{item.etiqueta}</Text>
+                    <Text style={[estilos.chevron, { color: tema.textoMuted }]}>{'>'}</Text>
                   </Animated.View>
                 </TouchableOpacity>
               ))}
@@ -301,22 +304,22 @@ export default function PerfilScreen() {
 
           {SECCIONES.map(grupo => (
             <View key={grupo.titulo} style={estilos.seccion}>
-              <Text style={estilos.tituloSeccion}>{grupo.titulo}</Text>
-              <View style={estilos.tarjetaOpciones}>
+              <Text style={[estilos.tituloSeccion, { color: tema.textoMuted }]}>{grupo.titulo}</Text>
+              <View style={[estilos.tarjetaOpciones, { backgroundColor: tema.superficieBlanca }]}>
                 {grupo.items.map((item, index) => {
                   const rowKey = grupo.titulo + '_' + index;
                   return (
                     <TouchableOpacity
                       key={item.etiqueta}
-                      style={[estilos.filaOpcion, index < grupo.items.length - 1 && estilos.filaOpcionBorde]}
+                      style={[estilos.filaOpcion, index < grupo.items.length - 1 && [estilos.filaOpcionBorde, { borderBottomColor: tema.borde }]]}
                       onPressIn={() => rowPressIn(rowKey)}
                       onPressOut={() => rowPressOut(rowKey)}
                       onPress={() => setModalActivo(item.modal)}
                       activeOpacity={1}
                     >
                       <Animated.View style={[{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between' }, { transform: [{ scale: getRowAnim(rowKey) }] }]}>
-                        <Text style={estilos.textoOpcion}>{item.etiqueta}</Text>
-                        <Text style={estilos.chevron}>{'>'}</Text>
+                        <Text style={[estilos.textoOpcion, { color: tema.texto }]}>{item.etiqueta}</Text>
+                        <Text style={[estilos.chevron, { color: tema.textoMuted }]}>{'>'}</Text>
                       </Animated.View>
                     </TouchableOpacity>
                   );
@@ -362,9 +365,9 @@ export default function PerfilScreen() {
 
       <Modal visible={modalActivo !== null} transparent animationType="slide" onRequestClose={cerrarModal}>
         <View style={estilos.modalOverlay}>
-          <View style={estilos.modalContenedor}>
+          <View style={[estilos.modalContenedor, { backgroundColor: tema.superficieBlanca }]}>
             <TouchableOpacity style={estilos.modalCerrar} onPress={cerrarModal}>
-              <Text style={estilos.modalCerrarTexto}>✕</Text>
+              <Text style={[estilos.modalCerrarTexto, { color: tema.textoMuted }]}>✕</Text>
             </TouchableOpacity>
             {renderContenidoModal()}
           </View>
@@ -417,6 +420,8 @@ const estilos = StyleSheet.create({
   filaIdiomaActiva:      { borderColor: '#3AB7A5', backgroundColor: '#f0faf9' },
   textoIdioma:           { fontSize: 16, color: '#555' },
   textoIdiomaActivo:     { color: '#3AB7A5', fontWeight: '700' },
+  idiomaTexto:           { fontSize: 16, color: '#555' },
+  idiomaTextoActivo:     { color: '#3AB7A5', fontWeight: '700' as const },
   checkIdioma:           { fontSize: 16, color: '#3AB7A5', fontWeight: '700' },
   itemAyuda:             { marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 16 },
   preguntaAyuda:         { fontSize: 14, fontWeight: '700', color: '#333', marginBottom: 6 },

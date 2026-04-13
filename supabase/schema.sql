@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
   notificaciones  INT     NOT NULL DEFAULT 1,
   tipo            TEXT    NOT NULL DEFAULT 'normal',
   activo          INT     NOT NULL DEFAULT 1,
+  push_token      TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -45,6 +46,7 @@ ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS idioma          TEXT NOT NU
 ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS notificaciones  INT  NOT NULL DEFAULT 1;
 ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS tipo            TEXT NOT NULL DEFAULT 'normal';
 ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS activo          INT  NOT NULL DEFAULT 1;
+ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS push_token      TEXT;
 
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 
@@ -217,6 +219,7 @@ CREATE TABLE IF NOT EXISTS public.reservas (
   total       NUMERIC   DEFAULT 0,
   metodo      TEXT,
   estado      TEXT      NOT NULL DEFAULT 'confirmada',
+  notas       TEXT,
   creado_en   TEXT,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
@@ -229,7 +232,44 @@ ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS personas  INT;
 ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS total     NUMERIC DEFAULT 0;
 ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS metodo    TEXT;
 ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS estado    TEXT NOT NULL DEFAULT 'confirmada';
+ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS notas     TEXT;
 ALTER TABLE public.reservas ADD COLUMN IF NOT EXISTS creado_en TEXT;
+
+-- Idempotencia de pago por folio
+CREATE UNIQUE INDEX IF NOT EXISTS reservas_folio_unique_idx ON public.reservas (folio) WHERE folio IS NOT NULL;
+
+-- Validación de payload en servidor para evitar reservas inválidas
+CREATE OR REPLACE FUNCTION public.validar_reserva()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.folio IS NULL OR length(trim(NEW.folio)) < 4 THEN
+    RAISE EXCEPTION 'Folio inválido';
+  END IF;
+
+  IF NEW.personas IS NULL OR NEW.personas < 1 OR NEW.personas > 20 THEN
+    RAISE EXCEPTION 'Número de personas inválido';
+  END IF;
+
+  IF NEW.total IS NULL OR NEW.total < 0 THEN
+    RAISE EXCEPTION 'Total inválido';
+  END IF;
+
+  IF NEW.metodo IS NULL OR NEW.metodo NOT IN ('mercadopago', 'tarjeta', 'spei', 'oxxo') THEN
+    RAISE EXCEPTION 'Método de pago inválido';
+  END IF;
+
+  IF NEW.estado IS NULL OR NEW.estado NOT IN ('confirmada', 'pendiente', 'cancelada') THEN
+    RAISE EXCEPTION 'Estado de reserva inválido';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS reservas_validacion_trigger ON public.reservas;
+CREATE TRIGGER reservas_validacion_trigger
+  BEFORE INSERT OR UPDATE ON public.reservas
+  FOR EACH ROW EXECUTE FUNCTION public.validar_reserva();
 
 ALTER TABLE public.reservas ENABLE ROW LEVEL SECURITY;
 
@@ -385,3 +425,40 @@ CREATE POLICY "historial_all_own"
   ON public.historial FOR ALL TO authenticated
   USING  (auth.uid() = usuario_id)
   WITH CHECK (auth.uid() = usuario_id);
+
+
+-- ════════════════════════════════════════════════════════════
+--  11. ANALYTICS_EVENTOS
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS public.analytics_eventos (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      UUID NULL REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  event_name   TEXT NOT NULL,
+  properties   JSONB NOT NULL DEFAULT '{}'::jsonb,
+  platform     TEXT NOT NULL DEFAULT 'unknown',
+  app_version  TEXT NOT NULL DEFAULT '1.0.0',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.analytics_eventos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "analytics_insert_auth" ON public.analytics_eventos;
+DROP POLICY IF EXISTS "analytics_insert_anon" ON public.analytics_eventos;
+DROP POLICY IF EXISTS "analytics_select_own" ON public.analytics_eventos;
+DROP POLICY IF EXISTS "analytics_select_admin" ON public.analytics_eventos;
+
+CREATE POLICY "analytics_insert_auth"
+  ON public.analytics_eventos FOR INSERT TO authenticated
+  WITH CHECK (user_id IS NULL OR user_id = auth.uid());
+
+CREATE POLICY "analytics_insert_anon"
+  ON public.analytics_eventos FOR INSERT TO anon
+  WITH CHECK (user_id IS NULL);
+
+CREATE POLICY "analytics_select_own"
+  ON public.analytics_eventos FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE POLICY "analytics_select_admin"
+  ON public.analytics_eventos FOR SELECT TO authenticated
+  USING (es_admin());

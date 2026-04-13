@@ -44,6 +44,7 @@ export interface Sugerencia {
   precioRestaurante: string;
   nivel: Nivel;
   imagen: string;
+  activo?: number;
 }
 
 export interface Estado {

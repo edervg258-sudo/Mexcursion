@@ -1,5 +1,7 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
+import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
+import { addBreadcrumb, captureApiError } from './sentry';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -24,6 +26,39 @@ export type Itinerario = {
   nombre: string;
   items?: string[];
 };
+
+const isNetworkLikeError = (error: unknown) => {
+  const msg = String((error as { message?: string })?.message ?? error ?? '').toLowerCase();
+  return msg.includes('network') || msg.includes('fetch') || msg.includes('timeout') || msg.includes('offline');
+};
+
+let _offlineHandlersReady = false;
+const ensureOfflineHandlers = () => {
+  if (_offlineHandlersReady) return;
+  _offlineHandlersReady = true;
+
+  registerOfflineHandler('TOGGLE_FAVORITO', async payload => {
+    const usuarioId = String(payload.usuarioId ?? '');
+    const estadoId = Number(payload.estadoId ?? 0);
+    if (!usuarioId || !estadoId) return;
+    const { data: existe } = await supabase
+      .from('favoritos')
+      .select('*')
+      .eq('usuario_id', usuarioId)
+      .eq('estado_id', estadoId)
+      .maybeSingle();
+    if (existe) {
+      await supabase.from('favoritos').delete().eq('usuario_id', usuarioId).eq('estado_id', estadoId);
+    } else {
+      await supabase.from('favoritos').insert({ usuario_id: usuarioId, estado_id: estadoId });
+    }
+  });
+
+  registerOfflineHandler('CREAR_RESERVA', async payload => {
+    await supabase.from('reservas').insert(payload);
+  });
+};
+ensureOfflineHandlers();
 
 // ══════════════════════════════════════════════════════════════════════════
 //  AUTENTICACIÓN
@@ -340,6 +375,13 @@ export async function alternarFavorito(usuarioId: string, estadoId: number): Pro
     return cargarFavoritos(usuarioId);
   } catch (err) {
     console.error('alternarFavorito error:', err);
+    if (isNetworkLikeError(err)) {
+      await enqueueOfflineOperation({
+        type: 'TOGGLE_FAVORITO',
+        payload: { usuarioId, estadoId },
+      });
+      return cargarFavoritos(usuarioId);
+    }
     return [];
   }
 }
@@ -533,19 +575,94 @@ export async function guardarReserva(
   estado: string = 'confirmada',
   notas?: string
 ): Promise<boolean> {
+  const METODOS_PERMITIDOS = new Set(['mercadopago', 'tarjeta', 'spei', 'oxxo']);
+  const ESTADOS_PERMITIDOS = new Set(['confirmada', 'pendiente', 'cancelada']);
+
   try {
+    const folioNormalizado = (folio ?? '').trim().toUpperCase().slice(0, 40);
+    if (!folioNormalizado || folioNormalizado.length < 4) {
+      return false;
+    }
+    if (!METODOS_PERMITIDOS.has((metodo ?? '').toLowerCase())) {
+      return false;
+    }
+    if (!ESTADOS_PERMITIDOS.has((estado ?? '').toLowerCase())) {
+      return false;
+    }
+    if (!usuario_id || !destino?.trim() || !paquete?.trim()) {
+      return false;
+    }
+    if (!Number.isFinite(personas) || personas < 1 || personas > 20) {
+      return false;
+    }
+    if (!Number.isFinite(total) || total < 0) {
+      return false;
+    }
+
     // Convierte DD/MM/AAAA → YYYY-MM-DD si viene en formato mexicano
     const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)
       ? fecha.split('/').reverse().join('-')
       : fecha;
 
-    const fila: Record<string, any> = { usuario_id, folio, destino, paquete, fecha: fechaISO, personas, total, metodo, estado };
+    // Idempotencia: si el folio ya existe para este usuario, consideramos éxito.
+    const { data: existente } = await supabase
+      .from('reservas')
+      .select('id')
+      .eq('usuario_id', usuario_id)
+      .eq('folio', folioNormalizado)
+      .maybeSingle();
+    if (existente?.id) {
+      addBreadcrumb({
+        category: 'booking',
+        message: 'guardarReserva idempotent hit',
+        data: { usuario_id, folio: folioNormalizado },
+      });
+      return true;
+    }
+
+    const fila: Record<string, any> = {
+      usuario_id,
+      folio: folioNormalizado,
+      destino: destino.trim(),
+      paquete: paquete.trim(),
+      fecha: fechaISO,
+      personas,
+      total,
+      metodo: metodo.toLowerCase(),
+      estado: estado.toLowerCase(),
+    };
     if (notas?.trim()) fila.notas = notas.trim();
 
     const { error } = await supabase.from('reservas').insert(fila);
+    if (error) {
+      // 23505: unique_violation (folio duplicado). Es un caso idempotente.
+      if ((error as { code?: string }).code === '23505') {
+        return true;
+      }
+      if (isNetworkLikeError(error)) {
+        await enqueueOfflineOperation({
+          type: 'CREAR_RESERVA',
+          payload: fila,
+        });
+        return true;
+      }
+      captureApiError({
+        feature: 'reservas',
+        action: 'insert',
+        error,
+        metadata: { usuario_id, folio: folioNormalizado },
+      });
+      return false;
+    }
     return !error;
   } catch (err) {
     console.error('guardarReserva error:', err);
+    captureApiError({
+      feature: 'reservas',
+      action: 'insert',
+      error: err,
+      metadata: { usuario_id, folio },
+    });
     return false;
   }
 }

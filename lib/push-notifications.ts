@@ -43,6 +43,10 @@ export function notificationsDisponibles(): boolean {
   return getNotificationsModule() !== null;
 }
 
+export function getNotifications(): NotificationsModule | null {
+  return getNotificationsModule();
+}
+
 // ── Comportamiento cuando la app está en primer plano ────────────────────────
 export function configurarNotificaciones() {
   const Notifications = getNotificationsModule();
@@ -92,11 +96,13 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
   const token = (await Notifications.getExpoPushTokenAsync()).data;
 
   // Persistir token en Supabase (columna push_token en tabla usuarios)
-  await supabase
+  const { error: tokenError } = await supabase
     .from('usuarios')
     .update({ push_token: token })
-    .eq('id', usuarioId)
-    .then(() => {}); // falla silenciosa si la columna no existe aún
+    .eq('id', usuarioId);
+  if (tokenError) {
+    console.error('[push] Error al guardar push_token:', tokenError.message);
+  }
 
   return token;
 }

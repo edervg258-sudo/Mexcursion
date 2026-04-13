@@ -3,8 +3,8 @@
 // ============================================================
 
 import * as Notifications from 'expo-notifications';
-import { supabase } from './supabase';
 import { Platform } from 'react-native';
+import { supabase } from './supabase';
 
 // Configuración avanzada de notificaciones
 export const configurarNotificacionesAvanzadas = async () => {
@@ -21,7 +21,7 @@ export const configurarNotificacionesAvanzadas = async () => {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#3AB7A5',
-      sound: true,
+      sound: 'default',
     });
 
     await Notifications.setNotificationChannelAsync('ofertas', {
@@ -29,7 +29,6 @@ export const configurarNotificacionesAvanzadas = async () => {
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 100, 100, 100],
       lightColor: '#e9c46a',
-      sound: false,
     });
   }
 
@@ -37,6 +36,8 @@ export const configurarNotificacionesAvanzadas = async () => {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     }),
@@ -45,7 +46,7 @@ export const configurarNotificacionesAvanzadas = async () => {
 
 // Notificaciones programadas
 export const programarRecordatorioViaje = async (
-  userId: string,
+  _userId: string,
   fechaViaje: string,
   destino: string
 ) => {
@@ -59,14 +60,14 @@ export const programarRecordatorioViaje = async (
       title: '¡Tu viaje está cerca! ✈️',
       body: `Recuerda preparar tu viaje a ${destino} mañana`,
       data: { tipo: 'recordatorio_viaje', destino },
-      sound: true,
+      sound: 'default',
     },
-    trigger: { date: fechaRecordatorio },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fechaRecordatorio },
   });
 };
 
 export const programarNotificacionOferta = async (
-  userId: string,
+  _userId: string,
   titulo: string,
   descripcion: string,
   destino: string
@@ -76,9 +77,8 @@ export const programarNotificacionOferta = async (
       title: titulo,
       body: descripcion,
       data: { tipo: 'oferta', destino },
-      sound: false,
     },
-    trigger: { seconds: 1 }, // Enviar inmediatamente
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1, repeats: false },
   });
 };
 
@@ -92,18 +92,21 @@ export const suscribirseANotificacionesServidor = (userId: string) => {
       table: 'notificaciones',
       filter: `usuario_id=eq.${userId}`,
     }, (payload) => {
-      mostrarNotificacionPush(payload.new);
+      mostrarNotificacionPush(payload.new as Record<string, string>);
     })
     .subscribe();
 
   return channel;
 };
 
-const mostrarNotificacionPush = async (notificacion: any) => {
-  await Notifications.presentNotificationAsync({
-    title: notificacion.titulo,
-    body: notificacion.mensaje,
-    data: notificacion.datos || {},
+const mostrarNotificacionPush = async (notificacion: Record<string, string>) => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: notificacion.titulo,
+      body: notificacion.mensaje,
+      data: notificacion.datos ? JSON.parse(notificacion.datos) : {},
+    },
+    trigger: null,
   });
 };
 

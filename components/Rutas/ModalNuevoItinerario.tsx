@@ -2,6 +2,7 @@ import { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, Bottom
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { s } from '../../lib/estilos_rutas';
+import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 
 interface Props {
@@ -21,6 +22,7 @@ export function ModalNuevoItinerario({
   handleCrearItinerario,
   t,
 }: Props) {
+  const { tema } = useTemaContext();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['45%'], []);
 
@@ -57,13 +59,15 @@ export function ModalNuevoItinerario({
       keyboardBehavior="fillParent"
       keyboardBlurBehavior="restore"
       enablePanDownToClose={true}
+      backgroundStyle={{ backgroundColor: tema.superficieBlanca }}
+      handleIndicatorStyle={{ backgroundColor: tema.borde }}
     >
       <BottomSheetView style={{ flex: 1, padding: 20 }}>
-        <Text style={s.modalTitulo}>{t('rut_nuevo_iti_titulo')}</Text>
-        <Text style={s.modalSub}>{t('rut_nuevo_iti_sub')}</Text>
-        
+        <Text style={[s.modalTitulo, { color: tema.texto }]}>{t('rut_nuevo_iti_titulo')}</Text>
+        <Text style={[s.modalSub, { color: tema.textoMuted }]}>{t('rut_nuevo_iti_sub')}</Text>
+
         <TextInput
-          style={[s.modalInput, { marginTop: 20, marginBottom: 20 }]}
+          style={[s.modalInput, { marginTop: 20, marginBottom: 20, backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto }]}
           placeholder={t('rut_ph_nombre_iti')}
           placeholderTextColor="#bbb"
           value={nuevoNombre}
@@ -71,13 +75,13 @@ export function ModalNuevoItinerario({
           autoFocus
           maxLength={50}
         />
-        
+
         <View style={s.modalBtns}>
-          <TouchableOpacity 
-            style={s.modalBtnCancelar} 
+          <TouchableOpacity
+            style={[s.modalBtnCancelar, { borderColor: tema.borde }]}
             onPress={() => bottomSheetRef.current?.dismiss()}
           >
-            <Text style={s.modalBtnCancelarTxt}>{t('rut_cancelar')}</Text>
+            <Text style={[s.modalBtnCancelarTxt, { color: tema.textoSecundario }]}>{t('rut_cancelar')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[s.modalBtnCrear, !nuevoNombre.trim() && { opacity: 0.5 }]} 

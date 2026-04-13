@@ -2,11 +2,7 @@
 //  lib/datos/estados.ts  —  Datos de los 32 estados de México
 // ============================================================
 
-import type { Estado, CategoriaEstado } from '../tipos';
-
-// ===========================
-//  TODOS LOS ESTADOS DE MÉXICO
-// ===========================
+import type { CategoriaEstado, Estado } from '../tipos';
 
 export const TODOS_LOS_ESTADOS: Estado[] = [
   {
@@ -17,7 +13,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/aguascalientes.png'),
     precio: 1800,
     latitude: 21.8853,
-    longitude: -102.2916
+    longitude: -102.2916,
   },
   {
     id: 2,
@@ -27,7 +23,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/baja_california.png'),
     precio: 2500,
     latitude: 30.8406,
-    longitude: -115.2838
+    longitude: -115.2838,
   },
   {
     id: 3,
@@ -37,7 +33,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/baja_california_sur.png'),
     precio: 3800,
     latitude: 24.1426,
-    longitude: -110.3128
+    longitude: -110.3128,
   },
   {
     id: 4,
@@ -47,7 +43,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/campeche.png'),
     precio: 2000,
     latitude: 19.8301,
-    longitude: -90.5349
+    longitude: -90.5349,
   },
   {
     id: 5,
@@ -57,27 +53,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/chiapas.png'),
     precio: 2500,
     latitude: 16.7569,
-    longitude: -93.1292
-  },
-  {
-    id: 8,
-    nombre: 'Chihuahua',
-    categoria: 'Aventura' as CategoriaEstado,
-    descripcion: 'Sierra Madre, Barrancas del Cobre',
-    imagen: require('../../assets/images/chihuahua.png'),
-    precio: 1800,
-    latitude: 28.6353,
-    longitude: -106.0889
-  },
-  {
-    id: 7,
-    nombre: 'Ciudad de México',
-    categoria: 'Ciudad' as CategoriaEstado,
-    descripcion: 'Historia, arte, gastronomía y vida nocturna',
-    imagen: require('../../assets/images/cdmx.png'),
-    precio: 1500,
-    latitude: 19.4326,
-    longitude: -99.1332
+    longitude: -93.1292,
   },
   {
     id: 6,
@@ -87,7 +63,27 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/coahuila.png'),
     precio: 2200,
     latitude: 25.4232,
-    longitude: -101.0053
+    longitude: -101.0053,
+  },
+  {
+    id: 7,
+    nombre: 'Ciudad de México',
+    categoria: 'Ciudad' as CategoriaEstado,
+    descripcion: 'Historia, arte, gastronomía y vida nocturna',
+    imagen: require('../../assets/images/cdmx.png'),
+    precio: 1500,
+    latitude: 19.4326,
+    longitude: -99.1332,
+  },
+  {
+    id: 8,
+    nombre: 'Chihuahua',
+    categoria: 'Aventura' as CategoriaEstado,
+    descripcion: 'Sierra Madre, Barrancas del Cobre',
+    imagen: require('../../assets/images/chihuahua.png'),
+    precio: 1800,
+    latitude: 28.6353,
+    longitude: -106.0889,
   },
   {
     id: 9,
@@ -95,7 +91,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Aventura' as CategoriaEstado,
     descripcion: 'Volcán de Colima y playas del Pacífico',
     imagen: require('../../assets/images/colima.png'),
-    precio: 1700
+    precio: 1700,
+    latitude: 19.2452,
+    longitude: -103.7241,
   },
   {
     id: 10,
@@ -103,7 +101,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Aventura' as CategoriaEstado,
     descripcion: 'Cañones, sierras y escenarios de western',
     imagen: require('../../assets/images/durango.png'),
-    precio: 1900
+    precio: 1900,
+    latitude: 24.0277,
+    longitude: -104.6532,
   },
   {
     id: 11,
@@ -111,7 +111,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Teotihuacán, Valle de Bravo y mariposas',
     imagen: require('../../assets/images/estado_mex.png'),
-    precio: 1500
+    precio: 1500,
+    latitude: 19.2926,
+    longitude: -99.6532,
   },
   {
     id: 12,
@@ -119,7 +121,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Callejones coloniales y Festival Cervantino',
     imagen: require('../../assets/images/guanajuato.png'),
-    precio: 2000
+    precio: 2000,
+    latitude: 21.0190,
+    longitude: -101.2574,
   },
   {
     id: 13,
@@ -127,7 +131,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Playa' as CategoriaEstado,
     descripcion: 'Acapulco, Ixtapa y costas bravas del sur',
     imagen: require('../../assets/images/guerrero.png'),
-    precio: 1800
+    precio: 1800,
+    latitude: 17.5506,
+    longitude: -99.5024,
   },
   {
     id: 14,
@@ -135,7 +141,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Prismas basálticos, haciendas y pulque',
     imagen: require('../../assets/images/hidalgo.png'),
-    precio: 1600
+    precio: 1600,
+    latitude: 20.1011,
+    longitude: -98.7624,
   },
   {
     id: 15,
@@ -143,7 +151,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Gastronomía' as CategoriaEstado,
     descripcion: 'Tequila, mariachi y tradición tapatía',
     imagen: require('../../assets/images/jalisco.png'),
-    precio: 2100
+    precio: 2100,
+    latitude: 20.6597,
+    longitude: -103.3496,
   },
   {
     id: 16,
@@ -151,7 +161,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Mariposas monarca, Pátzcuaro y artesanías',
     imagen: require('../../assets/images/michoacan.png'),
-    precio: 1900
+    precio: 1900,
+    latitude: 19.7060,
+    longitude: -101.1950,
   },
   {
     id: 17,
@@ -159,7 +171,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Haciendas, balnearios y Xochicalco',
     imagen: require('../../assets/images/morelos.png'),
-    precio: 1500
+    precio: 1500,
+    latitude: 18.9242,
+    longitude: -99.2216,
   },
   {
     id: 18,
@@ -167,7 +181,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Playa' as CategoriaEstado,
     descripcion: 'Sayulita, Islas Marietas y surf',
     imagen: require('../../assets/images/nayarit.png'),
-    precio: 2300
+    precio: 2300,
+    latitude: 21.5000,
+    longitude: -104.8940,
   },
   {
     id: 19,
@@ -175,7 +191,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Ciudad' as CategoriaEstado,
     descripcion: 'Monterrey, cañones y vida industrial',
     imagen: require('../../assets/images/nuevo_leon.png'),
-    precio: 1800
+    precio: 1800,
+    latitude: 25.6866,
+    longitude: -100.3161,
   },
   {
     id: 20,
@@ -185,7 +203,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/oaxaca.png'),
     precio: 2800,
     latitude: 17.0732,
-    longitude: -96.7266
+    longitude: -96.7266,
   },
   {
     id: 21,
@@ -193,7 +211,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Talavera, chiles en nogada y conventos',
     imagen: require('../../assets/images/puebla.png'),
-    precio: 1900
+    precio: 1900,
+    latitude: 19.0414,
+    longitude: -98.2063,
   },
   {
     id: 22,
@@ -201,7 +221,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Acueducto, vinos y Peña de Bernal',
     imagen: require('../../assets/images/queretaro.png'),
-    precio: 1800
+    precio: 1800,
+    latitude: 20.5881,
+    longitude: -100.3899,
   },
   {
     id: 23,
@@ -209,7 +231,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Playa' as CategoriaEstado,
     descripcion: 'Mar turquesa, arrecifes y cenotes',
     imagen: require('../../assets/images/quintana_roo.png'),
-    precio: 4500
+    precio: 4500,
+    latitude: 21.1743,
+    longitude: -86.8467,
   },
   {
     id: 24,
@@ -217,7 +241,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Huasteca Potosina, cascadas y cañones',
     imagen: require('../../assets/images/san_luis_potosi.png'),
-    precio: 1800
+    precio: 1800,
+    latitude: 22.1565,
+    longitude: -100.9855,
   },
   {
     id: 25,
@@ -225,7 +251,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Playa' as CategoriaEstado,
     descripcion: 'Mazatlán, playas y gastronomía de mar',
     imagen: require('../../assets/images/sinaloa.png'),
-    precio: 2000
+    precio: 2000,
+    latitude: 24.8048,
+    longitude: -107.3940,
   },
   {
     id: 26,
@@ -233,7 +261,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Aventura' as CategoriaEstado,
     descripcion: 'Desierto de Altar, Mar de Cortés y playa',
     imagen: require('../../assets/images/sonora.png'),
-    precio: 2000
+    precio: 2000,
+    latitude: 29.0892,
+    longitude: -110.9606,
   },
   {
     id: 27,
@@ -241,7 +271,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Cultura olmeca, ríos y selva tropical',
     imagen: require('../../assets/images/tabasco.png'),
-    precio: 1700
+    precio: 1700,
+    latitude: 17.9869,
+    longitude: -92.9303,
   },
   {
     id: 28,
@@ -249,7 +281,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Ciudad' as CategoriaEstado,
     descripcion: 'Tampico, playas del Golfo y frontera',
     imagen: require('../../assets/images/tamaulipas.png'),
-    precio: 1600
+    precio: 1600,
+    latitude: 23.7369,
+    longitude: -99.1332,
   },
   {
     id: 29,
@@ -257,7 +291,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Carnaval, Cacaxtla y tradiciones vivas',
     imagen: require('../../assets/images/tlaxcala.png'),
-    precio: 1400
+    precio: 1400,
+    latitude: 19.3182,
+    longitude: -98.2375,
   },
   {
     id: 30,
@@ -265,7 +301,9 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Puerto, son jarocho, Tajín y cascadas',
     imagen: require('../../assets/images/veracruz.png'),
-    precio: 1800
+    precio: 1800,
+    latitude: 19.1738,
+    longitude: -96.1342,
   },
   {
     id: 31,
@@ -275,7 +313,7 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     imagen: require('../../assets/images/yucatan.png'),
     precio: 3200,
     latitude: 20.9674,
-    longitude: -89.5926
+    longitude: -89.5926,
   },
   {
     id: 32,
@@ -283,6 +321,8 @@ export const TODOS_LOS_ESTADOS: Estado[] = [
     categoria: 'Cultura' as CategoriaEstado,
     descripcion: 'Minas de plata, teleférico y arte barroco',
     imagen: require('../../assets/images/zacatecas.png'),
-    precio: 1900
+    precio: 1900,
+    latitude: 22.7709,
+    longitude: -102.5832,
   },
 ];

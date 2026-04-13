@@ -1,0 +1,20 @@
+# EAS Build ignore file
+# Reduce upload size by excluding unnecessary files
+
+node_modules/
+.git/
+.gitignore
+android/build/
+android/.gradle/
+ios/Pods/
+ios/build/
+.expo/
+dist/
+build/
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.turbo/
+coverage/
+.jest/

@@ -13,11 +13,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PESTANAS } from '../lib/constantes';
 import { useIdioma } from '../lib/IdiomaContext';
+import { useTemaContext } from '../lib/TemaContext';
 import { TraduccionClave } from '../lib/traducciones';
+import { sombraBarraInferior, sombraBarraInferiorOscura } from '../lib/tema';
 
 type TabChromeProps = {
   children: React.ReactNode;
   esPC: boolean;
+  testID?: string;
   title?: string;
   onBack?: () => void;
   headerRight?: React.ReactNode;
@@ -29,6 +32,7 @@ type TabChromeProps = {
 export function TabChrome({
   children,
   esPC,
+  testID,
   title,
   onBack,
   headerRight,
@@ -39,20 +43,22 @@ export function TabChrome({
   const pathname = usePathname();
   const { bottom } = useSafeAreaInsets();
   const { t } = useIdioma();
+  const { tema, isDark } = useTemaContext();
 
   const navigateTab = (ruta: string) => setTimeout(() => router.push(ruta as Href), 0);
   const isActive = (ruta: string) => !!pathname && pathname.endsWith(ruta.replace('/(tabs)', ''));
 
   const sidebar = (
-    <View style={styles.sidebar}>
+    <View style={[styles.sidebar, { backgroundColor: tema.superficieBlanca, borderRightColor: tema.borde }]}>
       <Image source={require('../assets/images/logo.png')} style={styles.logoSidebar} resizeMode="contain" />
-      <View style={styles.separadorSidebar} />
+      <View style={[styles.separadorSidebar, { backgroundColor: tema.borde }]} />
       {PESTANAS.map(p => {
         const active = isActive(p.ruta);
         return (
           <TouchableOpacity
             key={p.ruta}
-            style={[styles.itemSidebar, active && styles.itemSidebarActivo]}
+            testID={p.ruta.replace('/(tabs)/', '') + '-tab'}
+            style={[styles.itemSidebar, active && { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}
             onPress={() => navigateTab(p.ruta)}
             activeOpacity={0.75}
           >
@@ -66,13 +72,13 @@ export function TabChrome({
   const header = title ? (
     <View style={[styles.encabezado, { maxWidth }]}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.botonAtras} activeOpacity={0.8}>
-          <Text style={styles.textoAtras}>{'‹'}</Text>
+        <TouchableOpacity onPress={onBack} style={[styles.botonAtras, { backgroundColor: isDark ? tema.superficie : '#F0F0F0' }]} activeOpacity={0.8}>
+          <Text style={[styles.textoAtras, { color: tema.texto }]}>{'‹'}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.headerSpacer} />
       )}
-      <Text style={styles.tituloEncabezado} numberOfLines={1}>{title}</Text>
+      <Text style={[styles.tituloEncabezado, { color: tema.texto }]} numberOfLines={1}>{title}</Text>
       {headerRight ?? <View style={styles.headerSpacer} />}
     </View>
   ) : (
@@ -84,19 +90,20 @@ export function TabChrome({
   );
 
   const bottomBar = (
-    <View style={[styles.envolturaBarra, { paddingBottom: Math.max(bottom, 8) }]}>
-      <View style={styles.barraPestanas}>
+    <View style={[styles.envolturaBarra, { paddingBottom: Math.max(bottom, 8), backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
+      <View style={[styles.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
         {PESTANAS.map(p => {
           const active = isActive(p.ruta);
           return (
             <TouchableOpacity
               key={p.ruta}
+              testID={p.ruta.replace('/(tabs)/', '') + '-tab'}
               style={styles.itemPestana}
               activeOpacity={1}
               onPress={() => navigateTab(p.ruta)}
             >
               <Image source={active ? p.iconoRojo : p.iconoGris} style={styles.iconoPestana} resizeMode="contain" />
-              <Text style={[styles.etiquetaPestana, active && styles.etiquetaPestanaActiva]}>
+              <Text style={[styles.etiquetaPestana, { color: tema.textoMuted }, active && { color: '#3AB7A5', fontWeight: '700' }]}>
                 {t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}
               </Text>
             </TouchableOpacity>
@@ -107,9 +114,9 @@ export function TabChrome({
   );
 
   return (
-    <View style={styles.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={backgroundImage} style={styles.imagenMapa} resizeMode="contain" />
+    <View style={[styles.contenedor, { backgroundColor: tema.fondo }]} testID={testID}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={tema.fondo} />
+      <Image source={backgroundImage} style={[styles.imagenMapa, { opacity: tema.mapaOverlay }]} resizeMode="contain" />
 
       {esPC ? (
         <View style={styles.layoutPC}>

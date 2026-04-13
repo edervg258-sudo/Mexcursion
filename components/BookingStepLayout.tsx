@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTemaContext } from '../lib/TemaContext';
 
 type BookingStepLayoutProps = {
   children: React.ReactNode;
@@ -13,31 +14,34 @@ type BookingStepLayoutProps = {
   showLogoOnly?: boolean;
 };
 
-const StepIndicator = ({ currentStep, steps }: { currentStep: number; steps: string[] }) => (
-  <View style={styles.indicadorPasos}>
-    {steps.map((step, index) => {
-      const active = index === currentStep;
-      const complete = index < currentStep;
-      return (
-        <React.Fragment key={step + index}>
-          <View style={styles.filaPaso}>
-            <View style={[styles.circuloPaso, active && styles.circuloActivo, complete && styles.circuloCompleto]}>
-              {complete ? (
-                <Text style={styles.checkPaso}>✓</Text>
-              ) : (
-                <Text style={[styles.numPaso, active && styles.numPasoActivo]}>{index + 1}</Text>
-              )}
+const StepIndicator = ({ currentStep, steps }: { currentStep: number; steps: string[] }) => {
+  const { tema } = useTemaContext();
+  return (
+    <View style={[styles.indicadorPasos, { backgroundColor: tema.superficieBlanca, borderBottomColor: tema.borde }]}>
+      {steps.map((step, index) => {
+        const active = index === currentStep;
+        const complete = index < currentStep;
+        return (
+          <React.Fragment key={step + index}>
+            <View style={styles.filaPaso}>
+              <View style={[styles.circuloPaso, { backgroundColor: tema.superficie }, active && styles.circuloActivo, complete && styles.circuloCompleto]}>
+                {complete ? (
+                  <Text style={styles.checkPaso}>✓</Text>
+                ) : (
+                  <Text style={[styles.numPaso, active && styles.numPasoActivo]}>{index + 1}</Text>
+                )}
+              </View>
+              <Text style={[styles.etiquetaPaso, { color: tema.textoMuted }, (active || complete) && styles.etiquetaActiva]}>{step}</Text>
             </View>
-            <Text style={[styles.etiquetaPaso, (active || complete) && styles.etiquetaActiva]}>{step}</Text>
-          </View>
-          {index < steps.length - 1 && (
-            <View style={[styles.lineaPaso, (complete || currentStep > index) && styles.lineaCompleta]} />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </View>
-);
+            {index < steps.length - 1 && (
+              <View style={[styles.lineaPaso, (complete || currentStep > index) && styles.lineaCompleta]} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};
 
 export function BookingStepLayout({
   children,
@@ -48,26 +52,27 @@ export function BookingStepLayout({
   brandTitle,
   showLogoOnly = false,
 }: BookingStepLayoutProps) {
+  const { tema, isDark } = useTemaContext();
   return (
-    <View style={styles.contenedor}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF7F0" />
-      <Image source={require('../assets/images/mapa.png')} style={styles.imagenMapa} resizeMode="contain" />
+    <View style={[styles.contenedor, { backgroundColor: tema.fondo }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={tema.fondo} />
+      <Image source={require('../assets/images/mapa.png')} style={[styles.imagenMapa, { opacity: tema.mapaOverlay }]} resizeMode="contain" />
 
       <SafeAreaView style={styles.area}>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: tema.superficieBlanca, borderBottomColor: tema.borde }]}>
           {showLogoOnly ? (
             <>
               <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-              <Text style={styles.headerTitulo}>{brandTitle ?? 'Mexcursion'}</Text>
+              <Text style={[styles.headerTitulo, { color: tema.texto }]}>{brandTitle ?? 'Mexcursion'}</Text>
             </>
           ) : (
             <>
-              <TouchableOpacity onPress={() => router.back()} style={styles.btnVolver}>
+              <TouchableOpacity onPress={() => router.back()} style={[styles.btnVolver, { backgroundColor: tema.superficie }]}>
                 <Text style={styles.chevron}>‹</Text>
               </TouchableOpacity>
               <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
               <View style={styles.headerTextWrap}>
-                <Text style={styles.titulo}>{title}</Text>
+                <Text style={[styles.titulo, { color: tema.texto }]}>{title}</Text>
                 {!!subtitle && <Text style={styles.subtitulo}>{subtitle}</Text>}
               </View>
             </>

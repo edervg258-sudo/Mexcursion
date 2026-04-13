@@ -9,6 +9,7 @@ import { TabChrome } from '../../components/TabChrome';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { cargarHistorial, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { type TraduccionClave } from '../../lib/traducciones';
+import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
 type Evento = {
@@ -44,6 +45,7 @@ export default function HistorialScreen() {
   const { width }     = useWindowDimensions();
   const esPC          = width >= 768;
   const { t } = useIdioma();
+  const { tema } = useTemaContext();
   const queryClient = useQueryClient();
 
   // Query para obtener el usuario actual
@@ -88,10 +90,10 @@ export default function HistorialScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <View style={s.headerEvento}>
-            <Text style={s.tituloEvento}>{item.titulo}</Text>
-            <Text style={s.tiempoEvento}>{tiempoRelativo(item.creado_en, t)}</Text>
+            <Text style={[s.tituloEvento, { color: tema.texto }]}>{item.titulo}</Text>
+            <Text style={[s.tiempoEvento, { color: tema.textoMuted }]}>{tiempoRelativo(item.creado_en, t)}</Text>
           </View>
-          <Text style={s.detalleEvento} numberOfLines={2}>{item.detalle}</Text>
+          <Text style={[s.detalleEvento, { color: tema.textoSecundario }]} numberOfLines={2}>{item.detalle}</Text>
         </View>
       </View>
     );
@@ -110,8 +112,8 @@ export default function HistorialScreen() {
   ) : eventos.length === 0 ? (
     <View style={s.vacio}>
       <Text style={{ fontSize: 48 }}>📜</Text>
-      <Text style={s.tituloVacio}>{t('hist_vacio')}</Text>
-      <Text style={s.subtituloVacio}>{t('hist_vacio2')}</Text>
+      <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('hist_vacio')}</Text>
+      <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('hist_vacio2')}</Text>
     </View>
   ) : (
     <FlatList
@@ -121,7 +123,7 @@ export default function HistorialScreen() {
       contentContainerStyle={s.lista}
       showsVerticalScrollIndicator={false}
       ListFooterComponent={footer}
-      ItemSeparatorComponent={() => <View style={s.separador} />}
+      ItemSeparatorComponent={() => <View style={[s.separador, { backgroundColor: tema.borde }]} />}
       refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
     />
   );
@@ -134,7 +136,7 @@ export default function HistorialScreen() {
       headerRight={<View style={s.headerSpacer} />}
     >
       <View style={s.subheader}>
-        <Text style={s.subtitulo}>{eventos.length} {eventos.length !== 1 ? t('hist_evento_plural') : t('hist_evento_singular')}</Text>
+        <Text style={[s.subtitulo, { color: tema.textoMuted }]}>{eventos.length} {eventos.length !== 1 ? t('hist_evento_plural') : t('hist_evento_singular')}</Text>
       </View>
       {cuerpo}
     </TabChrome>

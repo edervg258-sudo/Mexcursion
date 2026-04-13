@@ -4,7 +4,6 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import * as ExpoNotifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -14,12 +13,15 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { configurarBarraAndroid } from '../lib/android-ui';
 import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
+import { getFeatureFlags } from '../lib/feature-flags';
 import { IdiomaProvider } from '../lib/IdiomaContext';
+import { initPerformanceMonitoring, preloadCriticalResources } from '../lib/performance';
 import {
     configurarNotificaciones,
-    notificationsDisponibles,
+    getNotifications,
     registrarParaPush,
 } from '../lib/push-notifications';
 import '../lib/react-19-filter'; // Importar filtro de advertencias
@@ -100,6 +102,21 @@ export default function RootLayout() {
     initSentry();
   }, []);
 
+  // Warm-up recursos críticos y hooks de performance
+  useEffect(() => {
+    const initRuntime = async () => {
+      const flags = await getFeatureFlags();
+      preloadCriticalResources();
+      if (flags.enablePerfTracking) {
+        initPerformanceMonitoring();
+      }
+      if (flags.enableRealtimeAnalytics) {
+        await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' });
+      }
+    };
+    initRuntime();
+  }, []);
+
   // Sesión: redirect en cambios de auth
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -125,9 +142,8 @@ export default function RootLayout() {
 
   // Listeners de notificaciones push
   useEffect(() => {
-    if (!notificationsDisponibles()) { return; }
-
-    const Notifications = ExpoNotifications;
+    const Notifications = getNotifications();
+    if (!Notifications) { return; }
 
     // Notificación recibida con la app en primer plano
     notifListener.current = Notifications.addNotificationReceivedListener(() => {});
@@ -155,6 +171,7 @@ export default function RootLayout() {
             <TemaProvider>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
+                  <OfflineBanner />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="registro"         options={{ headerShown: false }} />
                     <Stack.Screen name="login"            options={{ headerShown: false }} />

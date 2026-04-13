@@ -1,14 +1,24 @@
 import React from 'react';
 import { Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTemaContext } from '../lib/TemaContext';
 
 type NotificationIconButtonProps = {
   onPress: () => void;
 };
 
 export function NotificationIconButton({ onPress }: NotificationIconButtonProps) {
+  const { tema, isDark } = useTemaContext();
+
   return (
     <TouchableOpacity
-      style={styles.botonIcono}
+      testID="notification-button"
+      style={[
+        styles.botonIcono,
+        {
+          backgroundColor: isDark ? tema.superficie : tema.superficieBlanca,
+          borderColor: isDark ? tema.borde : tema.bordeInput,
+        },
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Abrir notificaciones"

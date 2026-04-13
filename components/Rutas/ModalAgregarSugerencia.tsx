@@ -2,6 +2,7 @@ import { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, Bottom
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, TextInput, TouchableOpacity } from 'react-native';
 import { s } from '../../lib/estilos_rutas';
+import { useTemaContext } from '../../lib/TemaContext';
 import { Itinerario } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
 
@@ -26,6 +27,7 @@ export function ModalAgregarSugerencia({
   crearItiYAgregar,
   t,
 }: Props) {
+  const { tema } = useTemaContext();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['55%'], []);
 
@@ -58,29 +60,31 @@ export function ModalAgregarSugerencia({
       keyboardBehavior="fillParent"
       keyboardBlurBehavior="restore"
       enablePanDownToClose={true}
+      backgroundStyle={{ backgroundColor: tema.superficieBlanca }}
+      handleIndicatorStyle={{ backgroundColor: tema.borde }}
     >
       <BottomSheetView style={{ flex: 1, padding: 20 }}>
-        <Text style={s.modalTitulo}>{t('rut_agregar_viaje_titulo')}</Text>
-        <Text style={s.modalSub}>{t('rut_agregar_iti_sub2')}</Text>
+        <Text style={[s.modalTitulo, { color: tema.texto }]}>{t('rut_agregar_viaje_titulo')}</Text>
+        <Text style={[s.modalSub, { color: tema.textoMuted }]}>{t('rut_agregar_iti_sub2')}</Text>
 
         {itinerarios.length > 0 && (
           <BottomSheetScrollView style={{ maxHeight: 200, marginBottom: 14 }} showsVerticalScrollIndicator={false}>
             {itinerarios.map((iti) => (
               <TouchableOpacity
                 key={iti.id}
-                style={s.itiOpcion}
+                style={[s.itiOpcion, { borderBottomColor: tema.borde }]}
                 onPress={() => { bottomSheetRef.current?.dismiss(); agregarSugeridaAItinerario(iti.id); }}
               >
-                <Text style={s.itiOpcionNombre}>{iti.nombre}</Text>
-                <Text style={s.itiOpcionCount}>{(iti.items ?? []).length} destinos</Text>
+                <Text style={[s.itiOpcionNombre, { color: tema.texto }]}>{iti.nombre}</Text>
+                <Text style={[s.itiOpcionCount, { color: tema.textoMuted }]}>{(iti.items ?? []).length} destinos</Text>
               </TouchableOpacity>
             ))}
           </BottomSheetScrollView>
         )}
 
-        <Text style={s.oCrearLbl}>{t('rut_o_crear_sep')}</Text>
+        <Text style={[s.oCrearLbl, { color: tema.textoMuted }]}>{t('rut_o_crear_sep')}</Text>
         <TextInput
-          style={[s.modalInput, { marginTop: 10, marginBottom: 15 }]}
+          style={[s.modalInput, { marginTop: 10, marginBottom: 15, backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto }]}
           placeholder={t('rut_ph_nuevo_iti')}
           placeholderTextColor="#bbb"
           value={nuevoNombreIti}

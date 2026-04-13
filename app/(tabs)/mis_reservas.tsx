@@ -10,6 +10,7 @@ import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
 type Reserva = {
@@ -38,6 +39,7 @@ export default function MisReservasScreen() {
   const { width }               = useWindowDimensions();
   const esPC                    = width >= 768;
   const { t } = useIdioma();
+  const { tema } = useTemaContext();
   const queryClient = useQueryClient();
 
   const COLOR_ESTADO: Record<string, { fondo: string; texto: string; etiqueta: string }> = {
@@ -154,36 +156,36 @@ export default function MisReservasScreen() {
     const pidioConfirmar = confirmandoId === item.id;
 
     return (
-      <View style={es.tarjeta}>
+      <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
         {/* Encabezado */}
         <View style={es.headerTarjeta}>
           <View style={{ flex: 1 }}>
-            <Text style={es.destino}>{item.destino}</Text>
-            <Text style={es.paquete}>{t('res_paquete', { n: item.paquete })}</Text>
+            <Text style={[es.destino, { color: tema.texto }]}>{item.destino}</Text>
+            <Text style={[es.paquete, { color: tema.textoMuted }]}>{t('res_paquete', { n: item.paquete })}</Text>
           </View>
           <View style={[es.badgeEstado, { backgroundColor: est.fondo }]}>
             <Text style={[es.textoEstado, { color: est.texto }]}>{est.etiqueta}</Text>
           </View>
         </View>
 
-        <View style={es.separador} />
+        <View style={[es.separador, { backgroundColor: tema.borde }]} />
 
         {/* Datos */}
         <View style={es.filaDetalle}>
           <View style={es.dato}>
-            <Text style={es.datoLabel}>{t('res_folio')}</Text>
-            <Text style={es.datoValor}>{item.folio}</Text>
+            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_folio')}</Text>
+            <Text style={[es.datoValor, { color: tema.texto }]}>{item.folio}</Text>
           </View>
           <View style={es.dato}>
-            <Text style={es.datoLabel}>{t('res_fecha')}</Text>
-            <Text style={es.datoValor}>{formatearFecha(item.fecha)}</Text>
+            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_fecha')}</Text>
+            <Text style={[es.datoValor, { color: tema.texto }]}>{formatearFecha(item.fecha)}</Text>
           </View>
           <View style={es.dato}>
-            <Text style={es.datoLabel}>{t('res_personas')}</Text>
-            <Text style={es.datoValor}>{item.personas}</Text>
+            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_personas')}</Text>
+            <Text style={[es.datoValor, { color: tema.texto }]}>{item.personas}</Text>
           </View>
           <View style={es.dato}>
-            <Text style={es.datoLabel}>{t('res_total')}</Text>
+            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_total')}</Text>
             <Text style={[es.datoValor, { color: '#3AB7A5' }]}>
               ${item.total.toLocaleString()}
             </Text>
@@ -192,9 +194,9 @@ export default function MisReservasScreen() {
 
         {/* Notas del viajero */}
         {!!item.notas && (
-          <View style={es.cajaNota}>
+          <View style={[es.cajaNota, { backgroundColor: tema.superficie }]}>
             <Text style={es.notaLabel}>📝 {t('res_notas')}</Text>
-            <Text style={es.notaTexto}>{item.notas}</Text>
+            <Text style={[es.notaTexto, { color: tema.textoSecundario }]}>{item.notas}</Text>
           </View>
         )}
 
@@ -214,7 +216,7 @@ export default function MisReservasScreen() {
         )}
 
         {/* Acciones */}
-        <View style={es.filaAcciones}>
+        <View style={[es.filaAcciones, { borderTopColor: tema.borde }]}>
           <TouchableOpacity
             style={es.btnVerDetalle}
             onPress={() => irADetalle(item)}
@@ -263,11 +265,11 @@ export default function MisReservasScreen() {
         const n = conteo(f.clave);
         return (
           <TouchableOpacity
-            style={[es.chipFiltro, activo && es.chipFiltroActivo]}
+            style={[es.chipFiltro, { backgroundColor: tema.superficie }, activo && es.chipFiltroActivo]}
             onPress={() => setFiltro(f.clave)}
             activeOpacity={0.75}
           >
-            <Text style={[es.textoChip, activo && es.textoChipActivo]}>
+            <Text style={[es.textoChip, { color: tema.textoSecundario }, activo && es.textoChipActivo]}>
               {f.label}
               {n > 0 ? ` (${n})` : ''}
             </Text>
@@ -289,7 +291,7 @@ export default function MisReservasScreen() {
     <SkeletonFilas cantidad={5} />
   ) : reservasFiltradas.length === 0 ? (
     <View style={es.vacio}>
-      <Text style={es.subtituloVacio}>{t('res_vacio')}</Text>
+      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>{t('res_vacio')}</Text>
     </View>
   ) : (
     <FlatList
@@ -312,7 +314,7 @@ export default function MisReservasScreen() {
       maxWidth={700}
     >
       <View style={es.subheader}>
-        <Text style={es.subtitulo}>{(reservas as Reserva[]).length} {(reservas as Reserva[]).length !== 1 ? t('res_total_plural') : t('res_total_singular')}</Text>
+        <Text style={[es.subtitulo, { color: tema.textoMuted }]}>{(reservas as Reserva[]).length} {(reservas as Reserva[]).length !== 1 ? t('res_total_plural') : t('res_total_singular')}</Text>
       </View>
       {chips}
       {cuerpo}
