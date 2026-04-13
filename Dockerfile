@@ -10,9 +10,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copiar código y construir
+# Copiar código y construir (cache-bust: 1)
 COPY . .
-RUN npx expo export --platform web
+RUN echo "Cache bust 1" && npx expo export --platform web
 
 # Puerto estándar de Railway
 EXPOSE 3000
