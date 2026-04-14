@@ -71,7 +71,13 @@ const flushQueue = async () => {
     const queue = await loadQueue();
     if (!queue.length) return;
 
-    const { error } = await supabase.from('analytics_eventos').insert(queue);
+    // Asignar user_id a eventos encolados antes del login
+    const eventsToInsert = queue.map(e => ({
+      ...e,
+      user_id: e.user_id ?? currentUserId,
+    }));
+
+    const { error } = await supabase.from('analytics_eventos').insert(eventsToInsert);
     if (error) {
       captureApiError({
         feature: 'analytics',
