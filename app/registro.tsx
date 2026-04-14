@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert, Image,
+    Image,
     ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
@@ -18,6 +18,8 @@ type ErroresType = Partial<Record<keyof FormType, string>>;
 export default function RegistroScreen() {
   const [form, setForm]                       = useState<FormType>({ nombre: '', nombre_usuario: '', correo: '', telefono: '', contrasena: '' });
   const [errores, setErrores]                 = useState<ErroresType>({});
+  const [errorGeneral, setErrorGeneral]       = useState('');
+  const [mensajeExito, setMensajeExito]       = useState('');
   const [cargando, setCargando]               = useState(false);
   const [verContrasena, setVerContrasena]     = useState(false);
 
@@ -58,6 +60,8 @@ export default function RegistroScreen() {
 
   const handleRegistro = async () => {
     if (!validar()) { return; }
+    setErrorGeneral('');
+    setMensajeExito('');
     setCargando(true);
     const resultado = await registrarUsuario(form.nombre, form.nombre_usuario, form.correo, form.contrasena, form.telefono);
     setCargando(false);
@@ -67,14 +71,12 @@ export default function RegistroScreen() {
       } else if (resultado.error?.includes('usuario')) {
         setErrores({ nombre_usuario: resultado.error });
       } else {
-        Alert.alert('Error', resultado.error ?? 'Error al registrar');
+        setErrorGeneral(resultado.error ?? 'Error al registrar');
       }
       return;
     }
     if (resultado.confirmar) {
-      Alert.alert('Confirma tu correo', 'Te enviamos un enlace de verificación. Revisa tu bandeja de entrada.', [
-        { text: 'OK', onPress: () => router.replace('/login') },
-      ]);
+      setMensajeExito('Te enviamos un enlace de verificación. Revisa tu correo y confirma tu cuenta para ingresar.');
       return;
     }
     router.replace('/(tabs)/menu');
@@ -162,13 +164,30 @@ export default function RegistroScreen() {
                 {errores.contrasena ? <Text style={estilos.textoError}>⚠ {errores.contrasena}</Text> : null}
               </View>
 
-              <TouchableOpacity
-                style={[estilos.boton, cargando && estilos.botonDesactivado]}
-                onPress={handleRegistro}
-                disabled={cargando}
-              >
-                <Text style={estilos.textoBoton}>{cargando ? 'Registrando...' : 'Continuar'}</Text>
-              </TouchableOpacity>
+              {errorGeneral ? (
+                <View style={estilos.bannerError}>
+                  <Text style={estilos.bannerErrorTexto}>⚠ {errorGeneral}</Text>
+                </View>
+              ) : null}
+
+              {mensajeExito ? (
+                <View style={estilos.bannerExito}>
+                  <Text style={estilos.bannerExitoTexto}>✓ {mensajeExito}</Text>
+                  <TouchableOpacity onPress={() => router.replace('/login')} style={{ marginTop: 10 }}>
+                    <Text style={[estilos.textoEnlaceColor, { textAlign: 'center', fontWeight: '700' }]}>Ir a iniciar sesión</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {!mensajeExito && (
+                <TouchableOpacity
+                  style={[estilos.boton, cargando && estilos.botonDesactivado]}
+                  onPress={handleRegistro}
+                  disabled={cargando}
+                >
+                  <Text style={estilos.textoBoton}>{cargando ? 'Registrando...' : 'Continuar'}</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity style={estilos.enlace} onPress={() => router.push('/login')}>
                 <Text style={estilos.textoEnlace}>¿Ya tienes cuenta? <Text style={estilos.textoEnlaceColor}>Inicia sesión</Text></Text>
@@ -205,4 +224,8 @@ const estilos = StyleSheet.create({
   enlace:           { marginTop: 16, alignItems: 'center' },
   textoEnlace:      { fontSize: 13, color: '#666' },
   textoEnlaceColor: { color: '#3AB7A5', fontWeight: '600' },
+  bannerError:      { backgroundColor: '#fdecea', borderRadius: 12, padding: 12, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#DD331D' },
+  bannerErrorTexto: { color: '#DD331D', fontSize: 13, fontWeight: '600' },
+  bannerExito:      { backgroundColor: '#e8f7f5', borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#3AB7A5' },
+  bannerExitoTexto: { color: '#2a8a7e', fontSize: 13, lineHeight: 20 },
 });

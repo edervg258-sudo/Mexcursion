@@ -1,8 +1,20 @@
-# Build y serve en un solo paso - más simple para Railway
+# Build y serve en un solo paso - Railway
 FROM node:20-alpine
 
-# Instalar git y python3
-RUN apk add --no-cache git python3
+# Variables de entorno pasadas en tiempo de BUILD para que Expo las compile en el bundle
+ARG EXPO_PUBLIC_SUPABASE_URL
+ARG EXPO_PUBLIC_SUPABASE_ANON_KEY
+ARG EXPO_PUBLIC_FIREBASE_API_KEY
+ARG EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+ARG EXPO_PUBLIC_SENTRY_DSN
+ARG EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY
+
+ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
+ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+ENV EXPO_PUBLIC_FIREBASE_API_KEY=$EXPO_PUBLIC_FIREBASE_API_KEY
+ENV EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV EXPO_PUBLIC_SENTRY_DSN=$EXPO_PUBLIC_SENTRY_DSN
+ENV EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY=$EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY
 
 WORKDIR /app
 
@@ -10,17 +22,14 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copiar código y construir (cache-bust: 1)
-COPY . .
-RUN echo "Cache bust 2" && npx expo export --platform web
+# Instalar serve para SPA
+RUN npm install -g serve
 
-# Puerto estándar de Railway
+# Copiar código y construir
+COPY . .
+RUN npx expo export --platform web --clear && node scripts/inject-pwa.js
+
 EXPOSE 3000
 
-# Copiar y hacer ejecutable el script de inicio
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-# Servir la carpeta dist
-CMD ["/start.sh"]
-
+# Railway inyecta $PORT en runtime; si no está definido, usa 3000
+CMD sh -c "serve dist --single --listen ${PORT:-3000}"
