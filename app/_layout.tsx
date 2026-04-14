@@ -30,11 +30,32 @@ import { TemaProvider } from '../lib/TemaContext';
 import { initSentry, setUser } from '../lib/sentry';
 type NotificationSubscription = { remove: () => void };
 
-// Elimina el outline azul del browser en todos los TextInput (web)
+// Parches web globales
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  // Elimina el outline azul del browser en todos los TextInput
   const style = document.createElement('style');
   style.textContent = 'input, textarea { outline: none !important; }';
   document.head.appendChild(style);
+
+  // Fix: aria-hidden en screens inactivas de React Navigation puede atrapar
+  // el foco de un elemento que todavía no hizo blur. Detectamos el cambio
+  // de atributo y movemos el foco fuera del elemento oculto.
+  const ariaObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.attributeName !== 'aria-hidden') continue;
+      const target = mutation.target as HTMLElement;
+      if (target.getAttribute('aria-hidden') !== 'true') continue;
+      const focused = document.activeElement as HTMLElement | null;
+      if (focused && target.contains(focused)) {
+        focused.blur();
+      }
+    }
+  });
+  ariaObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['aria-hidden'],
+    subtree: true,
+  });
 }
 
 // Lista de warnings a ignorar
