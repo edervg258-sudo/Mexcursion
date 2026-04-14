@@ -9,10 +9,12 @@ web-build/
 .expo-shared/
 
 # Environment variables
+# Nota: .env.production SÍ se comitea porque sólo contiene variables
+# EXPO_PUBLIC_* que son públicas por diseño (se compilan en el bundle JS).
+# Cualquier secreto real debe ir en Supabase (RLS) o en el backend.
 .env
 .env.local
 .env.development
-.env.production
 .env.staging
 
 # IDE
