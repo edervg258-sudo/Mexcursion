@@ -442,8 +442,8 @@ const estilos = StyleSheet.create({
     alignSelf: 'center',
   },
   logoFijo: { width: 46, height: 46, marginRight: 8 },
-  saludo: { fontSize: 12, color: Tema.textoMuted, fontWeight: '600' },
-  tituloEncabezado: { fontSize: 20, fontWeight: '800', color: Tema.texto, letterSpacing: -0.4 },
+  saludo: { fontSize: 12, color: Platform.OS === 'android' ? Tema.primario : Tema.textoMuted, fontWeight: '600' },
+  tituloEncabezado: { fontSize: 20, fontWeight: '800', color: Platform.OS === 'android' ? Tema.primario : Tema.texto, letterSpacing: -0.4 },
   iconosEncabezado: { flexDirection: 'row', alignItems: 'center' },
   botonIcono: {
     width: 46,

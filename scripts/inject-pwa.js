@@ -28,6 +28,18 @@ if (bundleUrl) {
 // ── 2. Inyectar tags PWA en index.html (solo si no están ya) ────────────────
 if (!html.includes('rel="manifest"')) {
   const headTags = `
+  <!-- SEO -->
+  <meta name="description" content="Mercursión — Descubre y reserva experiencias únicas cerca de ti." />
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Mercursión" />
+  <meta property="og:description" content="Descubre y reserva experiencias únicas cerca de ti." />
+  <meta property="og:image" content="/icons/icon-1024.png" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mercursión" />
+  <meta name="twitter:description" content="Descubre y reserva experiencias únicas cerca de ti." />
+  <meta name="twitter:image" content="/icons/icon-1024.png" />
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#3AB7A5" />

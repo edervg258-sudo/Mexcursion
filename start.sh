@@ -1,3 +1,3 @@
 #!/bin/sh
-cd /app/dist
-python3 -m http.server 3000 --bind 0.0.0.0
+# serve con --single redirige cualquier ruta (ej: /login) a index.html (SPA support)
+serve /app/dist --single --listen 3000
