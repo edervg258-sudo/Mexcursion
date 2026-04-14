@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/icons/icon-48.png',
   '/icons/icon-120.png',
   '/icons/icon-1024.png',
-  '/_expo/static/js/web/entry-e5e50dfdb7df1bd39a1307da6035f7cb.js',
+  '/_expo/static/js/web/entry-9c86442ea13bfbf0fc8fa1d806b59f2c.js',
 ];
 
 // Dominios que nunca se cachean (API en tiempo real)

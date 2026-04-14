@@ -59,8 +59,8 @@ const TimelineItem = React.memo(function TimelineItem({
 
   const handleFav = () => {
     Animated.sequence([
-      Animated.spring(escalaFav, { toValue: 1.45, useNativeDriver: true, speed: 40, bounciness: 8 }),
-      Animated.spring(escalaFav, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 4 }),
+      Animated.spring(escalaFav, { toValue: 1.45, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 8 }),
+      Animated.spring(escalaFav, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 4 }),
     ]).start();
     onToggleFav();
   };
@@ -136,7 +136,7 @@ export default function RutasScreen() {
       const idsFav = await cargarFavoritos(usuario.id);
       setFavoritos(idsFav);
       setCargando(false);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
     };
     cargar();
   }, [fadeAnim]));

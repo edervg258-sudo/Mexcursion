@@ -94,8 +94,8 @@ export default function MenuScreen() {
     // Animación spring: crece y vuelve
     const anim = obtenerAnimFav(id);
     Animated.sequence([
-      Animated.spring(anim, { toValue: 1.4, useNativeDriver: true, speed: 40, bounciness: 6 }),
-      Animated.spring(anim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }),
+      Animated.spring(anim, { toValue: 1.4, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 6 }),
+      Animated.spring(anim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 20, bounciness: 4 }),
     ]).start();
     try {
       const idsActualizados = await alternarFavoritoBD(usuarioId, id);

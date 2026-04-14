@@ -177,12 +177,12 @@ export default function DetalleScreen() {
   const resenasAnim   = useRef(new Animated.Value(1)).current;
 
   const spring = (anim: Animated.Value, to: number) =>
-    Animated.spring(anim, { toValue: to, useNativeDriver: true, speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
+    Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
 
   useEffect(() => {
     Animated.stagger(90, paqueteAnims.map(anim =>
       Animated.parallel([
-        Animated.timing(anim, { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration: 380, useNativeDriver: Platform.OS !== 'web' }),
       ])
     )).start();
   }, [paqueteAnims]);

@@ -34,16 +34,16 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Animated.spring as any)(entradaAnim, { toValue: 1, useNativeDriver: true, tension: 55, friction: 10, delay: idx * 65 }).start();
+    (Animated.spring as any)(entradaAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 55, friction: 10, delay: idx * 65 }).start();
   }, [entradaAnim, idx]);
 
-  const pressIn  = () => Animated.spring(escalaCard, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 2 }).start();
-  const pressOut = () => Animated.spring(escalaCard, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 6 }).start();
+  const pressIn  = () => Animated.spring(escalaCard, { toValue: 0.96, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start();
+  const pressOut = () => Animated.spring(escalaCard, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start();
 
   const handleRemove = () => {
     Animated.sequence([
-      Animated.spring(escalaFav, { toValue: 1.38, useNativeDriver: true, speed: 40, bounciness: 8 }),
-      Animated.spring(escalaFav, { toValue: 0,    useNativeDriver: true, speed: 30, bounciness: 0 }),
+      Animated.spring(escalaFav, { toValue: 1.38, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 8 }),
+      Animated.spring(escalaFav, { toValue: 0,    useNativeDriver: Platform.OS !== 'web', speed: 30, bounciness: 0 }),
     ]).start(() => onRemove(item.id));
   };
 
@@ -126,7 +126,7 @@ export default function FavoritosScreen() {
         });
       setEstadosFavoritos(mapeados);
       setCargando(false);
-      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 45, friction: 9 }).start();
+      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
     };
     cargar();
   }, [fadeAnim]));

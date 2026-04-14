@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated, ScrollView,
+  Animated, Platform, ScrollView,
   StyleSheet, Text, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
@@ -27,10 +27,10 @@ export default function ConfirmacionScreen() {
 
   useEffect(() => {
     Animated.sequence([
-      Animated.spring(escala, { toValue: 1, useNativeDriver: true, tension: 55, friction: 6 }),
+      Animated.spring(escala, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 55, friction: 6 }),
       Animated.parallel([
-        Animated.timing(opacidad, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(slideY,   { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(opacidad, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(slideY,   { toValue: 0, duration: 400, useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
   }, [escala, opacidad, slideY]);

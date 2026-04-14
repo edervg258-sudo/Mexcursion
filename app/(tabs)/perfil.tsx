@@ -57,8 +57,8 @@ export default function PerfilScreen() {
     if (!animsRow.has(key)) { animsRow.set(key, new Animated.Value(1)); }
     return animsRow.get(key)!;
   };
-  const rowPressIn  = (key: string) => Animated.spring(getRowAnim(key), { toValue: 0.97, useNativeDriver: true, speed: 60, bounciness: 2 }).start();
-  const rowPressOut = (key: string) => Animated.spring(getRowAnim(key), { toValue: 1,    useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+  const rowPressIn  = (key: string) => Animated.spring(getRowAnim(key), { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 60, bounciness: 2 }).start();
+  const rowPressOut = (key: string) => Animated.spring(getRowAnim(key), { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 30, bounciness: 6 }).start();
   const [nombre, setNombre]                 = useState('');
   const [usuario, setUsuario]               = useState('');
   const [telefono, setTelefono]             = useState('');
@@ -83,8 +83,8 @@ export default function PerfilScreen() {
       const lang = (u.idioma ?? 'es') as 'es' | 'en';
       await cambiarIdioma(lang);
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 420, useNativeDriver: true }),
-        Animated.spring(avatarAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 420, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.spring(avatarAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 60, friction: 9 }),
       ]).start();
       setCargando(false);
     };
@@ -331,8 +331,8 @@ export default function PerfilScreen() {
           {sesion?.tipo === 'admin' && (
             <TouchableOpacity
               style={estilos.botonAdmin}
-              onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: true, speed: 50, bounciness: 2 }).start()}
-              onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 6 }).start()}
+              onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
+              onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start()}
               onPress={() => setTimeout(() => router.push('/(tabs)/admin' as never), 0)}
               activeOpacity={1}
             >
@@ -344,8 +344,8 @@ export default function PerfilScreen() {
 
           <TouchableOpacity
             style={estilos.botonCerrarSesion}
-            onPressIn={() => Animated.spring(cerrarAnim, { toValue: 0.93, useNativeDriver: true, speed: 50, bounciness: 2 }).start()}
-            onPressOut={() => Animated.spring(cerrarAnim, { toValue: 1,    useNativeDriver: true, speed: 25, bounciness: 6 }).start()}
+            onPressIn={() => Animated.spring(cerrarAnim, { toValue: 0.93, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
+            onPressOut={() => Animated.spring(cerrarAnim, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start()}
             onPress={handleCerrarSesion}
             activeOpacity={1}
           >

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
+import { Animated, Platform, StyleSheet, View, ViewStyle } from 'react-native';
 
 // ============================================================
 //  SkeletonLoader.tsx — componente reutilizable
@@ -15,8 +15,8 @@ const usePulso = () => {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(opacidad, { toValue: 1,   duration: 800, useNativeDriver: true }),
-        Animated.timing(opacidad, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacidad, { toValue: 1,   duration: 800, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(opacidad, { toValue: 0.4, duration: 800, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, [opacidad]);
