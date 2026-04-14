@@ -17,6 +17,10 @@ RUN echo "Cache bust 2" && npx expo export --platform web
 # Puerto estándar de Railway
 EXPOSE 3000
 
-# Servir la carpeta dist con Python en todas las interfaces
-CMD ["python3", "-c", "import http.server, socketserver, os; os.chdir('dist'); handler = http.server.SimpleHTTPRequestHandler; httpd = socketserver.TCPServer(('0.0.0.0', 3000), handler); httpd.serve_forever()"]
+# Copiar y hacer ejecutable el script de inicio
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Servir la carpeta dist
+CMD ["/start.sh"]
 
