@@ -29,6 +29,10 @@ RUN npm install -g serve
 # Copiar código (incluye .env.production con variables EXPO_PUBLIC_*)
 COPY . .
 
+# Forzar rebuild del bundle (rompe cache de Docker)
+ARG BUILD_DATE=unknown
+RUN echo "Build date: $BUILD_DATE"
+
 # Expo leerá .env.production y compilará las variables en el bundle
 RUN npx expo export --platform web --clear && node scripts/inject-pwa.js
 
