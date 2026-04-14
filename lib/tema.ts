@@ -60,43 +60,45 @@ export const Tema = {
 
 
 // ─── Tema oscuro ─────────────────────────────────────────────────────────────
+//
+//  Concepto: noche sobre México. Fondos con matiz teal muy sutil (~5 %
+//  saturación) para que el primario teal se sienta nativo al tema en vez
+//  de flotar sobre un gris frío genérico. Contraste WCAG AA en texto principal.
+//
 export const TemaOscuro = {
-  // Fondos
-  fondo:            '#0F1117',
-  superficie:       '#1C1F2A',
-  superficieBlanca: '#252836',
-  inputFondo:       '#1A1D28',
+  // Fondos — base oscura con matiz teal sutil
+  fondo:            '#0D1412',  // casi negro, leve toque teal
+  superficie:       '#152120',  // superficie principal — teal muy oscuro
+  superficieBlanca: '#1E2E2C',  // superficie elevada (cards, modales)
+  inputFondo:       '#121D1B',  // entre fondo y superficie
 
-  // Acción primaria — usar en superficies PEQUEÑAS
+  // Acción primaria — mismo teal de marca
   primario:         '#3AB7A5',
-  primarioSuave:    '#1A3D3A',  // hover/pressed en oscuro
-  primarioChip:     '#1E3D38',  // fondo chip activo en oscuro
+  primarioSuave:    '#153330',  // hover/pressed en oscuro
+  primarioChip:     '#1A3C38',  // fondo chip activo
   primarioOscuro:   '#2E9A8A',
 
-  // Acento — solo CTA principal y estados críticos
-  // En oscuro este rojo resulta agresivo: restringir a UN elemento por pantalla.
-  acento:           '#DD331D',
-  acentoOscuro:     '#B82A18',
-  acentoMuted:      '#A82515',  // señales de peligro secundarias (badges, texto aviso)
-  acentoSuave:      '#3D1A15',  // fondo chip/badge de error en oscuro
+  // Acento — rojo CTA, un punto más luminoso para leer bien sobre oscuro
+  acento:           '#E8452E',
+  acentoOscuro:     '#C43820',
+  acentoMuted:      '#A82515',  // señales de peligro secundarias
+  acentoSuave:      '#3D1A15',  // fondo chip/badge de error
 
-  // Texto — contraste suficiente sobre #252836 (aprox 10 % luminancia)
-  texto:            '#F0F0F0',
-  textoSecundario:  '#C4C4D0',  // era #B0B0B0 — +~40% de contraste en cards oscuras
-  textoMuted:       '#8A8AA8',  // era #777788 — más legible en superficie oscura
+  // Texto — con suavísimo matiz teal; evita el blanco frío puro
+  texto:            '#EDF5F3',  // blanco cálido-teal, muy alta legibilidad
+  textoSecundario:  '#A8C4C0',  // gris-teal para subtítulos y metadatos
+  textoMuted:       '#6A908C',  // teal apagado para placeholders y timestamps
 
   // Estructura
-  // Mantener borde ≈ #2C2F3E: línea oscura sutil, sin brillos que choquen.
-  // Separar visualmente con sombra, no con bordes más claros.
-  borde:            '#2C2F3E',
-  bordeInput:       '#2A4A47',  // foco sobre inputs (teal oscuro)
-  separador:        '#21243A',  // divisor entre ítems — apenas más claro que fondo
+  borde:            '#243835',  // borde sutil con matiz teal
+  bordeInput:       '#2E5550',  // foco de input — teal medio
+  separador:        '#1A2D2A',  // divisoria casi imperceptible
 
   // Estado
-  error:            '#FF5252',
+  error:            '#FF5C5C',  // rojo más brillante para visibilidad en oscuro
 
   // Overlay de imagen de fondo del mapa
-  mapaOverlay:      0.05,
+  mapaOverlay:      0.04,
 } as const;
 
 
@@ -110,12 +112,11 @@ export const sombraTarjeta = {
 
 /**
  * Sombra de tarjeta — modo oscuro.
- * Usa opacidad alta para que se perciba sobre fondos muy oscuros.
- * Incluye un borde interior sutilísimo (1 px semi-transparente blanco)
- * para dar profundidad sin línea de borde dura.
+ * Sombra profunda + borde teal al 6 % de opacidad: da profundidad
+ * y refuerza la identidad de marca sin resultar obvio.
  */
 export const sombraTarjetaOscura = {
-  boxShadow: '0px 2px 12px rgba(0,0,0,0.45), 0px 0px 0px 1px rgba(255,255,255,0.04)',
+  boxShadow: '0px 2px 14px rgba(0,0,0,0.50), 0px 0px 0px 1px rgba(58,183,165,0.06)',
   ...(Platform.OS === 'android' ? { elevation: 6 } : {}),
 };
 
@@ -127,7 +128,7 @@ export const sombraBarraInferior = {
 
 /** Barra inferior — modo oscuro */
 export const sombraBarraInferiorOscura = {
-  boxShadow: '0px -1px 0px rgba(255,255,255,0.05), 0px -4px 16px rgba(0,0,0,0.50)',
+  boxShadow: '0px -1px 0px rgba(58,183,165,0.08), 0px -4px 20px rgba(0,0,0,0.55)',
   ...(Platform.OS === 'android' ? { elevation: 12 } : {}),
 };
 
