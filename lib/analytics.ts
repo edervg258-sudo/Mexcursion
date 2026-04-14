@@ -60,6 +60,9 @@ const enqueueEvent = async (event: AnalyticsEvent) => {
 
 const flushQueue = async () => {
   if (flushing) return;
+  // No intentes flush si no hay usuario autenticado (RLS bloquea inserts anónimos).
+  // Los eventos quedan encolados en AsyncStorage y se envían al hacer login.
+  if (!currentUserId) return;
   flushing = true;
   try {
     const net = await NetInfo.fetch();
