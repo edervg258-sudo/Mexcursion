@@ -37,7 +37,7 @@ const RutaChip = React.memo(function RutaChip({
       activeOpacity={0.8}
     >
       <Text style={es.rutaChipEmoji}>{ruta.emoji}</Text>
-      <Text style={[es.rutaChipNombre, { color: activa ? '#fff' : tema.texto }]} numberOfLines={2}>
+      <Text style={[es.rutaChipNombre, { color: activa ? '#fff' : tema.texto }]} numberOfLines={1}>
         {ruta.nombre}
       </Text>
       <Text style={[es.rutaChipDias, { color: activa ? 'rgba(255,255,255,0.85)' : tema.textoMuted }]}>
@@ -364,10 +364,10 @@ const es = StyleSheet.create({
   tabBtnTxt:        { fontSize: 13, fontWeight: '700' },
 
   selectorScroll:   { paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
-  rutaChip:         { minWidth: 100, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1.5, gap: 4 },
-  rutaChipEmoji:    { fontSize: 22 },
-  rutaChipNombre:   { fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
-  rutaChipDias:     { fontSize: 10, fontWeight: '500' },
+  rutaChip:         { minWidth: 75, height: 60, alignItems: 'center', justifyContent: 'center', paddingVertical: 0, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1.5, gap: 0 },
+  rutaChipEmoji:    { fontSize: 20 },
+  rutaChipNombre:   { fontSize: 10, fontWeight: '700', textAlign: 'center', lineHeight: 12 },
+  rutaChipDias:     { fontSize: 9, fontWeight: '500' },
 
   rutasScroll:      { paddingBottom: 20 },
 
@@ -409,8 +409,8 @@ const es = StyleSheet.create({
   timelineLinea:    { position: 'absolute', left: 13, top: 28, width: 2, bottom: -12, zIndex: 0 },
   timelineNum:      { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, marginTop: 6 },
   timelineNumTxt:   { color: '#fff', fontSize: 12, fontWeight: '800' },
-  timelineCard:     { flex: 1, flexDirection: 'row', borderRadius: 14, overflow: 'hidden', borderWidth: 1, minHeight: 80 },
-  timelineImg:      { width: 72, height: 80 },
+  timelineCard:     { flex: 1, flexDirection: 'row', borderRadius: 14, overflow: 'hidden', borderWidth: 1, minHeight: 68 },
+  timelineImg:      { width: 68, height: 68 },
   timelineInfo:     { flex: 1, padding: 10, justifyContent: 'center', gap: 3 },
   timelineNombre:   { fontSize: 14, fontWeight: '800' },
   timelineDesc:     { fontSize: 11, lineHeight: 15 },

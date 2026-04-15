@@ -37,25 +37,21 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   style.textContent = 'input, textarea { outline: none !important; }';
   document.head.appendChild(style);
 
-  // Fix: aria-hidden en screens inactivas de React Navigation puede atrapar
-  // el foco de un elemento que todavía no hizo blur. Detectamos el cambio
-  // de atributo y movemos el foco fuera del elemento oculto.
-  const ariaObserver = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.attributeName !== 'aria-hidden') continue;
-      const target = mutation.target as HTMLElement;
-      if (target.getAttribute('aria-hidden') !== 'true') continue;
+  // Fix: cuando React Navigation aplica aria-hidden a una screen inactiva, el
+  // browser bloquea el atributo y emite una advertencia si algún descendiente
+  // retiene el foco. El MutationObserver es asíncrono (llega tarde); en cambio,
+  // interceptar setAttribute de forma síncrona mueve el foco ANTES de que el
+  // browser valide el cambio, eliminando la advertencia por completo.
+  const origSetAttr = HTMLElement.prototype.setAttribute;
+  HTMLElement.prototype.setAttribute = function (name: string, value: string) {
+    if (name === 'aria-hidden' && value === 'true') {
       const focused = document.activeElement as HTMLElement | null;
-      if (focused && target.contains(focused)) {
+      if (focused && focused !== document.body && this.contains(focused)) {
         focused.blur();
       }
     }
-  });
-  ariaObserver.observe(document.body, {
-    attributes: true,
-    attributeFilter: ['aria-hidden'],
-    subtree: true,
-  });
+    return origSetAttr.call(this, name, value);
+  };
 }
 
 // Lista de warnings a ignorar

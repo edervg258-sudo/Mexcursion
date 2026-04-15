@@ -52,15 +52,21 @@ const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: stri
   const ancho = Math.min(W - 28 * 2, CARD_W - 28);
   const dotAnims = useRef(imagenes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
-  const irA = (i: number) => {
-    scrollRef.current?.scrollTo({ x: ancho * i, animated: true });
+  // Sólo actualiza estado/dots — sin llamar scrollTo (evita doble scroll).
+  const sincronizarPunto = useCallback((i: number) => {
     Animated.parallel(
       dotAnims.map((anim, idx) =>
         Animated.spring(anim, { toValue: idx === i ? 1 : 0, useNativeDriver: false, tension: 70, friction: 12 })
       )
     ).start();
     setIndice(i);
-  };
+  }, [dotAnims]);
+
+  // Navega programáticamente (flechas/dots) y sincroniza.
+  const irA = useCallback((i: number) => {
+    scrollRef.current?.scrollTo({ x: ancho * i, animated: true });
+    sincronizarPunto(i);
+  }, [ancho, sincronizarPunto]);
 
   return (
     <View style={{ marginBottom: 14 }}>
@@ -69,7 +75,7 @@ const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: stri
           ref={scrollRef}
           horizontal pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={e => irA(Math.round(e.nativeEvent.contentOffset.x / ancho))}
+          onMomentumScrollEnd={e => sincronizarPunto(Math.round(e.nativeEvent.contentOffset.x / ancho))}
           style={{ borderRadius: 12, overflow: 'hidden' }}
         >
           {imagenes.map((uri, i) => (
