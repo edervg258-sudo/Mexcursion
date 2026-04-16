@@ -22,7 +22,7 @@ if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).native
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// ─── FavCard — tarjeta con animaciones de entrada, escala y eliminación ──────
+// ─── FavCard — igual que las tarjetas de menu.tsx ─────────────────────────────
 const FavCard = ({ item, idx, t, onPress, onRemove }: {
   item: FavoritoItem; idx: number; t: (clave: TraduccionClave, vars?: Record<string, string | number>) => string;
   onPress: (item: FavoritoItem) => void;
@@ -70,6 +70,7 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
         <Text style={s.nombreTarjeta}>{item.nombre}</Text>
         <Text style={s.precioTarjeta}>{t('fav_precio_desde', { precio: item.precio.toLocaleString() })}</Text>
       </TouchableOpacity>
+      {/* Botón quitar favorito */}
       <TouchableOpacity style={s.botonFavorito} onPress={handleRemove} activeOpacity={0.7}>
         <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
           <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
@@ -94,6 +95,7 @@ export default function FavoritosScreen() {
   const [cargando, setCargando]   = useState(true);
   const [recargando, setRecargando] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
   const totalCategorias = useMemo(
     () => new Set(estadosFavoritos.map(item => item.categoria)).size,
     [estadosFavoritos]
@@ -109,12 +111,12 @@ export default function FavoritosScreen() {
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
-      
+
       const [idsFav, destinosDB] = await Promise.all([
         cargarFavoritos(usuario.id),
         obtenerTodosLosDestinos()
       ]);
-      
+
       const mapeados = destinosDB
         .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
         .map((d: Record<string, unknown>) => {
@@ -162,7 +164,7 @@ export default function FavoritosScreen() {
           <SkeletonLista cantidad={3} />
         ) : estadosFavoritos.length === 0 ? (
           <View style={[s.vacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-            <Text style={s.textoVacio}>❤️</Text>
+            <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />
             <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('fav_vacios')}</Text>
             <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('fav_vacios2')}</Text>
             <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
@@ -194,17 +196,23 @@ export default function FavoritosScreen() {
                       <Text style={[s.resumenNumero, { color: tema.texto }]}>{estadosFavoritos.length}</Text>
                     </View>
                     <View style={s.resumenBadges}>
+                      {/* Favoritos count con PNG */}
                       <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
-                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>❤️ {estadosFavoritos.length}</Text>
+                        <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{estadosFavoritos.length}</Text>
                       </View>
+                      {/* Categorías con PNG de rutas */}
                       <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
-                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>🧭 {totalCategorias}</Text>
+                        <Image source={require('../../assets/images/rutas_gris.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{totalCategorias}</Text>
                       </View>
                     </View>
                   </View>
-                  <Text style={[s.resumenSub, { color: tema.textoSecundario }]} numberOfLines={2}>
-                    {previewFavoritos}
-                  </Text>
+                  {previewFavoritos ? (
+                    <Text style={[s.resumenSub, { color: tema.textoSecundario }]} numberOfLines={2}>
+                      {previewFavoritos}
+                    </Text>
+                  ) : null}
                 </View>
               }
               contentContainerStyle={s.contenidoLista}
@@ -225,34 +233,35 @@ export default function FavoritosScreen() {
 }
 
 const s = StyleSheet.create({
-  encabezado:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, gap: 8, width: '100%', minHeight: 70 },
-  tituloEncabezado:      { flex: 1, fontSize: 18, fontWeight: '800', color: '#333', textAlign: 'center' },
-  iconosEncabezado:      { flexDirection: 'row', gap: 6 },
-  botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  iconoEncabezado:       { width: 28, height: 28 },
   contenedorCentrado:    { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
   contenidoLista:        { paddingHorizontal: 16, paddingBottom: 20, gap: 14 },
-  resumenPanel:          { backgroundColor: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E7ECEB', elevation: 2 },
+
+  // Panel de resumen
+  resumenPanel:          { borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, elevation: 2 },
   resumenTop:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  resumenEyebrow:        { fontSize: 11, color: '#7B8B88', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontWeight: '700' },
-  resumenNumero:         { fontSize: 38, lineHeight: 42, fontWeight: '900', color: '#16312D' },
+  resumenEyebrow:        { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontWeight: '700' },
+  resumenNumero:         { fontSize: 38, lineHeight: 42, fontWeight: '900' },
   resumenBadges:         { alignItems: 'flex-end', gap: 8 },
-  resumenBadge:          { backgroundColor: '#F2F7F6', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  resumenBadgeTxt:       { fontSize: 12, color: '#375D56', fontWeight: '700' },
-  resumenSub:            { marginTop: 12, fontSize: 13, lineHeight: 19, color: '#60706D' },
+  resumenBadge:          { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  resumenBadgeTxt:       { fontSize: 12, fontWeight: '700' },
+  resumenSub:            { marginTop: 12, fontSize: 13, lineHeight: 19 },
+
+  // Tarjeta — igual que menu.tsx
   tarjetaContenedor:     { position: 'relative' },
-  tarjeta:               { borderRadius: 16, overflow: 'hidden', height: 180, backgroundColor: '#ddd', elevation: 4, borderWidth: 2, borderColor: '#3AB7A5' },
+  tarjeta:               { borderRadius: 16, overflow: 'hidden', height: 190, backgroundColor: '#ddd', elevation: 4 },
   imagenTarjeta:         { width: '100%', height: '100%', position: 'absolute' },
-  sombra:                { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sombra:                { position: 'absolute', bottom: 0, left: 0, right: 0, height: 90, backgroundColor: 'rgba(0,0,0,0.38)' },
   badgeCategoria:        { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   badgeCategoriaTxt:     { fontSize: 11, color: '#214740', fontWeight: '700' },
   nombreTarjeta:         { position: 'absolute', bottom: 28, left: 14, fontSize: 22, fontWeight: '700', color: '#fff' },
   precioTarjeta:         { position: 'absolute', bottom: 10, left: 14, fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
-  botonFavorito:         { position: 'absolute', top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 20, padding: 28, borderWidth: 1, borderColor: '#E7ECEB' },
-  textoVacio:            { fontSize: 48 },
-  tituloVacio:           { fontSize: 20, fontWeight: '700', color: '#333' },
-  subtituloVacio:        { fontSize: 14, color: '#888' },
-  botonIr:               { marginTop: 10, backgroundColor: '#DD331D', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25, elevation: 4 },
+  botonFavorito:         { position: 'absolute', top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
+
+  // Estado vacío
+  vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, marginHorizontal: 16, borderRadius: 20, padding: 32, borderWidth: 1 },
+  vacioCoreIcon:         { width: 64, height: 64, opacity: 0.35 },
+  tituloVacio:           { fontSize: 20, fontWeight: '700' },
+  subtituloVacio:        { fontSize: 14, textAlign: 'center' },
+  botonIr:               { marginTop: 6, backgroundColor: '#DD331D', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25, elevation: 4 },
   textoBotonIr:          { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

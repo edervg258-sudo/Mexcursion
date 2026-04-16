@@ -17,6 +17,7 @@ export default function LayoutPestanas() {
       <Tabs.Screen name="notificaciones" options={{ href: null }} />
       <Tabs.Screen name="resenas"        options={{ href: null }} />
       <Tabs.Screen name="admin"          options={{ href: null }} />
+      <Tabs.Screen name="historial"      options={{ href: null }} />
       <Tabs.Screen name="skeletonloader" options={{ href: null }} />
     </Tabs>
   );

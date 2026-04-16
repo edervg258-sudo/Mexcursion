@@ -2,6 +2,14 @@
 import { Image as ExpoImage } from 'expo-image';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const RUTA_IMG_WEB: Record<string, number> = {
+  colonial: require('../assets/images/guanajuato.png') as number,
+  maya:     require('../assets/images/chiapas.png') as number,
+  pacifico: require('../assets/images/sinaloa.png') as number,
+  sabor:    require('../assets/images/jalisco.png') as number,
+  aventura: require('../assets/images/chihuahua.png') as number,
+};
 import { RutaTematica } from '../lib/datos/rutas-tematicas';
 import { Estado } from '../lib/tipos';
 
@@ -27,7 +35,9 @@ export default function MapaRutas({
     >
       {/* Encabezado visual de la ruta */}
       <View style={[s.header, { backgroundColor: rutaActiva.color }]}>
-        <Text style={s.headerEmoji}>{rutaActiva.emoji}</Text>
+        {RUTA_IMG_WEB[rutaActiva.id] ? (
+          <Image source={RUTA_IMG_WEB[rutaActiva.id]} style={s.headerImg} resizeMode="cover" />
+        ) : null}
         <View style={{ flex: 1 }}>
           <Text style={s.headerNombre}>{rutaActiva.nombre}</Text>
           <Text style={s.headerSub}>Recorrido visual · {estadosRuta.length} destinos</Text>
@@ -145,7 +155,7 @@ const s = StyleSheet.create({
   scroll:         { paddingBottom: 20 },
 
   header:         { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
-  headerEmoji:    { fontSize: 32 },
+  headerImg:      { width: 38, height: 38, borderRadius: 8 },
   headerNombre:   { fontSize: 17, fontWeight: '900', color: '#fff' },
   headerSub:      { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
