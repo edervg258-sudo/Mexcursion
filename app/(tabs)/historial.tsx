@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
@@ -17,13 +18,37 @@ type Evento = {
   titulo: string; detalle: string; creado_en: string;
 };
 
-const ICONOS: Record<string, string> = {
-  reserva: '📋', login: '🔑', favorito: '❤️', resena: '⭐', perfil: '👤', sistema: '⚙️',
+const ICONOS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  reserva: 'calendar-outline',
+  pago:    'card-outline',
+  login:   'log-in-outline',
+  favorito:'heart-outline',
+  resena:  'star-outline',
+  perfil:  'person-outline',
+  sistema: 'settings-outline',
 };
 
 const COLORES: Record<string, string> = {
-  reserva: '#3AB7A5', login: '#5B8DEF', favorito: '#DD331D', resena: '#e9c46a', perfil: '#888', sistema: '#aaa',
+  reserva: '#3AB7A5', pago: '#3AB7A5', login: '#5B8DEF', favorito: '#DD331D', resena: '#e9c46a', perfil: '#888', sistema: '#aaa',
 };
+
+function formatearDetalle(tipo: string, detalle: string): string {
+  try {
+    const obj = JSON.parse(detalle);
+    if (tipo === 'pago' || tipo === 'reserva') {
+      const partes: string[] = [];
+      if (obj.folio)   { partes.push(`Folio: ${obj.folio}`); }
+      if (obj.metodo)  { partes.push(`Método: ${String(obj.metodo).toUpperCase()}`); }
+      if (obj.monto)   { partes.push(`$${Number(obj.monto).toLocaleString('es-MX')} MXN`); }
+      if (obj.destino) { partes.push(obj.destino); }
+      if (obj.personas){ partes.push(`${obj.personas} pers.`); }
+      return partes.join(' · ') || detalle;
+    }
+    return detalle;
+  } catch {
+    return detalle;
+  }
+}
 
 function tiempoRelativo(iso: string, t: (k: TraduccionClave, v?: Record<string, string | number>) => string): string {
   try {
@@ -59,6 +84,7 @@ export default function HistorialScreen() {
   const {
     data: historialPages,
     isLoading: cargando,
+    isFetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -81,19 +107,19 @@ export default function HistorialScreen() {
   }, [queryClient, usuario?.id]);
 
   const renderEvento = ({ item }: { item: Evento }) => {
-    const icono = ICONOS[item.tipo] ?? '📌';
+    const icono = ICONOS[item.tipo] ?? 'ellipse-outline';
     const color = COLORES[item.tipo] ?? '#888';
     return (
       <View style={s.tarjeta}>
         <View style={[s.iconoCirculo, { backgroundColor: color + '20' }]}>
-          <Text style={s.iconoEmoji}>{icono}</Text>
+          <Ionicons name={icono} size={22} color={color} />
         </View>
         <View style={{ flex: 1 }}>
           <View style={s.headerEvento}>
             <Text style={[s.tituloEvento, { color: tema.texto }]}>{item.titulo}</Text>
             <Text style={[s.tiempoEvento, { color: tema.textoMuted }]}>{tiempoRelativo(item.creado_en, t)}</Text>
           </View>
-          <Text style={[s.detalleEvento, { color: tema.textoSecundario }]} numberOfLines={2}>{item.detalle}</Text>
+          <Text style={[s.detalleEvento, { color: tema.textoSecundario }]} numberOfLines={2}>{formatearDetalle(item.tipo, item.detalle)}</Text>
         </View>
       </View>
     );
@@ -111,7 +137,7 @@ export default function HistorialScreen() {
     <SkeletonFilas cantidad={5} />
   ) : eventos.length === 0 ? (
     <View style={s.vacio}>
-      <Text style={{ fontSize: 48 }}>📜</Text>
+      <Ionicons name="document-text-outline" size={52} color="#ccc" />
       <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('hist_vacio')}</Text>
       <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('hist_vacio2')}</Text>
     </View>
@@ -124,7 +150,7 @@ export default function HistorialScreen() {
       showsVerticalScrollIndicator={false}
       ListFooterComponent={footer}
       ItemSeparatorComponent={() => <View style={[s.separador, { backgroundColor: tema.borde }]} />}
-      refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
+      refreshControl={<RefreshControl refreshing={isFetching && !isFetchingNextPage} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
     />
   );
 
@@ -153,7 +179,6 @@ const s = StyleSheet.create({
 
   tarjeta:           { flexDirection: 'row', gap: 12, paddingVertical: 14, paddingHorizontal: 4 },
   iconoCirculo:      { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  iconoEmoji:        { fontSize: 20 },
   headerEvento:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
   tituloEvento:      { fontSize: 14, fontWeight: '700', color: '#333', flex: 1 },
   tiempoEvento:      { fontSize: 11, color: '#aaa' },

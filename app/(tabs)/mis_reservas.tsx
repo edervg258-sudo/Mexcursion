@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -77,6 +78,7 @@ export default function MisReservasScreen() {
   const {
     data: reservasPages,
     isLoading: cargando,
+    isFetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -134,8 +136,11 @@ export default function MisReservasScreen() {
   const confirmarCancelacion = async (item: Reserva) => {
     setCancelando(item.id);
     setConfirmandoId(null);
-    await actualizarEstadoMutation.mutateAsync({ id: item.id, estado: 'cancelada' });
-    setCancelando(null);
+    try {
+      await actualizarEstadoMutation.mutateAsync({ id: item.id, estado: 'cancelada' });
+    } finally {
+      setCancelando(null);
+    }
   };
 
   const volverAReservar = (item: Reserva) => {
@@ -195,7 +200,10 @@ export default function MisReservasScreen() {
         {/* Notas del viajero */}
         {!!item.notas && (
           <View style={[es.cajaNota, { backgroundColor: tema.superficie }]}>
-            <Text style={es.notaLabel}>📝 {t('res_notas')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+              <Ionicons name="document-text-outline" size={13} color="#3AB7A5" />
+              <Text style={es.notaLabel}>{t('res_notas')}</Text>
+            </View>
             <Text style={[es.notaTexto, { color: tema.textoSecundario }]}>{item.notas}</Text>
           </View>
         )}
@@ -301,7 +309,7 @@ export default function MisReservasScreen() {
       contentContainerStyle={es.lista}
       showsVerticalScrollIndicator={false}
       ListFooterComponent={footer}
-      refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
+      refreshControl={<RefreshControl refreshing={isFetching && !isFetchingNextPage} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
     />
   );
 
@@ -327,10 +335,10 @@ const es = StyleSheet.create({
   subheader:            { paddingHorizontal: 16, paddingBottom: 6, width: '100%', maxWidth: 700, alignSelf: 'center' },
   subtitulo:            { fontSize: 12, color: '#888', marginTop: 2 },
 
-  listaFiltros:         { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  chipFiltro:           { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F0F0F0' },
-  chipFiltroActivo:     { backgroundColor: '#3AB7A5' },
-  textoChip:            { fontSize: 13, color: '#666', fontWeight: '500' },
+  listaFiltros:         { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
+  chipFiltro:           { paddingHorizontal: 18, height: 40, borderRadius: 20, backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
+  chipFiltroActivo:     { backgroundColor: '#3AB7A5', borderColor: '#3AB7A5' },
+  textoChip:            { fontSize: 13, color: '#666', fontWeight: '600', lineHeight: 18 },
   textoChipActivo:      { color: '#fff', fontWeight: '700' },
 
   lista:                { padding: 16, gap: 14, paddingBottom: 20, maxWidth: 700, alignSelf: 'center', width: '100%' },
@@ -364,7 +372,7 @@ const es = StyleSheet.create({
   textoBtnReservarOtra: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   cajaNota:             { backgroundColor: '#f9f9f9', borderRadius: 10, padding: 10, marginTop: 10, borderLeftWidth: 3, borderLeftColor: '#3AB7A5' },
-  notaLabel:            { fontSize: 11, fontWeight: '700', color: '#3AB7A5', marginBottom: 3 },
+  notaLabel:            { fontSize: 11, fontWeight: '700', color: '#3AB7A5' },
   notaTexto:            { fontSize: 13, color: '#555', lineHeight: 18 },
   btnCargarMas:         { marginHorizontal: 16, marginTop: 4, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtCargarMas:         { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },

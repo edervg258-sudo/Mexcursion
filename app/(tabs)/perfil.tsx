@@ -1,11 +1,13 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
     Alert, Animated, Image, Modal, Platform, ScrollView,
     StyleSheet, Switch, Text, TextInput,
     TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
@@ -37,6 +39,7 @@ type SesionUsuario = {
 export default function PerfilScreen() {
   const { width }  = useWindowDimensions();
   const esPC       = width >= 768;
+  const { bottom: bottomInset } = useSafeAreaInsets();
   const { t, idioma, cambiarIdioma } = useIdioma();
   const { isDark, toggleTema, tema } = useTemaContext();
 
@@ -146,9 +149,9 @@ export default function PerfilScreen() {
     }
   };
 
-  const ACCESOS_RAPIDOS = [
-    { etiqueta: t('prf_mis_reservas'), onPress: () => setTimeout(() => router.push('/(tabs)/mis_reservas' as never), 0) },
-    { etiqueta: t('prf_historial'),    onPress: () => setTimeout(() => router.push('/(tabs)/historial' as never), 0) },
+  const ACCESOS_RAPIDOS: { etiqueta: string; icono: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
+    { etiqueta: t('prf_mis_reservas'), icono: 'calendar-outline', onPress: () => setTimeout(() => router.push('/(tabs)/mis_reservas' as never), 0) },
+    { etiqueta: t('prf_historial'),    icono: 'time-outline',     onPress: () => setTimeout(() => router.push('/(tabs)/historial' as never), 0) },
   ];
 
   const SECCIONES = [
@@ -206,7 +209,11 @@ export default function PerfilScreen() {
           {[{ clave: 'es', etiqueta: t('prf_idioma_es') }, { clave: 'en', etiqueta: t('prf_idioma_en') }].map(op => (
             <TouchableOpacity key={op.clave} style={[estilos.filaIdioma, idioma === op.clave && estilos.filaIdiomaActiva]} onPress={() => handleIdioma(op.clave)}>
               <Text style={[estilos.idiomaTexto, idioma === op.clave && estilos.idiomaTextoActivo]}>{op.etiqueta}</Text>
-              {idioma === op.clave && <Text style={{ color: '#3AB7A5', fontSize: 16 }}>✓</Text>}
+              {idioma === op.clave && (
+              <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', lineHeight: 14 }}>✓</Text>
+              </View>
+            )}
             </TouchableOpacity>
           ))}
         </View>
@@ -294,7 +301,12 @@ export default function PerfilScreen() {
                   activeOpacity={1}
                 >
                   <Animated.View style={[{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between' }, { transform: [{ scale: getRowAnim('acceso_' + index) }] }]}>
-                    <Text style={[estilos.textoOpcion, { color: tema.texto }]}>{item.etiqueta}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={[estilos.accesoIconBox, { backgroundColor: tema.primarioSuave }]}>
+                        <Ionicons name={item.icono} size={18} color="#3AB7A5" />
+                      </View>
+                      <Text style={[estilos.textoOpcion, { color: tema.texto }]}>{item.etiqueta}</Text>
+                    </View>
                     <Text style={[estilos.chevron, { color: tema.textoMuted }]}>{'>'}</Text>
                   </Animated.View>
                 </TouchableOpacity>
@@ -367,7 +379,9 @@ export default function PerfilScreen() {
         <View style={estilos.modalOverlay}>
           <View style={[estilos.modalContenedor, { backgroundColor: tema.superficieBlanca }]}>
             <TouchableOpacity style={estilos.modalCerrar} onPress={cerrarModal}>
-              <Text style={[estilos.modalCerrarTexto, { color: tema.textoMuted }]}>✕</Text>
+              <View style={[estilos.modalCerrarBoton, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
+                <Text style={[estilos.modalCerrarTexto, { color: tema.textoMuted }]}>✕</Text>
+              </View>
             </TouchableOpacity>
             {renderContenidoModal()}
           </View>
@@ -394,6 +408,7 @@ const estilos = StyleSheet.create({
   seccion:               { marginBottom: 16 },
   tituloSeccion:         { fontSize: 13, color: '#888', fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   tarjetaOpciones:       { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1.5, borderColor: '#3AB7A5', overflow: 'hidden' },
+  accesoIconBox:         { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   filaOpcion:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
   filaOpcionBorde:       { borderBottomWidth: 1, borderBottomColor: '#eee' },
   textoOpcion:           { fontSize: 15, color: '#333' },
@@ -404,8 +419,9 @@ const estilos = StyleSheet.create({
   textoCerrarSesion:     { color: '#fff', fontSize: 16, fontWeight: '600' },
   modalOverlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalContenedor:       { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 30, maxHeight: '85%' },
-  modalCerrar:           { alignSelf: 'flex-end', padding: 16 },
-  modalCerrarTexto:      { fontSize: 18, color: '#888', fontWeight: '700' },
+  modalCerrar:           { alignSelf: 'flex-end', padding: 14 },
+  modalCerrarBoton:      { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  modalCerrarTexto:      { fontSize: 14, fontWeight: '700' },
   modalContenido:        { paddingHorizontal: 24, paddingBottom: 10 },
   modalTitulo:           { fontSize: 20, fontWeight: '700', color: '#333', marginBottom: 20, textAlign: 'center' },
   modalEtiqueta:         { fontSize: 13, color: '#888', marginBottom: 6, marginTop: 12 },

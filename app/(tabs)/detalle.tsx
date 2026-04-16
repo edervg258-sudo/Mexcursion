@@ -6,7 +6,6 @@ import {
     Alert, Animated,
     Dimensions,
     KeyboardAvoidingView,
-    LayoutAnimation,
     Modal,
     Platform, ScrollView,
     StatusBar, StyleSheet, Text,
@@ -35,16 +34,10 @@ if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).native
 }
 
 
-const ARROW_STYLE = {
-  position: 'absolute' as const,
-  top: 74,
-  width: 32, height: 32, borderRadius: 16,
-  backgroundColor: 'rgba(255,255,255,0.88)',
-  alignItems: 'center' as const, justifyContent: 'center' as const,
-  zIndex: 10, elevation: 3,
-  shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.14, shadowRadius: 3,
-};
+// ARROW_STYLE movido dentro del componente CarruselImagenes (usa CAROUSEL_H)
+
+const CAROUSEL_H = 260;
+const ARROW_TOP  = CAROUSEL_H / 2 - 16;
 
 const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: string }) => {
   const [indice, setIndice] = useState(0);
@@ -52,7 +45,6 @@ const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: stri
   const ancho = Math.min(W - 28 * 2, CARD_W - 28);
   const dotAnims = useRef(imagenes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
-  // Sólo actualiza estado/dots — sin llamar scrollTo (evita doble scroll).
   const sincronizarPunto = useCallback((i: number) => {
     Animated.parallel(
       dotAnims.map((anim, idx) =>
@@ -62,44 +54,67 @@ const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: stri
     setIndice(i);
   }, [dotAnims]);
 
-  // Navega programáticamente (flechas/dots) y sincroniza.
   const irA = useCallback((i: number) => {
     scrollRef.current?.scrollTo({ x: ancho * i, animated: true });
     sincronizarPunto(i);
   }, [ancho, sincronizarPunto]);
 
+  const arrowStyle = {
+    position: 'absolute' as const,
+    top: ARROW_TOP,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.90)',
+    alignItems: 'center' as const, justifyContent: 'center' as const,
+    zIndex: 10, elevation: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18, shadowRadius: 4,
+  };
+
   return (
     <View style={{ marginBottom: 14 }}>
-      <View style={{ position: 'relative' }}>
+      <View style={{ position: 'relative', borderRadius: 14, overflow: 'hidden' }}>
         <ScrollView
           ref={scrollRef}
           horizontal pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={e => sincronizarPunto(Math.round(e.nativeEvent.contentOffset.x / ancho))}
-          style={{ borderRadius: 12, overflow: 'hidden' }}
+          style={{ borderRadius: 14 }}
         >
           {imagenes.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={{ width: ancho, height: 180, borderRadius: 12, borderWidth: 1.5, borderColor: '#eee' }} contentFit="cover" transition={200} />
+            <Image
+              key={i}
+              source={{ uri }}
+              style={{ width: ancho, height: CAROUSEL_H, borderRadius: 14 }}
+              contentFit="cover"
+              transition={250}
+            />
           ))}
         </ScrollView>
+
+        {/* Indicador de posición sobre la imagen */}
+        {imagenes.length > 1 && (
+          <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{indice + 1}/{imagenes.length}</Text>
+          </View>
+        )}
+
         {imagenes.length > 1 && indice > 0 && (
-          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice - 1)}
-            style={{ ...ARROW_STYLE, left: 8 }}>
+          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice - 1)} style={{ ...arrowStyle, left: 10 }}>
             <Text style={{ fontSize: 22, color: '#333', fontWeight: '700', lineHeight: 28 }}>‹</Text>
           </TouchableOpacity>
         )}
         {imagenes.length > 1 && indice < imagenes.length - 1 && (
-          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice + 1)}
-            style={{ ...ARROW_STYLE, right: 8 }}>
+          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice + 1)} style={{ ...arrowStyle, right: 10 }}>
             <Text style={{ fontSize: 22, color: '#333', fontWeight: '700', lineHeight: 28 }}>›</Text>
           </TouchableOpacity>
         )}
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 }}>
+      {/* Dots */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
         {imagenes.map((_, i) => (
           <TouchableOpacity key={i} onPress={() => irA(i)}>
             <Animated.View style={{
-              width: dotAnims[i].interpolate({ inputRange: [0, 1], outputRange: [8, 20] }),
+              width: dotAnims[i].interpolate({ inputRange: [0, 1], outputRange: [8, 22] }),
               height: 8, borderRadius: 4,
               backgroundColor: dotAnims[i].interpolate({ inputRange: [0, 1], outputRange: ['#ddd', color] }),
             }} />
@@ -181,6 +196,11 @@ export default function DetalleScreen() {
   const rutaAnims     = useRef(paquetes.map(() => new Animated.Value(1))).current;
   const reservarAnims = useRef(paquetes.map(() => new Animated.Value(1))).current;
   const resenasAnim   = useRef(new Animated.Value(1)).current;
+  // Anims de altura para expand/collapse de paquetes — compatibles con web y Android
+  const expandAnims   = useRef(paquetes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
+  const EXPAND_DUR    = 280;
+  // Rastrea qué paquetes se han expandido alguna vez (para no desmontar el contenido animado)
+  const [paquetesVistos, setPaquetesVistos] = useState<Set<string>>(new Set(['economico']));
 
   const spring = (anim: Animated.Value, to: number) =>
     Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
@@ -277,7 +297,7 @@ export default function DetalleScreen() {
               accessibilityLabel="Compartir destino"
               accessibilityHint="Comparte este destino con amigos"
             >
-              <Text style={estilos.txtBtnCompartir}>📤 Compartir</Text>
+              <Text style={estilos.txtBtnCompartir}>Compartir</Text>
             </TouchableOpacity>
           </View>
 
@@ -298,8 +318,16 @@ export default function DetalleScreen() {
                   onPressIn={() => spring(cabAnims[idx], 0.97)}
                   onPressOut={() => spring(cabAnims[idx], 1)}
                   onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setPaqueteExpandido(expandido ? null : paquete.nivel);
+                    const abriendo = !expandido;
+                    setPaqueteExpandido(abriendo ? paquete.nivel : null);
+                    if (abriendo) {
+                      setPaquetesVistos(v => { const s = new Set(v); s.add(paquete.nivel); return s; });
+                      Animated.timing(expandAnims[idx], { toValue: 1, duration: EXPAND_DUR, useNativeDriver: false }).start();
+                    } else {
+                      Animated.timing(expandAnims[idx], { toValue: 0, duration: EXPAND_DUR, useNativeDriver: false }).start(() => {
+                        setPaquetesVistos(v => { const s = new Set(v); s.delete(paquete.nivel); return s; });
+                      });
+                    }
                   }}
                   activeOpacity={1}
                 >
@@ -318,8 +346,12 @@ export default function DetalleScreen() {
                   </Animated.View>
                 </TouchableOpacity>
 
-                {expandido && (
-                  <View style={estilos.cuerpoPaquete}>
+                {(expandido || paquetesVistos.has(paquete.nivel)) && (
+                  <Animated.View style={[estilos.cuerpoPaquete, {
+                    maxHeight: expandAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [0, 2400] }),
+                    opacity:   expandAnims[idx].interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0, 1] }),
+                    overflow: 'hidden',
+                  }]}>
                     <CarruselImagenes imagenes={paquete.imagenesHotel} color={paquete.color} />
 
                     <View style={estilos.seccionInfo}>
@@ -392,7 +424,7 @@ export default function DetalleScreen() {
                         </Animated.View>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </Animated.View>
                 )}
               </View>
               </Animated.View>
