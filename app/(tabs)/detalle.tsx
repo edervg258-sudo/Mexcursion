@@ -7,7 +7,7 @@ import {
     Dimensions,
     KeyboardAvoidingView,
     Modal,
-    Platform, ScrollView,
+    Platform, ScrollView, Share,
     StatusBar, StyleSheet, Text,
     TextInput,
     TouchableOpacity, UIManager, View, useWindowDimensions
@@ -250,6 +250,17 @@ export default function DetalleScreen() {
     setNuevoNombre('');
   };
 
+  const compartir = async () => {
+    try {
+      await Share.share({
+        title: `${nombre ?? ''} — Mexcursión`,
+        message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\nDescarga la app y reserva tu próxima aventura.`,
+      });
+    } catch {
+      // El usuario canceló o el sistema no soporta Share — no se requiere acción
+    }
+  };
+
   const irAReserva = (paquete: Paquete) => {
     setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
   };
@@ -289,10 +300,7 @@ export default function DetalleScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={estilos.btnCompartir}
-              onPress={() => {
-                // TODO: Implementar compartir
-                Alert.alert('Compartir', 'Funcionalidad de compartir próximamente disponible');
-              }}
+              onPress={compartir}
               activeOpacity={0.8}
               accessibilityLabel="Compartir destino"
               accessibilityHint="Comparte este destino con amigos"

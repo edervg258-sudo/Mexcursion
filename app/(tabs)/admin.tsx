@@ -84,6 +84,7 @@ export default function AdminScreen() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [verificado, setVerificado] = useState(false);
+  const [esAdmin, setEsAdmin]       = useState<boolean | null>(null);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
   // CRUD destinos
@@ -117,7 +118,13 @@ export default function AdminScreen() {
     setCargando(true);
     try {
       const sesion = await obtenerUsuarioActivo();
-      if (!sesion || sesion.tipo !== 'admin') { router.back(); return; }
+      if (!sesion || sesion.tipo !== 'admin') {
+        setEsAdmin(false);
+        // replace en vez de back: impide que el usuario vuelva a esta pantalla
+        router.replace('/(tabs)/menu' as never);
+        return;
+      }
+      setEsAdmin(true);
       const [r, u, d] = await Promise.all([
         cargarTodasLasReservas(),
         cargarTodosLosUsuarios(),
@@ -827,6 +834,9 @@ export default function AdminScreen() {
     reservas:  <Reservas  />,
     usuarios:  <Usuarios  />,
   };
+
+  // No-admin: no renderizar nada (la navegación ya está en curso)
+  if (esAdmin === false) return null;
 
   if (!verificado) {
     return (

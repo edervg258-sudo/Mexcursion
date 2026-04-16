@@ -37,6 +37,7 @@ export default function PagoScreen() {
   const [titular, setTitular]       = useState('');
   const [procesando, setProcesando] = useState(false);
   const [mostrarMercadoPago, setMostrarMercadoPago] = useState(false);
+  const [errorPago, setErrorPago]   = useState<{ mensaje: string } | null>(null);
   // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
   const procesandoRef = useRef(false);
 
@@ -141,11 +142,12 @@ export default function PagoScreen() {
       if (err instanceof Error && err.message === 'no_session') {
         Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
       } else if (err instanceof Error && err.message === 'timeout') {
-        const normalized = normalizeError(err);
-        Alert.alert(t('pago_error'), userMessageForError(normalized));
+        setErrorPago({ mensaje: 'La conexión tardó demasiado. Verifica tu internet e intenta de nuevo.' });
+      } else if (err instanceof Error && err.message === 'save_failed') {
+        setErrorPago({ mensaje: 'No se pudo guardar la reserva. Intenta de nuevo.' });
       } else {
         const normalized = normalizeError(err);
-        Alert.alert(t('pago_error'), userMessageForError(normalized));
+        setErrorPago({ mensaje: userMessageForError(normalized) });
       }
     }
   };
@@ -239,7 +241,7 @@ export default function PagoScreen() {
                 { backgroundColor: tema.superficieBlanca, borderColor: tema.borde },
                 metodo === m.id && { borderColor: '#3AB7A5', backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' },
               ]}
-              onPress={() => setMetodo(m.id as MetodoPago)}
+              onPress={() => { setMetodo(m.id as MetodoPago); setErrorPago(null); }}
               activeOpacity={0.8}
             >
               <Text style={es.emojiMetodo}>{m.emoji}</Text>
@@ -324,6 +326,19 @@ export default function PagoScreen() {
           </View>
         )}
 
+        {/* Banner de error con reintento */}
+        {errorPago && (
+          <View style={[es.bannerError, { backgroundColor: isDark ? '#2A1210' : '#FEF0EE' }]}>
+            <Text style={es.bannerErrorTxt}>{errorPago.mensaje}</Text>
+            <TouchableOpacity
+              onPress={() => { setErrorPago(null); procesarPago(); }}
+              style={es.btnReintentar}
+            >
+              <Text style={es.btnReintentarTxt}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity
           testID="pay-submit-button"
           accessibilityRole="button"
@@ -388,6 +403,11 @@ const es = StyleSheet.create({
   cajaClabe:          { borderRadius: 14, padding: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3AB7A5' },
   clabeLabel:         { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
   clabe:              { fontSize: 18, fontWeight: '800', letterSpacing: 2 },
+
+  bannerError:        { borderRadius: 14, padding: 14, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#DD331D33' },
+  bannerErrorTxt:     { flex: 1, fontSize: 13, color: '#DD331D', fontWeight: '600', lineHeight: 18 },
+  btnReintentar:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#DD331D', flexShrink: 0 },
+  btnReintentarTxt:   { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   btnPagar:           { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }) },
   textoPagar:         { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
