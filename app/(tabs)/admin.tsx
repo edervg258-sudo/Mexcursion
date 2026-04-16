@@ -73,10 +73,10 @@ const TRANSICIONES: Record<string, { label: string; estado: string; color: strin
 
 // ── Componente principal ───────────────────────────────────────────────────
 export default function AdminScreen() {
-  const { width }              = useWindowDimensions();
-  const esPC                   = width >= 768;
+  const { width }               = useWindowDimensions();
+  const esPC                    = width >= 768;
   const { bottom: bottomInset } = useSafeAreaInsets();
-  const { tema, isDark }       = useTemaContext();
+  const { tema, isDark }        = useTemaContext();
 
   const [seccion, setSeccion]   = useState<Seccion>('dashboard');
   const [destinos, setDestinos] = useState<Destino[]>([]);
@@ -84,69 +84,87 @@ export default function AdminScreen() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [verificado, setVerificado] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
   // CRUD destinos
-  const [modoForm, setModoForm]         = useState<'nuevo' | 'editar' | null>(null);
-  const [destinoEdit, setDestinoEdit]   = useState<Destino | null>(null);
-  const [formNombre, setFormNombre]     = useState('');
+  const [modoForm, setModoForm]           = useState<'nuevo' | 'editar' | null>(null);
+  const [destinoEdit, setDestinoEdit]     = useState<Destino | null>(null);
+  const [formNombre, setFormNombre]       = useState('');
   const [formCategoria, setFormCategoria] = useState('');
-  const [formPrecio, setFormPrecio]     = useState('');
-  const [formDesc, setFormDesc]         = useState('');
+  const [formPrecio, setFormPrecio]       = useState('');
+  const [formDesc, setFormDesc]           = useState('');
+  const [formErrores, setFormErrores]     = useState<Record<string, string | undefined>>({});
+
+  // Filtros y búsqueda — destinos
+  const [busquedaDestino, setBusquedaDestino] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [ordenDestinos, setOrdenDestinos]     = useState('nombre');
 
   // Filtros y búsqueda — reservas
-  const [filtroReserva, setFiltroReserva] = useState('todas');
-  const [filtroFecha, setFiltroFecha]     = useState('todas');
+  const [filtroReserva, setFiltroReserva]     = useState('todas');
+  const [filtroFecha, setFiltroFecha]         = useState('todas');
   const [busquedaReserva, setBusquedaReserva] = useState('');
+  const [ordenReservas, setOrdenReservas]     = useState('reciente');
 
   // Filtros y búsqueda — usuarios
-  const [filtroUsuario, setFiltroUsuario] = useState('todos');
+  const [filtroUsuario, setFiltroUsuario]     = useState('todos');
   const [busquedaUsuario, setBusquedaUsuario] = useState('');
+  const [ordenUsuarios, setOrdenUsuarios]     = useState('nombre');
 
-  // Error de carga
-  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  // ── Carga de datos (extraída para poder llamar desde "Reintentar") ────
+  const recargar = useCallback(async () => {
+    setErrorCarga(null);
+    setCargando(true);
+    try {
+      const sesion = await obtenerUsuarioActivo();
+      if (!sesion || sesion.tipo !== 'admin') { router.back(); return; }
+      const [r, u, d] = await Promise.all([
+        cargarTodasLasReservas(),
+        cargarTodosLosUsuarios(),
+        obtenerTodosLosDestinos(),
+      ]);
+      setReservas(r as Reserva[]);
+      setUsuarios(u as Usuario[]);
+      setDestinos(d as Destino[]);
+    } catch {
+      setErrorCarga('No se pudieron cargar los datos. Verifica tu conexión.');
+    } finally {
+      setCargando(false);
+      setVerificado(true);
+    }
+  }, []);
 
   useFocusEffect(useCallback(() => {
     setVerificado(false);
-    setErrorCarga(null);
-    const cargar = async () => {
-      setCargando(true);
-      try {
-        const sesion = await obtenerUsuarioActivo();
-        if (!sesion || sesion.tipo !== 'admin') { router.back(); return; }
-        const [r, u, d] = await Promise.all([
-          cargarTodasLasReservas(),
-          cargarTodosLosUsuarios(),
-          obtenerTodosLosDestinos(),
-        ]);
-        setReservas(r as Reserva[]);
-        setUsuarios(u as Usuario[]);
-        setDestinos(d as Destino[]);
-      } catch {
-        setErrorCarga('No se pudieron cargar los datos. Verifica tu conexión.');
-      } finally {
-        setCargando(false);
-        setVerificado(true);
-      }
-    };
-    cargar();
-  }, []));
+    recargar();
+  }, [recargar]));
 
-  // CRUD destinos
+  // ── CRUD destinos ─────────────────────────────────────────────────────
   const abrirFormNuevo = () => {
     setModoForm('nuevo'); setDestinoEdit(null);
     setFormNombre(''); setFormCategoria(''); setFormPrecio(''); setFormDesc('');
+    setFormErrores({});
   };
   const abrirFormEditar = (d: Destino) => {
     setModoForm('editar'); setDestinoEdit(d);
     setFormNombre(d.nombre); setFormCategoria(d.categoria);
     setFormPrecio(String(d.precio)); setFormDesc(d.descripcion);
+    setFormErrores({});
   };
   const guardarDestino = async () => {
-    if (!formNombre || !formCategoria || !formPrecio) { return; }
+    const errores: Record<string, string> = {};
+    if (!formNombre.trim())     errores.nombre    = 'El nombre es requerido';
+    if (!formCategoria.trim())  errores.categoria = 'La categoría es requerida';
+    const precioNum = Number(formPrecio);
+    if (!formPrecio.trim() || isNaN(precioNum) || precioNum <= 0) {
+      errores.precio = 'Ingresa un precio mayor a $0';
+    }
+    if (Object.keys(errores).length > 0) { setFormErrores(errores); return; }
+    setFormErrores({});
     if (modoForm === 'nuevo') {
-      await crearDestino({ nombre: formNombre, categoria: formCategoria, descripcion: formDesc, precio: Number(formPrecio) });
+      await crearDestino({ nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
     } else if (destinoEdit) {
-      await actualizarDestino(destinoEdit.id, { nombre: formNombre, categoria: formCategoria, descripcion: formDesc, precio: Number(formPrecio) });
+      await actualizarDestino(destinoEdit.id, { nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
     }
     setModoForm(null);
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
@@ -165,7 +183,7 @@ export default function AdminScreen() {
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
   };
 
-  // Usuarios
+  // ── Usuarios ──────────────────────────────────────────────────────────
   const handleCambiarTipo = async (id: string, tipoActual: string) => {
     const nuevoTipo = tipoActual === 'admin' ? 'normal' : 'admin';
     setUsuarios(u => u.map(x => x.id === id ? { ...x, tipo: nuevoTipo } : x));
@@ -245,6 +263,79 @@ export default function AdminScreen() {
     actividadReciente,
   };
 
+  // ── Datos filtrados y ordenados ────────────────────────────────────────
+  const categoriasDestino = [
+    'todas',
+    ...Array.from(new Set(destinos.map(d => d.categoria).filter(Boolean).map(c => c.trim()))).sort(),
+  ];
+
+  const destinosFiltrados = (() => {
+    const q = busquedaDestino.toLowerCase().trim();
+    const base = destinos
+      .filter(d => filtroCategoria === 'todas' || d.categoria.trim().toLowerCase() === filtroCategoria.toLowerCase())
+      .filter(d => !q || d.nombre.toLowerCase().includes(q) || d.categoria.toLowerCase().includes(q) || d.descripcion.toLowerCase().includes(q));
+    return [...base].sort((a, b) => {
+      switch (ordenDestinos) {
+        case 'precio-asc':  return a.precio - b.precio;
+        case 'precio-desc': return b.precio - a.precio;
+        case 'activos':     return (b.activo ? 1 : 0) - (a.activo ? 1 : 0);
+        default:            return a.nombre.localeCompare(b.nombre);
+      }
+    });
+  })();
+
+  const reservasFiltradas = (() => {
+    const q = busquedaReserva.toLowerCase().trim();
+    const ahora2 = new Date();
+    const hace7  = new Date(ahora2); hace7.setDate(ahora2.getDate() - 7);
+    const hace30 = new Date(ahora2); hace30.setDate(ahora2.getDate() - 30);
+    const base = reservas
+      .filter(r => filtroReserva === 'todas' || r.estado === filtroReserva)
+      .filter(r => {
+        if (filtroFecha === 'todas') return true;
+        const f = r.creado_en ? new Date(r.creado_en) : null;
+        if (!f) return false;
+        if (filtroFecha === 'hoy')    return f.toDateString() === ahora2.toDateString();
+        if (filtroFecha === 'semana') return f >= hace7;
+        if (filtroFecha === 'mes')    return f >= hace30;
+        return true;
+      })
+      .filter(r => !q || (
+        r.folio?.toLowerCase().includes(q) ||
+        r.nombre_usuario?.toLowerCase().includes(q) ||
+        r.destino?.toLowerCase().includes(q)
+      ));
+    return [...base].sort((a, b) => {
+      switch (ordenReservas) {
+        case 'antiguo':    return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime();
+        case 'total-desc': return (b.total ?? 0) - (a.total ?? 0);
+        case 'total-asc':  return (a.total ?? 0) - (b.total ?? 0);
+        default:           return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
+      }
+    });
+  })();
+
+  const usuariosFiltradosOrdenados = (() => {
+    const q = busquedaUsuario.toLowerCase().trim();
+    const base = usuarios
+      .filter(u => filtroUsuario === 'todos'    ? true
+                 : filtroUsuario === 'admin'    ? u.tipo === 'admin'
+                 : filtroUsuario === 'activos'  ? !!u.activo
+                 : !u.activo)
+      .filter(u => !q || (
+        u.nombre?.toLowerCase().includes(q) ||
+        u.correo?.toLowerCase().includes(q) ||
+        u.nombre_usuario?.toLowerCase().includes(q)
+      ));
+    return [...base].sort((a, b) => {
+      switch (ordenUsuarios) {
+        case 'reservas': return (b.reservas_count ?? 0) - (a.reservas_count ?? 0);
+        case 'reciente': return new Date(b.creado_en || 0).getTime() - new Date(a.creado_en || 0).getTime();
+        default:         return (a.nombre || '').localeCompare(b.nombre || '');
+      }
+    });
+  })();
+
   // ── Nav ───────────────────────────────────────────────────────────────
   const NAV: { id: Seccion; label: string; abrev: string }[] = [
     { id: 'dashboard', label: 'Panel',    abrev: 'PNL' },
@@ -263,7 +354,7 @@ export default function AdminScreen() {
       <View style={s.separador} />
       {NAV.map(n => (
         <TouchableOpacity key={n.id} style={[s.navItem, seccion === n.id && s.navItemActivo]} onPress={() => setSeccion(n.id)}>
-          <View style={[s.navAbrev, seccion === n.id && s.navAbrevActivo]}>
+          <View style={[s.navAbrev, seccion === n.id && { backgroundColor: tema.primario }]}>
             <Text style={[s.navAbrevTxt, seccion === n.id && s.navAbrevTxtActivo]}>{n.abrev}</Text>
           </View>
           <Text style={[s.navLabel, seccion === n.id && s.navLabelActivo]}>{n.label}</Text>
@@ -281,6 +372,20 @@ export default function AdminScreen() {
     </View>
   );
 
+  // ── Banner de error global (con botón Reintentar) ─────────────────────
+  const ErrorBanner = () => errorCarga ? (
+    <View style={{
+      backgroundColor: isDark ? '#2A1210' : '#FEF0EE',
+      borderRadius: 10, padding: 12, margin: 12,
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    }}>
+      <Text style={[s.errorBannerTxt, { color: '#DD331D', flex: 1, marginRight: 8 }]}>{errorCarga}</Text>
+      <TouchableOpacity onPress={recargar}>
+        <Text style={{ color: '#DD331D', fontWeight: '700', fontSize: 13 }}>Reintentar</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
   // ── Dashboard ─────────────────────────────────────────────────────────
   const Dashboard = () => (
     <AdminDashboard stats={stats} cargando={cargando} esPC={esPC} />
@@ -297,41 +402,105 @@ export default function AdminScreen() {
               <Text style={[s.btnCancelarTxt, { color: tema.acento }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
-          {[
-            { label: 'Nombre',      val: formNombre,    set: setFormNombre,    ph: 'Ej: Oaxaca' },
-            { label: 'Categoría',   val: formCategoria, set: setFormCategoria, ph: 'Playa / Cultura / Aventura...' },
-            { label: 'Precio base', val: formPrecio,    set: setFormPrecio,    ph: 'Ej: 2500', numeric: true },
-            { label: 'Descripción', val: formDesc,      set: setFormDesc,      ph: 'Descripción breve' },
-          ].map(f => (
-            <View key={f.label} style={{ marginBottom: 14 }}>
-              <Text style={[s.formLabel, { color: tema.textoMuted }]}>{f.label}</Text>
-              <TextInput
-                style={[s.formInput, { backgroundColor: tema.superficieBlanca, color: tema.texto, borderColor: tema.borde, borderWidth: 1 }]}
-                value={f.val}
-                onChangeText={f.set}
-                placeholder={f.ph}
-                placeholderTextColor={tema.textoMuted}
-                keyboardType={(f as { label: string; val: string; set: (v: string) => void; ph: string; numeric?: boolean }).numeric ? 'numeric' : 'default'}
-              />
-            </View>
-          ))}
-          <TouchableOpacity
-            style={[s.btnPrimario, (!formNombre || !formCategoria || !formPrecio) && s.btnDeshabilitado]}
-            onPress={guardarDestino}
-            disabled={!formNombre || !formCategoria || !formPrecio}
-          >
+          {([
+            { key: 'nombre',    label: 'Nombre',      val: formNombre,    set: setFormNombre,    ph: 'Ej: Oaxaca' },
+            { key: 'categoria', label: 'Categoría',   val: formCategoria, set: setFormCategoria, ph: 'Playa / Cultura / Aventura...' },
+            { key: 'precio',    label: 'Precio base', val: formPrecio,    set: setFormPrecio,    ph: 'Ej: 2500', numeric: true },
+            { key: 'desc',      label: 'Descripción', val: formDesc,      set: setFormDesc,      ph: 'Descripción breve' },
+          ] as { key: string; label: string; val: string; set: (v: string) => void; ph: string; numeric?: boolean }[]).map(f => {
+            const error = formErrores[f.key];
+            return (
+              <View key={f.key} style={{ marginBottom: 14 }}>
+                <Text style={[s.formLabel, { color: tema.textoMuted }]}>{f.label}</Text>
+                <TextInput
+                  style={[s.formInput, { backgroundColor: tema.superficieBlanca, color: tema.texto, borderColor: error ? '#DD331D' : tema.borde, borderWidth: 1 }]}
+                  value={f.val}
+                  onChangeText={v => { f.set(v); if (error) setFormErrores(e => ({ ...e, [f.key]: undefined })); }}
+                  placeholder={f.ph}
+                  placeholderTextColor={tema.textoMuted}
+                  keyboardType={f.numeric ? 'numeric' : 'default'}
+                />
+                {error && <Text style={s.formError}>{error}</Text>}
+              </View>
+            );
+          })}
+          <TouchableOpacity style={s.btnPrimario} onPress={guardarDestino}>
             <Text style={s.btnPrimarioTxt}>Guardar destino</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
           <View style={s.rowHeader}>
-            <Text style={[s.seccionTitulo, { color: tema.texto }]}>Destinos ({destinos.length})</Text>
+            <Text style={[s.seccionTitulo, { color: tema.texto }]}>
+              Destinos{' '}
+              <Text style={{ color: tema.textoMuted, fontSize: 16, fontWeight: '400' }}>
+                ({destinosFiltrados.length}{destinosFiltrados.length !== destinos.length ? ` de ${destinos.length}` : ''})
+              </Text>
+            </Text>
             <TouchableOpacity style={[s.btnNuevo, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo}>
               <Text style={s.btnNuevoTxt}>+ Nuevo</Text>
             </TouchableOpacity>
           </View>
-          {destinos.map(d => (
+
+          {/* Búsqueda */}
+          <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+            <Text style={{ color: tema.textoMuted, fontSize: 15, marginRight: 6 }}>🔍</Text>
+            <TextInput
+              style={{ flex: 1, color: tema.texto, fontSize: 14 }}
+              placeholder="Buscar destino…"
+              placeholderTextColor={tema.textoMuted}
+              value={busquedaDestino}
+              onChangeText={setBusquedaDestino}
+              returnKeyType="search"
+            />
+            {busquedaDestino.length > 0 && (
+              <TouchableOpacity onPress={() => setBusquedaDestino('')}>
+                <Text style={{ color: tema.textoMuted, fontSize: 16, paddingLeft: 6 }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Chips categoría */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+              {categoriasDestino.map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.chipFiltro, { backgroundColor: filtroCategoria === cat ? tema.primario : tema.superficieBlanca }]}
+                  onPress={() => setFiltroCategoria(cat)}
+                >
+                  <Text style={[s.chipFiltroTxt, { color: filtroCategoria === cat ? '#fff' : tema.textoMuted }, filtroCategoria === cat && { fontWeight: '700' }]}>
+                    {cat === 'todas' ? 'Todas' : cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Chips orden */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+              {[{ id: 'nombre', label: 'A-Z' }, { id: 'precio-asc', label: 'Precio ↑' }, { id: 'precio-desc', label: 'Precio ↓' }, { id: 'activos', label: 'Activos' }].map(o => (
+                <TouchableOpacity
+                  key={o.id}
+                  style={[s.chipFiltro, { backgroundColor: ordenDestinos === o.id ? tema.acento : tema.superficieBlanca }]}
+                  onPress={() => setOrdenDestinos(o.id)}
+                >
+                  <Text style={[s.chipFiltroTxt, { color: ordenDestinos === o.id ? '#fff' : tema.textoMuted }, ordenDestinos === o.id && { fontWeight: '700' }]}>
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {destinosFiltrados.length === 0 ? (
+            <View style={s.vacioCentrado}>
+              <Text style={[s.textoVacio, { color: tema.textoMuted }]}>
+                {destinos.length === 0 ? 'Sin destinos registrados' : busquedaDestino ? `Sin resultados para "${busquedaDestino}"` : 'Sin resultados para este filtro'}
+              </Text>
+            </View>
+          ) : destinosFiltrados.map(d => (
             <View key={d.id} style={[s.itemCard, { backgroundColor: tema.superficieBlanca }, !d.activo && s.itemCardInactivo]}>
               <View style={{ flex: 1 }}>
                 <View style={s.itemCardRow}>
@@ -386,7 +555,6 @@ export default function AdminScreen() {
                 <Text style={[s.itemSub, { color: tema.textoMuted }]} numberOfLines={2}>{r.descripcion}</Text>
               </View>
             </View>
-            {/* Detalle compacto */}
             <View style={[s.rutaCardInfo, { borderTopColor: tema.borde }]}>
               <View style={s.rutaInfoItem}>
                 <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Destinos</Text>
@@ -405,7 +573,6 @@ export default function AdminScreen() {
                 <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.mejorEpoca}</Text>
               </View>
             </View>
-            {/* Tags */}
             <View style={s.rutaTags}>
               {r.tags.map(tag => (
                 <View key={tag} style={[s.rutaTag, { backgroundColor: r.color + '18', borderColor: r.color + '44' }]}>
@@ -419,30 +586,6 @@ export default function AdminScreen() {
     </ScrollView>
   );
 
-  // ── Lógica de filtrado de reservas ────────────────────────────────────
-  const reservasFiltradas = (() => {
-    const q = busquedaReserva.toLowerCase().trim();
-    const ahora2 = new Date();
-    const hace7   = new Date(ahora2); hace7.setDate(ahora2.getDate() - 7);
-    const hace30  = new Date(ahora2); hace30.setDate(ahora2.getDate() - 30);
-    return reservas
-      .filter(r => filtroReserva === 'todas' || r.estado === filtroReserva)
-      .filter(r => {
-        if (filtroFecha === 'todas') return true;
-        const f = r.creado_en ? new Date(r.creado_en) : null;
-        if (!f) return false;
-        if (filtroFecha === 'hoy')   return f.toDateString() === ahora2.toDateString();
-        if (filtroFecha === 'semana') return f >= hace7;
-        if (filtroFecha === 'mes')   return f >= hace30;
-        return true;
-      })
-      .filter(r => !q || (
-        r.folio?.toLowerCase().includes(q) ||
-        r.nombre_usuario?.toLowerCase().includes(q) ||
-        r.destino?.toLowerCase().includes(q)
-      ));
-  })();
-
   // ── Reservas ──────────────────────────────────────────────────────────
   const Reservas = () => {
     const filtradas = reservasFiltradas;
@@ -454,11 +597,6 @@ export default function AdminScreen() {
             ({filtradas.length}{filtradas.length !== reservas.length ? ` de ${reservas.length}` : ''})
           </Text>
         </Text>
-        {errorCarga && (
-          <View style={[s.errorBanner, { backgroundColor: '#FEF0EE' }]}>
-            <Text style={[s.errorBannerTxt, { color: '#DD331D' }]}>{errorCarga}</Text>
-          </View>
-        )}
         {cargando ? <SkeletonFilas cantidad={4} /> : (
           <>
             {/* Búsqueda */}
@@ -497,7 +635,7 @@ export default function AdminScreen() {
             </ScrollView>
 
             {/* Chips fecha */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
                 {[{ id: 'todas', label: 'Cualquier fecha' }, { id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Últimos 7 días' }, { id: 'mes', label: 'Últimos 30 días' }].map(f => (
                   <TouchableOpacity
@@ -512,6 +650,24 @@ export default function AdminScreen() {
                 ))}
               </View>
             </ScrollView>
+
+            {/* Chips orden */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+                {[{ id: 'reciente', label: 'Más nuevo' }, { id: 'antiguo', label: 'Más antiguo' }, { id: 'total-desc', label: 'Mayor total' }, { id: 'total-asc', label: 'Menor total' }].map(o => (
+                  <TouchableOpacity
+                    key={o.id}
+                    style={[s.chipFiltro, { backgroundColor: ordenReservas === o.id ? tema.acento : tema.superficieBlanca }]}
+                    onPress={() => setOrdenReservas(o.id)}
+                  >
+                    <Text style={[s.chipFiltroTxt, { color: ordenReservas === o.id ? '#fff' : tema.textoMuted }, ordenReservas === o.id && { fontWeight: '700' }]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
             {filtradas.length === 0 ? (
               <View style={s.vacioCentrado}><Text style={[s.textoVacio, { color: tema.textoMuted }]}>{reservas.length === 0 ? 'Sin reservas registradas' : busquedaReserva ? `Sin resultados para "${busquedaReserva}"` : 'Sin resultados para este filtro'}</Text></View>
             ) : filtradas.map(r => {
@@ -569,18 +725,7 @@ export default function AdminScreen() {
 
   // ── Usuarios ──────────────────────────────────────────────────────────
   const Usuarios = () => {
-    const q = busquedaUsuario.toLowerCase().trim();
-    const filtrados = usuarios
-      .filter(u => filtroUsuario === 'todos'   ? true
-                 : filtroUsuario === 'admin'   ? u.tipo === 'admin'
-                 : filtroUsuario === 'activos' ? !!u.activo
-                 : !u.activo)
-      .filter(u => !q || (
-        u.nombre?.toLowerCase().includes(q) ||
-        u.correo?.toLowerCase().includes(q) ||
-        u.nombre_usuario?.toLowerCase().includes(q)
-      ));
-
+    const filtrados = usuariosFiltradosOrdenados;
     return (
       <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
         <View style={s.rowHeader}>
@@ -596,7 +741,7 @@ export default function AdminScreen() {
         </View>
 
         {/* Búsqueda */}
-        <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde, marginBottom: 14 }]}>
+        <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
           <Text style={{ color: tema.textoMuted, fontSize: 15, marginRight: 6 }}>🔍</Text>
           <TextInput
             style={{ flex: 1, color: tema.texto, fontSize: 14 }}
@@ -613,7 +758,8 @@ export default function AdminScreen() {
           )}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+        {/* Chips tipo */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
           <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
             {[{ clave: 'todos', label: 'Todos' }, { clave: 'admin', label: 'Admin' }, { clave: 'activos', label: 'Activos' }, { clave: 'inactivos', label: 'Inactivos' }].map(f => (
               <TouchableOpacity key={f.clave} style={[s.chipFiltro, { backgroundColor: filtroUsuario === f.clave ? tema.primario : tema.superficieBlanca }]} onPress={() => setFiltroUsuario(f.clave)}>
@@ -622,6 +768,24 @@ export default function AdminScreen() {
             ))}
           </View>
         </ScrollView>
+
+        {/* Chips orden */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+            {[{ id: 'nombre', label: 'A-Z' }, { id: 'reservas', label: '+ Reservas' }, { id: 'reciente', label: 'Más nuevos' }].map(o => (
+              <TouchableOpacity
+                key={o.id}
+                style={[s.chipFiltro, { backgroundColor: ordenUsuarios === o.id ? tema.acento : tema.superficieBlanca }]}
+                onPress={() => setOrdenUsuarios(o.id)}
+              >
+                <Text style={[s.chipFiltroTxt, { color: ordenUsuarios === o.id ? '#fff' : tema.textoMuted }, ordenUsuarios === o.id && { fontWeight: '700' }]}>
+                  {o.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
         {cargando ? <SkeletonFilas cantidad={4} /> : filtrados.length === 0 ? (
           <View style={s.vacioCentrado}><Text style={[s.textoVacio, { color: tema.textoMuted }]}>{usuarios.length === 0 ? 'Sin usuarios registrados' : busquedaUsuario ? `Sin resultados para "${busquedaUsuario}"` : 'Sin resultados'}</Text></View>
         ) : filtrados.map(u => (
@@ -686,6 +850,7 @@ export default function AdminScreen() {
                 <Text style={[s.headerTitulo, { color: tema.texto }]}>Panel de administración</Text>
                 <View style={{ width: 100 }} />
               </View>
+              <ErrorBanner />
               <View style={{ flex: 1 }}>{SECCIONES[seccion]}</View>
             </View>
           </View>
@@ -698,9 +863,10 @@ export default function AdminScreen() {
               <Text style={[s.headerTitulo, { color: tema.texto }]}>Admin</Text>
               <View style={{ width: 40 }} />
             </View>
+            <ErrorBanner />
             <View style={{ flex: 1 }}>
               {SECCIONES[seccion]}
-              {seccion === 'destinos' && (
+              {seccion === 'destinos' && !modoForm && (
                 <TouchableOpacity style={[s.fab, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo} activeOpacity={0.85}>
                   <Text style={s.fabTxt}>+</Text>
                 </TouchableOpacity>
@@ -729,95 +895,93 @@ const s = StyleSheet.create({
   subTitulo:     { fontSize: 14, fontWeight: '600' },
 
   // Cards
-  itemCard:      { borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, elevation: 1 },
+  itemCard:         { borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, elevation: 1 },
   itemCardInactivo: { opacity: 0.5 },
-  itemCardRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemNombre:    { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
-  itemSub:       { fontSize: 12, marginTop: 3 },
-  itemPrecio:    { fontSize: 14, fontWeight: '700', marginTop: 6 },
-  itemAcciones:  { flexDirection: 'column', gap: 6 },
+  itemCardRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  itemNombre:       { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
+  itemSub:          { fontSize: 12, marginTop: 3 },
+  itemPrecio:       { fontSize: 14, fontWeight: '700', marginTop: 6 },
+  itemAcciones:     { flexDirection: 'column', gap: 6 },
 
-  badge:         { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeTxt:      { fontSize: 11, fontWeight: '700' },
+  badge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badgeTxt: { fontSize: 11, fontWeight: '700' },
 
   // Formularios
-  formLabel:     { fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  formInput:     { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, elevation: 0 },
+  formLabel: { fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  formInput: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, elevation: 0 },
+  formError: { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 2 },
 
   // Botones
-  btnAccion:     { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  btnAccionTxt:  { fontSize: 12, fontWeight: '700' },
-  btnPrimario:   { backgroundColor: '#3AB7A5', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  btnPrimarioTxt:{ color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnDeshabilitado: { backgroundColor: '#ccc' },
-  btnNuevo:      { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
-  btnNuevoTxt:   { color: '#fff', fontWeight: '600', fontSize: 13 },
-  btnCancelarTxt:{ fontWeight: '600' },
+  btnAccion:      { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
+  btnAccionTxt:   { fontSize: 12, fontWeight: '700' },
+  btnPrimario:    { backgroundColor: '#3AB7A5', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  btnPrimarioTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  btnNuevo:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
+  btnNuevoTxt:    { color: '#fff', fontWeight: '600', fontSize: 13 },
+  btnCancelarTxt: { fontWeight: '600' },
 
   // Chips filtro
   chipFiltro:    { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, elevation: 1 },
   chipFiltroTxt: { fontSize: 13 },
 
   // Bottom bar
-  bottomBar:     { flexDirection: 'row', elevation: 8 },
-  bottomItem:    { flex: 1, alignItems: 'center', paddingVertical: 11 },
-  bottomLabel:   { fontSize: 11 },
+  bottomBar:   { flexDirection: 'row', elevation: 8 },
+  bottomItem:  { flex: 1, alignItems: 'center', paddingVertical: 11 },
+  bottomLabel: { fontSize: 11 },
 
   // FAB
-  fab:           { position: 'absolute', right: 20, bottom: 80, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', elevation: 6 },
-  fabTxt:        { color: '#fff', fontSize: 26, fontWeight: 'bold' },
+  fab:    { position: 'absolute', right: 20, bottom: 80, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', elevation: 6 },
+  fabTxt: { color: '#fff', fontSize: 26, fontWeight: 'bold' },
 
   // Sidebar PC
-  sidebar:       { width: 80, paddingVertical: 16, alignItems: 'center', elevation: 4 },
-  sidebarHeader: { alignItems: 'center', marginBottom: 20 },
-  sidebarTitulo: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sidebarSub:    { color: '#94a3b8', fontSize: 11 },
-  separador:     { height: 1, backgroundColor: '#1e293b', width: '80%', marginVertical: 12 },
-  navItem:       { width: '100%', alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
-  navItemActivo: { backgroundColor: '#1e293b' },
-  navAbrev:      { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e293b' },
-  navAbrevActivo:{ backgroundColor: '#2563eb' },
-  navAbrevTxt:   { color: '#cbd5f5', fontWeight: '600', fontSize: 11 },
+  sidebar:           { width: 80, paddingVertical: 16, alignItems: 'center', elevation: 4 },
+  sidebarHeader:     { alignItems: 'center', marginBottom: 20 },
+  sidebarTitulo:     { color: '#fff', fontSize: 15, fontWeight: '700' },
+  sidebarSub:        { color: '#94a3b8', fontSize: 11 },
+  separador:         { height: 1, backgroundColor: '#1e293b', width: '80%', marginVertical: 12 },
+  navItem:           { width: '100%', alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
+  navItemActivo:     { backgroundColor: '#1e293b' },
+  navAbrev:          { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e293b' },
+  navAbrevTxt:       { color: '#cbd5f5', fontWeight: '600', fontSize: 11 },
   navAbrevTxtActivo: { color: '#fff' },
-  navLabel:      { fontSize: 10, color: '#94a3b8', marginTop: 3 },
-  navLabelActivo:{ color: '#fff' },
+  navLabel:          { fontSize: 10, color: '#94a3b8', marginTop: 3 },
+  navLabelActivo:    { color: '#fff' },
 
   // Contenido PC
-  contenidoPC:   { flex: 1, padding: 20 },
-  headerPC:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  contenidoPC: { flex: 1, padding: 20 },
+  headerPC:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
 
   // Reservas
-  barraEstado:   { width: 4, borderRadius: 4, marginRight: 4 },
-  transicionRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
-  btnTransicion: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
+  barraEstado:      { width: 4, borderRadius: 4, marginRight: 4 },
+  transicionRow:    { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  btnTransicion:    { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
   btnTransicionTxt: { fontSize: 12, fontWeight: '600' },
 
   // Usuarios
-  tipoRow:       { flexDirection: 'row', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' },
-  avatarGrande:  { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
-  avatarLetraGrande: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  tipoRow:            { flexDirection: 'row', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' },
+  avatarGrande:       { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
+  avatarLetraGrande:  { color: '#fff', fontSize: 18, fontWeight: '700' },
 
   // Otros
-  rowHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  vacioCentrado: { paddingVertical: 40, alignItems: 'center' },
-  textoVacio:    { fontSize: 14 },
+  rowHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  vacioCentrado:{ paddingVertical: 40, alignItems: 'center' },
+  textoVacio:   { fontSize: 14 },
 
   // Búsqueda
   inputBusqueda: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
 
   // Error
-  errorBanner:   { borderRadius: 10, padding: 12, marginBottom: 10 },
-  errorBannerTxt:{ fontSize: 13, fontWeight: '600' },
+  errorBannerTxt: { fontSize: 13, fontWeight: '600' },
 
   // Rutas temáticas
-  rutaCard:      { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
-  rutaCardTop:   { flexDirection: 'row', gap: 12, padding: 14 },
-  rutaCardImg:   { width: 68, height: 68, borderRadius: 10 },
-  rutaCardInfo:  { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14, gap: 0 },
-  rutaInfoItem:  { flex: 1, alignItems: 'center', gap: 2 },
-  rutaInfoLbl:   { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  rutaInfoVal:   { fontSize: 13, fontWeight: '800' },
-  rutaTags:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
-  rutaTag:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  rutaTagTxt:    { fontSize: 11, fontWeight: '600' },
+  rutaCard:     { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
+  rutaCardTop:  { flexDirection: 'row', gap: 12, padding: 14 },
+  rutaCardImg:  { width: 68, height: 68, borderRadius: 10 },
+  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14, gap: 0 },
+  rutaInfoItem: { flex: 1, alignItems: 'center', gap: 2 },
+  rutaInfoLbl:  { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  rutaInfoVal:  { fontSize: 13, fontWeight: '800' },
+  rutaTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
+  rutaTag:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  rutaTagTxt:   { fontSize: 11, fontWeight: '600' },
 });
