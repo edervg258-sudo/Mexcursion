@@ -1,5 +1,4 @@
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -8,7 +7,6 @@ RUN npx expo export -p web
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
-RUN echo "" > /usr/share/nginx/html/favicon.ico
-COPY nginx.conf /etc/nginx/nginx.template.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
-CMD sh -c "sed s/PORT_PLACEHOLDER/${PORT:-8080}/ /etc/nginx/nginx.template.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+CMD ["nginx", "-g", "daemon off;"]
