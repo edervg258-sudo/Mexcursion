@@ -1,12 +1,15 @@
-# Serve pre-built dist — Railway no necesita compilar nada
 FROM node:20-alpine
 
 RUN npm install -g serve
 
 WORKDIR /app
 
-# Solo copiamos el dist ya compilado
-COPY dist/ ./dist/
+COPY package.json ./
+COPY package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY . .
+RUN npx expo export -p web
 
 EXPOSE 3000
 
