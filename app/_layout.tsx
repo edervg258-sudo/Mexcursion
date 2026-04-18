@@ -7,13 +7,14 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { LogBox, Platform } from 'react-native';
+import { AppState, AppStateStatus, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { ToastProvider } from '../components/Toast';
 import { configurarBarraAndroid } from '../lib/android-ui';
 import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { getFeatureFlags } from '../lib/feature-flags';
@@ -27,6 +28,7 @@ import {
 import '../lib/react-19-filter'; // Importar filtro de advertencias
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
+import { RUTAS_APP } from '../lib/constantes/navegacion';
 import { initSentry, setUser } from '../lib/sentry';
 type NotificationSubscription = { remove: () => void };
 
@@ -100,6 +102,8 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notifListener = useRef<NotificationSubscription | null>(null);
   const responseListener = useRef<NotificationSubscription | null>(null);
+  const backgroundedAt = useRef<number | null>(null);
+  const SESSION_IDLE_TIMEOUT = 15 * 60 * 1000; // 15 min
 
   // Barra de navegación Android
   useEffect(() => {
@@ -109,9 +113,9 @@ export default function RootLayout() {
     configurarBarra();
   }, []);
 
-  // Configuración base de notificaciones
+  // Configuración base de notificaciones (canal Android + handler en primer plano)
   useEffect(() => {
-    configurarNotificaciones();
+    configurarNotificaciones().catch(() => {});
   }, []);
 
   // Inicializar Sentry
@@ -134,8 +138,17 @@ export default function RootLayout() {
     initRuntime();
   }, []);
 
-  // Sesión: redirect en cambios de auth
+  // Sesión: redirect en cambios de auth + registrar push para sesiones persistidas
   useEffect(() => {
+    // Si ya hay sesión activa al arrancar (token persistido), registrar push
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) {
+        registrarParaPush(session.user.id).catch(() => {});
+        setUserId(session.user.id);
+        setUser({ id: session.user.id, email: session.user.email ?? undefined });
+      }
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
@@ -157,6 +170,22 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Session idle timeout — sign out after 15 min in background
+  useEffect(() => {
+    const handler = (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundedAt.current = Date.now();
+      } else if (nextState === 'active' && backgroundedAt.current !== null) {
+        if (Date.now() - backgroundedAt.current > SESSION_IDLE_TIMEOUT) {
+          supabase.auth.signOut();
+        }
+        backgroundedAt.current = null;
+      }
+    };
+    const sub = AppState.addEventListener('change', handler);
+    return () => sub.remove();
+  }, []);
+
   // Listeners de notificaciones push
   useEffect(() => {
     const Notifications = getNotifications();
@@ -170,7 +199,7 @@ export default function RootLayout() {
       if (response.notification.request.content.data?.ruta) {
         setTimeout(() => router.push(response.notification.request.content.data.ruta as never), 0);
       } else if (response.notification.request.content.data?.notificacion_id) {
-        setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0);
+        setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0);
       }
     });
 
@@ -189,6 +218,7 @@ export default function RootLayout() {
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
                   <OfflineBanner />
+                  <ToastProvider>
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="registro"         options={{ headerShown: false }} />
                     <Stack.Screen name="login"            options={{ headerShown: false }} />
@@ -197,6 +227,7 @@ export default function RootLayout() {
                   </Stack>
 
                   <StatusBar style="auto" />
+                  </ToastProvider>
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </TemaProvider>

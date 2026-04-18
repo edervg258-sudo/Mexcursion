@@ -2,9 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert,
-  KeyboardTypeOptions,
   ScrollView, StyleSheet, Text,
-  TextInput, TouchableOpacity, View
+  TouchableOpacity, View
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { PagoMercadoPago } from '../../components/PagoMercadoPago';
@@ -25,29 +24,17 @@ export default function PagoScreen() {
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
     { id: 'mercadopago', emoji: '💳', label: 'MercadoPago',   sub: 'Pago seguro en línea' },
-    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: t('pago_credito_debito') },
+    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard via MercadoPago' },
     { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
     { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
   ];
 
   const [metodo, setMetodo]         = useState<MetodoPago>('mercadopago');
-  const [numTarjeta, setNum]        = useState('');
-  const [vencimiento, setVenc]      = useState('');
-  const [cvv, setCvv]               = useState('');
-  const [titular, setTitular]       = useState('');
   const [procesando, setProcesando] = useState(false);
   const [mostrarMercadoPago, setMostrarMercadoPago] = useState(false);
   const [errorPago, setErrorPago]   = useState<{ mensaje: string } | null>(null);
   // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
   const procesandoRef = useRef(false);
-
-  const formatTarjeta = (v: string) =>
-    v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-
-  const formatVenc = (v: string) => {
-    const d = v.replace(/\D/g, '').slice(0, 4);
-    return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
-  };
 
   // Stable OXXO reference derived deterministically from booking params (no Math.random)
   const [refOxxo] = useState(() => {
@@ -58,7 +45,8 @@ export default function PagoScreen() {
   });
 
   const pagar = async () => {
-    if (metodo === 'mercadopago') {
+    // All card payments go through MercadoPago's hosted checkout (PCI-DSS compliant).
+    if (metodo === 'mercadopago' || metodo === 'tarjeta') {
       setMostrarMercadoPago(true);
       return;
     }
@@ -93,6 +81,8 @@ export default function PagoScreen() {
             throw new Error('no_session');
           }
 
+          // SPEI y OXXO quedan pendientes hasta verificación del banco/tienda
+          const estadoReserva = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente_pago' : 'confirmada';
           const payload = [
             usuario.id,
             folio,
@@ -102,7 +92,7 @@ export default function PagoScreen() {
             parseInt(personas ?? '1'),
             parseInt(precio ?? '0'),
             metodo,
-            'confirmada',
+            estadoReserva,
             notas ?? '',
           ] as const;
 
@@ -129,7 +119,8 @@ export default function PagoScreen() {
         message: 'payment_completed',
         data: { metodo, folio },
       });
-      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo } });
+      const estadoConfirmacion = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente_pago' : 'confirmada';
+      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo, estado: estadoConfirmacion } });
     } catch (err) {
       procesandoRef.current = false;
       setProcesando(false);
@@ -170,28 +161,6 @@ export default function PagoScreen() {
     Alert.alert('Error en pago', userMessageForError(normalized));
   };
   const handlePagoMercadoPagoCancel = () => setMostrarMercadoPago(false);
-
-  const Campo = ({ label, valor, onChange, placeholder, teclado = 'default', seguro = false }: {
-    label: string; valor: string; onChange: (v: string) => void;
-    placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean;
-  }) => (
-    <View style={es.grupoCampo}>
-      <Text style={[es.label, { color: tema.textoSecundario }]}>{label}</Text>
-      <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
-        <TextInput
-          style={[es.input, { color: tema.texto }]}
-          value={valor}
-          onChangeText={onChange}
-          placeholder={placeholder}
-          placeholderTextColor={tema.textoMuted}
-          keyboardType={teclado}
-          secureTextEntry={seguro}
-          autoCapitalize="characters"
-          underlineColorAndroid="transparent"
-        />
-      </View>
-    </View>
-  );
 
   if (mostrarMercadoPago) {
     return (
@@ -251,36 +220,6 @@ export default function PagoScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Tarjeta */}
-        {metodo === 'tarjeta' && (
-          <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-            <View style={[es.formularioHeader, { backgroundColor: tema.superficie, borderBottomColor: tema.borde }]}>
-              <Text style={[es.formularioTitulo, { color: tema.texto }]}>{t('pago_datos_tarjeta')}</Text>
-            </View>
-            <View style={es.formularioCuerpo}>
-              <Campo label={t('pago_num_tarjeta')} valor={numTarjeta} onChange={v => setNum(formatTarjeta(v))} placeholder="0000 0000 0000 0000" teclado="numeric" />
-              <Campo label={t('pago_titular')} valor={titular} onChange={setTitular} placeholder="NOMBRE APELLIDO" />
-              <View style={es.filaDos}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[es.label, { color: tema.textoSecundario }]}>{t('pago_vencimiento')}</Text>
-                  <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
-                    <TextInput style={[es.input, { color: tema.texto }]} value={vencimiento} onChangeText={v => setVenc(formatVenc(v))} placeholder="MM/AA" placeholderTextColor={tema.textoMuted} keyboardType="numeric" />
-                  </View>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[es.label, { color: tema.textoSecundario }]}>CVV</Text>
-                  <View style={[es.cajaInput, { backgroundColor: tema.inputFondo, borderColor: tema.bordeInput }]}>
-                    <TextInput style={[es.input, { color: tema.texto }]} value={cvv} onChangeText={v => setCvv(v.replace(/\D/g, '').slice(0, 4))} placeholder="•••" placeholderTextColor={tema.textoMuted} keyboardType="numeric" secureTextEntry />
-                  </View>
-                </View>
-              </View>
-              <View style={[es.cajaSegura, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
-                <Text style={es.textoSegura}>{t('pago_ssl')}</Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* SPEI */}
         {metodo === 'spei' && (
@@ -388,14 +327,6 @@ const es = StyleSheet.create({
   formularioHeader:   { paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1 },
   formularioTitulo:   { fontSize: 14, fontWeight: '700' },
   formularioCuerpo:   { padding: 16, gap: 12 },
-  grupoCampo:         { gap: 6 },
-  label:              { fontSize: 13, fontWeight: '600', marginLeft: 4 },
-  cajaInput:          { flexDirection: 'row', alignItems: 'center', borderRadius: 25, borderWidth: 1.5, paddingHorizontal: 16, height: 48 },
-  input:              { flex: 1, fontSize: 14 } as never,
-  filaDos:            { flexDirection: 'row', gap: 12 },
-  cajaSegura:         { borderRadius: 12, padding: 12, alignItems: 'center' },
-  textoSegura:        { fontSize: 12, color: '#3AB7A5', fontWeight: '500' },
-
   filaInstruccion:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   numerito:           { width: 22, height: 22, borderRadius: 11, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
   numeritoTexto:      { color: '#fff', fontSize: 11, fontWeight: '700' },

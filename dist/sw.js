@@ -4,8 +4,8 @@
 //              Network-first para API/auth de Supabase.
 // ============================================================
 
-const CACHE_NAME = 'mercursion-20260414';
-const RUNTIME_CACHE = 'mercursion-runtime-20260414';
+const CACHE_NAME = 'mercursion-v1';
+const RUNTIME_CACHE = 'mercursion-runtime-v1';
 
 // Assets que se cachean al instalar el SW (app shell)
 const APP_SHELL = [
@@ -16,7 +16,6 @@ const APP_SHELL = [
   '/icons/icon-48.png',
   '/icons/icon-120.png',
   '/icons/icon-1024.png',
-  '/_expo/static/js/web/entry-d19a113d567bfa76593aba7d9b9b6526.js',
 ];
 
 // Dominios que nunca se cachean (API en tiempo real)

@@ -196,17 +196,43 @@ export default function ReservaScreen() {
   const precioUnitario = parseInt(precio ?? '0');
   const total          = precioUnitario * personas;
 
+  const limpiarError = (campo: string) => {
+    setErrores(prev => {
+      if (!prev[campo]) { return prev; }
+      const next = { ...prev };
+      delete next[campo];
+      return next;
+    });
+  };
+
+  const validarCampo = (campo: string, valor: string): string => {
+    switch (campo) {
+      case 'nombre':
+        return valor.trim().length < 3 ? t('rsv_err_nombre') : '';
+      case 'email':
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim()) ? '' : t('rsv_err_correo');
+      case 'tel':
+        return valor.replace(/\D/g, '').length >= 10 ? '' : t('rsv_err_telefono');
+      case 'fecha': {
+        const fechaObj = parseFechaDDMMAAAA(valor);
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        return fechaObj && fechaObj >= hoy ? '' : t('rsv_err_fecha');
+      }
+      default:
+        return '';
+    }
+  };
+
   const validar = () => {
     const e: Record<string, string> = {};
-    if (!nombre_viajero.trim()) { e.nombre = t('rsv_err_nombre'); }
-    if (!email.includes('@'))   { e.email  = t('rsv_err_correo'); }
-    if (!telefono.trim())       { e.tel    = t('rsv_err_telefono'); }
-
-    const fechaObj  = parseFechaDDMMAAAA(fecha);
-    const hoy       = new Date(); hoy.setHours(0,0,0,0);
-    const fechaValida = !!fechaObj && fechaObj >= hoy;
-    if (!fechaValida) { e.fecha = t('rsv_err_fecha'); }
-
+    const errNombre = validarCampo('nombre', nombre_viajero);
+    const errEmail  = validarCampo('email',  email);
+    const errTel    = validarCampo('tel',    telefono);
+    const errFecha  = validarCampo('fecha',  fecha);
+    if (errNombre) { e.nombre = errNombre; }
+    if (errEmail)  { e.email  = errEmail;  }
+    if (errTel)    { e.tel    = errTel;    }
+    if (errFecha)  { e.fecha  = errFecha;  }
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -219,31 +245,42 @@ export default function ReservaScreen() {
     } as never);
   };
 
-  const Campo = ({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID }: {
+  const Campo = ({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID, campoKey }: {
     label: string; valor: string; onChange: (v: string) => void;
-    error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean; testID?: string;
-  }) => (
-    <View style={es.grupoCampo}>
-      <Text style={es.label}>{label}</Text>
-      <View style={[es.cajaInput, !!error && es.cajaInputError]}>
-        <TextInput
-          testID={testID}
-          accessibilityLabel={label}
-          accessibilityHint="Campo del formulario de reserva"
-          style={es.input}
-          value={valor}
-          onChangeText={(v: string) => { onChange(v); if (error) { setErrores(ex => ({ ...ex })); } }}
-          placeholder={placeholder}
-          placeholderTextColor="#bbb"
-          keyboardType={teclado}
-          secureTextEntry={seguro}
-          autoCapitalize="none"
-          underlineColorAndroid="transparent"
-        />
+    error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean; testID?: string; campoKey?: string;
+  }) => {
+    const valido = campoKey && valor.length > 0 && !error && !validarCampo(campoKey, valor);
+    return (
+      <View style={es.grupoCampo}>
+        <Text style={es.label}>{label}</Text>
+        <View style={[
+          es.cajaInput,
+          !!error  && es.cajaInputError,
+          !!valido && es.cajaInputValido,
+        ]}>
+          <TextInput
+            testID={testID}
+            accessibilityLabel={label}
+            accessibilityHint="Campo del formulario de reserva"
+            style={es.input}
+            value={valor}
+            onChangeText={(v: string) => {
+              onChange(v);
+              if (campoKey) { limpiarError(campoKey); }
+            }}
+            placeholder={placeholder}
+            placeholderTextColor="#bbb"
+            keyboardType={teclado}
+            secureTextEntry={seguro}
+            autoCapitalize="none"
+            underlineColorAndroid="transparent"
+          />
+          {valido ? <Text style={es.iconoValido}>✓</Text> : null}
+        </View>
+        {error ? <Text style={es.textoError}>{error}</Text> : null}
       </View>
-      {error ? <Text style={es.textoError}>{error}</Text> : null}
-    </View>
-  );
+    );
+  };
 
   return (
     <BookingStepLayout
@@ -290,9 +327,9 @@ export default function ReservaScreen() {
           </View>
         </View>
 
-        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')} />
-        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}   teclado="email-address" />
-        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')} teclado="phone-pad" />
+        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" />
+        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" />
+        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" />
 
         {/* Fecha con calendario */}
         <View style={es.grupoCampo}>
@@ -347,7 +384,9 @@ const es = StyleSheet.create({
   label:             { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6, marginLeft: 4 },
   cajaInput:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5', paddingHorizontal: 16, minHeight: 48, ...sombra({ opacity: 0.05, radius: 4, offsetY: 1, elevation: 1 }) },
   cajaInputError:    { borderColor: '#DD331D' },
+  cajaInputValido:   { borderColor: '#1A9B8A' },
   input:             { flex: 1, fontSize: 14, color: '#333', paddingVertical: 0, outlineWidth: 0 },
+  iconoValido:       { fontSize: 14, color: '#1A9B8A', fontWeight: '700', marginLeft: 6 },
   textoError:        { fontSize: 11, color: '#DD331D', marginTop: 4, marginLeft: 14 },
 
   filaPersonas:      { flexDirection: 'row', alignItems: 'center', gap: 14 },

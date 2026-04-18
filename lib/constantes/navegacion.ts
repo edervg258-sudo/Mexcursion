@@ -60,13 +60,18 @@ export const RUTAS_APP = {
   RESERVA_PASO_4: '/reserva/paso4',
   RESERVA_CONFIRMACION: '/reserva/confirmacion',
 
+  // Tabs secundarias
+  NOTIFICACIONES: '/(tabs)/notificaciones',
+  MIS_RESERVAS: '/(tabs)/mis_reservas',
+  HISTORIAL: '/(tabs)/historial',
+  ADMIN: '/(tabs)/admin',
+
   // Perfil y gestión de usuario
   EDITAR_PERFIL: '/perfil/editar',
   HISTORIAL_RESERVAS: '/perfil/historial',
   DETALLE_RESERVA: '/perfil/reserva',
   METODOS_PAGO: '/perfil/pagos',
   AGREGAR_TARJETA: '/perfil/agregar-tarjeta',
-  NOTIFICACIONES: '/perfil/notificaciones',
   CONFIGURACION: '/perfil/configuracion',
   AYUDA: '/perfil/ayuda',
   TERMINOS: '/perfil/terminos',

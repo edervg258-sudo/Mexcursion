@@ -19,6 +19,7 @@ import {
     cerrarSesion,
     obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
+import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { SkeletonPerfil } from './skeletonloader';
 
 type TipoModal = null | 'editarPerfil' | 'cambiarPassword' | 'notificaciones' | 'idioma' | 'tema' | 'ayuda' | 'acerca';
@@ -147,11 +148,12 @@ export default function PerfilScreen() {
     if (sesion?.id) {
       await actualizarPreferencias(sesion.id, { idioma: lang });
     }
+    cerrarModal();
   };
 
   const ACCESOS_RAPIDOS: { etiqueta: string; icono: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
-    { etiqueta: t('prf_mis_reservas'), icono: 'calendar-outline', onPress: () => setTimeout(() => router.push('/(tabs)/mis_reservas' as never), 0) },
-    { etiqueta: t('prf_historial'),    icono: 'time-outline',     onPress: () => setTimeout(() => router.push('/(tabs)/historial' as never), 0) },
+    { etiqueta: t('prf_mis_reservas'), icono: 'calendar-outline', onPress: () => setTimeout(() => router.push(RUTAS_APP.MIS_RESERVAS as never), 0) },
+    { etiqueta: t('prf_historial'),    icono: 'time-outline',     onPress: () => setTimeout(() => router.push(RUTAS_APP.HISTORIAL as never), 0) },
   ];
 
   const SECCIONES = [
@@ -200,7 +202,10 @@ export default function PerfilScreen() {
             </View>
             <Switch value={notificaciones} onValueChange={handleNotificaciones} trackColor={{ false: '#ccc', true: '#3AB7A5' }} thumbColor="#fff" />
           </View>
-          <Text style={estilos.notifEstado}>{t('prf_notif_estado')} {notificaciones ? t('prf_notif_on') : t('prf_notif_off')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
+            <Ionicons name={notificaciones ? 'notifications-outline' : 'notifications-off-outline'} size={16} color={notificaciones ? '#3AB7A5' : '#888'} />
+            <Text style={[estilos.notifEstado, { marginTop: 0 }]}>{t('prf_notif_estado')} {notificaciones ? t('prf_notif_on') : t('prf_notif_off')}</Text>
+          </View>
         </View>
       );
       case 'idioma': return (
@@ -211,7 +216,7 @@ export default function PerfilScreen() {
               <Text style={[estilos.idiomaTexto, idioma === op.clave && estilos.idiomaTextoActivo]}>{op.etiqueta}</Text>
               {idioma === op.clave && (
               <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', lineHeight: 14 }}>✓</Text>
+                <Ionicons name="checkmark" size={13} color="#fff" />
               </View>
             )}
             </TouchableOpacity>
@@ -228,7 +233,10 @@ export default function PerfilScreen() {
             </View>
             <Switch value={isDark} onValueChange={toggleTema} trackColor={{ false: '#ccc', true: '#3AB7A5' }} thumbColor="#fff" />
           </View>
-          <Text style={[estilos.notifEstado, { color: tema.textoSecundario }]}>{t('prf_tema_estado')} {isDark ? t('prf_tema_on') : t('prf_tema_off')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
+            <Ionicons name={isDark ? 'moon-outline' : 'sunny-outline'} size={16} color={tema.textoSecundario} />
+            <Text style={[estilos.notifEstado, { color: tema.textoSecundario, marginTop: 0 }]}>{t('prf_tema_estado')} {isDark ? t('prf_tema_on') : t('prf_tema_off')}</Text>
+          </View>
         </View>
       );
       case 'ayuda': return (
@@ -270,7 +278,7 @@ export default function PerfilScreen() {
         <TopActionHeader
           title={t('prf_titulo')}
           showInlineLogo={!esPC}
-          onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
+          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
         />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
@@ -345,7 +353,7 @@ export default function PerfilScreen() {
               style={estilos.botonAdmin}
               onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
               onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start()}
-              onPress={() => setTimeout(() => router.push('/(tabs)/admin' as never), 0)}
+              onPress={() => setTimeout(() => router.push(RUTAS_APP.ADMIN as never), 0)}
               activeOpacity={1}
             >
               <Animated.View style={{ transform: [{ scale: adminAnim }] }}>
@@ -380,7 +388,7 @@ export default function PerfilScreen() {
           <View style={[estilos.modalContenedor, { backgroundColor: tema.superficieBlanca }]}>
             <TouchableOpacity style={estilos.modalCerrar} onPress={cerrarModal}>
               <View style={[estilos.modalCerrarBoton, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
-                <Text style={[estilos.modalCerrarTexto, { color: tema.textoMuted }]}>✕</Text>
+                <Ionicons name="close" size={16} color={tema.textoMuted} />
               </View>
             </TouchableOpacity>
             {renderContenidoModal()}

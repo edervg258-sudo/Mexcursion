@@ -48,7 +48,7 @@ export function getNotifications(): NotificationsModule | null {
 }
 
 // ── Comportamiento cuando la app está en primer plano ────────────────────────
-export function configurarNotificaciones() {
+export async function configurarNotificaciones() {
   const Notifications = getNotificationsModule();
   if (!Notifications) return false;
 
@@ -61,6 +61,16 @@ export function configurarNotificaciones() {
       shouldSetBadge: true,
     }),
   });
+
+  // Crear canal Android en arranque, antes de cualquier notificación o solicitud de permiso
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name:             'General',
+      importance:       Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor:       '#3AB7A5',
+    });
+  }
 
   return true;
 }
@@ -82,16 +92,6 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
     estadoFinal = status;
   }
   if (estadoFinal !== 'granted') return null;
-
-  // Canal de notificaciones en Android
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name:              'General',
-      importance:        Notifications.AndroidImportance.HIGH,
-      vibrationPattern:  [0, 250, 250, 250],
-      lightColor:        '#3AB7A5',
-    });
-  }
 
   const token = (await Notifications.getExpoPushTokenAsync()).data;
 

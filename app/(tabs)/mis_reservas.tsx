@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, RefreshControl,
-    StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
+    ActivityIndicator, Animated, FlatList, Platform, RefreshControl,
+    ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { TabChrome } from '../../components/TabChrome';
 import { configurarBarraAndroid } from '../../lib/android-ui';
@@ -13,6 +13,8 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
+
+const ND = Platform.OS !== 'web';
 
 type Reserva = {
   id: number; usuario_id: string; folio: string; destino: string;
@@ -30,19 +32,45 @@ const COLOR_ESTADO_BASE: Record<string, { fondo: string; texto: string }> = {
 
 function formatearFecha(fecha: string): string {
   if (!fecha) { return '—'; }
-  // YYYY-MM-DD o YYYY-MM-DDTHH:... → DD/MM/AAAA
   const solo = fecha.split('T')[0];
   if (/^\d{4}-\d{2}-\d{2}$/.test(solo)) { return solo.split('-').reverse().join('/'); }
   return fecha;
 }
 
 export default function MisReservasScreen() {
-  const { width }               = useWindowDimensions();
-  const esPC                    = width >= 768;
-  const { t } = useIdioma();
-  const { tema } = useTemaContext();
-  const queryClient = useQueryClient();
+  const { width }       = useWindowDimensions();
+  const esPC            = width >= 768;
+  const { t }           = useIdioma();
+  const { tema }        = useTemaContext();
+  const queryClient     = useQueryClient();
 
+  // ── Animaciones ─────────────────────────────────────────────
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+  const chipAnims = useRef<Map<string, Animated.Value>>(new Map()).current;
+  const cardAnims = useRef<Map<string, Animated.Value>>(new Map()).current;
+
+  const getChipAnim = (key: string) => {
+    if (!chipAnims.has(key)) chipAnims.set(key, new Animated.Value(1));
+    return chipAnims.get(key)!;
+  };
+  const chipPressIn  = (key: string) => Animated.spring(getChipAnim(key), { toValue: 0.93, useNativeDriver: ND, speed: 60, bounciness: 2 }).start();
+  const chipPressOut = (key: string) => Animated.spring(getChipAnim(key), { toValue: 1,    useNativeDriver: ND, speed: 30, bounciness: 6 }).start();
+
+  const getCardAnim = (key: string, index: number) => {
+    if (!cardAnims.has(key)) {
+      const anim = new Animated.Value(0);
+      cardAnims.set(key, anim);
+      Animated.timing(anim, {
+        toValue: 1, duration: 260,
+        delay: Math.min(index * 55, 280),
+        useNativeDriver: ND,
+      }).start();
+    }
+    return cardAnims.get(key)!;
+  };
+
+  // ── Datos ───────────────────────────────────────────────────
   const COLOR_ESTADO: Record<string, { fondo: string; texto: string; etiqueta: string }> = {
     confirmada: { ...COLOR_ESTADO_BASE.confirmada, etiqueta: t('res_estado_confirmada') },
     pendiente:  { ...COLOR_ESTADO_BASE.pendiente,  etiqueta: t('res_estado_pendiente')  },
@@ -58,15 +86,12 @@ export default function MisReservasScreen() {
     { clave: 'cancelada',  label: t('res_canceladas')  },
   ];
 
-  const [filtro, setFiltro]     = useState<Filtro>('todas');
+  const [filtro, setFiltro]               = useState<Filtro>('todas');
   const [cancelando, setCancelando]       = useState<number | null>(null);
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null);
 
-  useEffect(() => {
-    configurarBarraAndroid();
-  }, []);
+  useEffect(() => { configurarBarraAndroid(); }, []);
 
-  // Query para obtener el usuario actual
   const { data: usuario } = useQuery({
     queryKey: ['usuario-actual'],
     queryFn: obtenerUsuarioActivo,
@@ -74,7 +99,6 @@ export default function MisReservasScreen() {
   });
 
   const LIMITE = 20;
-  // Query paginada para obtener reservas
   const {
     data: reservasPages,
     isLoading: cargando,
@@ -92,37 +116,61 @@ export default function MisReservasScreen() {
     initialPageParam: 0,
     enabled: !!usuario,
     staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 10,
+    gcTime:    1000 * 60 * 10,
   });
   const reservas: Reserva[] = (reservasPages?.pages ?? []).flat() as Reserva[];
 
-  // Query para obtener destinos
   const { data: destinosDB = [] } = useQuery({
     queryKey: ['destinos-todos'],
     queryFn: obtenerTodosLosDestinos,
-    staleTime: 1000 * 60 * 30, // 30 minutos
+    staleTime: 1000 * 60 * 30,
   });
 
-  // Mutación para actualizar estado de reserva
   const actualizarEstadoMutation = useMutation({
-    mutationFn: ({ id, estado }: { id: number; estado: string }) => 
+    mutationFn: ({ id, estado }: { id: number; estado: string }) =>
       actualizarEstadoReserva(id, estado),
     onSuccess: () => {
-      // Invalidar query para refrescar datos
       queryClient.invalidateQueries({ queryKey: ['reservas-usuario'] });
     },
   });
 
+  // Fade-in + slide cuando los datos llegan
+  useEffect(() => {
+    if (!cargando) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(16);
+      cardAnims.clear();
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 350, useNativeDriver: ND }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 350, useNativeDriver: ND }),
+      ]).start();
+    }
+  }, [cargando]); // eslint-disable-line
+
+  // Reiniciar animaciones al cambiar filtro
+  useEffect(() => {
+    cardAnims.clear();
+    fadeAnim.setValue(0);
+    slideAnim.setValue(10);
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: ND }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 280, useNativeDriver: ND }),
+    ]).start();
+  }, [filtro]); // eslint-disable-line
+
   const onRefresh = useCallback(async () => {
+    cardAnims.clear();
     await queryClient.resetQueries({ queryKey: ['reservas-usuario', usuario?.id] });
-  }, [queryClient, usuario?.id]);
+  }, [queryClient, usuario?.id]); // eslint-disable-line
 
   const reservasFiltradas = filtro === 'todas'
     ? (reservas as Reserva[])
     : (reservas as Reserva[]).filter((r: Reserva) => r.estado === filtro);
 
   const conteo = (clave: Filtro) =>
-    clave === 'todas' ? (reservas as Reserva[]).length : (reservas as Reserva[]).filter((r: Reserva) => r.estado === clave).length;
+    clave === 'todas'
+      ? (reservas as Reserva[]).length
+      : (reservas as Reserva[]).filter((r: Reserva) => r.estado === clave).length;
 
   const irADetalle = (item: Reserva) => {
     const estado = destinosDB.find(e => e.nombre === item.destino)
@@ -154,137 +202,144 @@ export default function MisReservasScreen() {
     }), 0);
   };
 
-  const renderReserva = ({ item }: { item: Reserva }) => {
-    const est            = COLOR_ESTADO[item.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: item.estado };
-    const cancelable     = item.estado === 'confirmada' || item.estado === 'pendiente';
-    const esCancelando   = cancelando === item.id;
-    const pidioConfirmar = confirmandoId === item.id;
+  // ── Tarjeta de reserva ───────────────────────────────────────
+  const renderReserva = ({ item, index }: { item: Reserva; index: number }) => {
+    const anim         = getCardAnim(String(item.id) + filtro, index);
+    const est          = COLOR_ESTADO[item.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: item.estado };
+    const cancelable   = item.estado === 'confirmada' || item.estado === 'pendiente';
+    const esCancelando = cancelando === item.id;
+    const pidioConf    = confirmandoId === item.id;
 
     return (
-      <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-        {/* Encabezado */}
-        <View style={es.headerTarjeta}>
-          <View style={{ flex: 1 }}>
-            <Text style={[es.destino, { color: tema.texto }]}>{item.destino}</Text>
-            <Text style={[es.paquete, { color: tema.textoMuted }]}>{t('res_paquete', { n: item.paquete })}</Text>
-          </View>
-          <View style={[es.badgeEstado, { backgroundColor: est.fondo }]}>
-            <Text style={[es.textoEstado, { color: est.texto }]}>{est.etiqueta}</Text>
-          </View>
-        </View>
-
-        <View style={[es.separador, { backgroundColor: tema.borde }]} />
-
-        {/* Datos */}
-        <View style={es.filaDetalle}>
-          <View style={es.dato}>
-            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_folio')}</Text>
-            <Text style={[es.datoValor, { color: tema.texto }]}>{item.folio}</Text>
-          </View>
-          <View style={es.dato}>
-            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_fecha')}</Text>
-            <Text style={[es.datoValor, { color: tema.texto }]}>{formatearFecha(item.fecha)}</Text>
-          </View>
-          <View style={es.dato}>
-            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_personas')}</Text>
-            <Text style={[es.datoValor, { color: tema.texto }]}>{item.personas}</Text>
-          </View>
-          <View style={es.dato}>
-            <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_total')}</Text>
-            <Text style={[es.datoValor, { color: '#3AB7A5' }]}>
-              ${item.total.toLocaleString()}
-            </Text>
-          </View>
-        </View>
-
-        {/* Notas del viajero */}
-        {!!item.notas && (
-          <View style={[es.cajaNota, { backgroundColor: tema.superficie }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-              <Ionicons name="document-text-outline" size={13} color="#3AB7A5" />
-              <Text style={es.notaLabel}>{t('res_notas')}</Text>
+      <Animated.View style={{
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+      }}>
+        <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+          {/* Encabezado */}
+          <View style={es.headerTarjeta}>
+            <View style={{ flex: 1 }}>
+              <Text style={[es.destino, { color: tema.texto }]}>{item.destino}</Text>
+              <Text style={[es.paquete, { color: tema.textoMuted }]}>{t('res_paquete', { n: item.paquete })}</Text>
             </View>
-            <Text style={[es.notaTexto, { color: tema.textoSecundario }]}>{item.notas}</Text>
-          </View>
-        )}
-
-        {/* Confirmación inline de cancelación */}
-        {pidioConfirmar && (
-          <View style={es.cajaConfirmar}>
-            <Text style={es.textoConfirmar}>{t('res_cancelar_msg', { folio: item.folio })}</Text>
-            <View style={es.filaConfirmar}>
-              <TouchableOpacity style={es.btnMantener} onPress={() => setConfirmandoId(null)} activeOpacity={0.8}>
-                <Text style={es.textoBtnMantener}>{t('res_cancelar_no')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={es.btnConfirmarCancelar} onPress={() => confirmarCancelacion(item)} activeOpacity={0.8}>
-                <Text style={es.textoBtnConfirmarCancelar}>{t('res_cancelar_si')}</Text>
-              </TouchableOpacity>
+            <View style={[es.badgeEstado, { backgroundColor: est.fondo }]}>
+              <Text style={[es.textoEstado, { color: est.texto }]}>{est.etiqueta}</Text>
             </View>
           </View>
-        )}
 
-        {/* Acciones */}
-        <View style={[es.filaAcciones, { borderTopColor: tema.borde }]}>
-          <TouchableOpacity
-            style={es.btnVerDetalle}
-            onPress={() => irADetalle(item)}
-            activeOpacity={0.8}
-          >
-            <Text style={es.textoBtnDetalle}>{t('res_ver_destino')}</Text>
-          </TouchableOpacity>
+          <View style={[es.separador, { backgroundColor: tema.borde }]} />
 
-          {cancelable && (
-            <TouchableOpacity
-              style={[es.btnCancelar, (esCancelando || pidioConfirmar) && { opacity: 0.5 }]}
-              onPress={() => setConfirmandoId(item.id)}
-              activeOpacity={0.8}
-              disabled={esCancelando || pidioConfirmar}
-            >
-              {esCancelando
-                ? <ActivityIndicator size="small" color="#DD331D" />
-                : <Text style={es.textoBtnCancelar}>{t('res_btn_cancelar')}</Text>
-              }
-            </TouchableOpacity>
+          {/* Datos */}
+          <View style={es.filaDetalle}>
+            <View style={es.dato}>
+              <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_folio')}</Text>
+              <Text style={[es.datoValor, { color: tema.texto }]}>{item.folio}</Text>
+            </View>
+            <View style={es.dato}>
+              <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_fecha')}</Text>
+              <Text style={[es.datoValor, { color: tema.texto }]}>{formatearFecha(item.fecha)}</Text>
+            </View>
+            <View style={es.dato}>
+              <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_personas')}</Text>
+              <Text style={[es.datoValor, { color: tema.texto }]}>{item.personas}</Text>
+            </View>
+            <View style={es.dato}>
+              <Text style={[es.datoLabel, { color: tema.textoMuted }]}>{t('res_total')}</Text>
+              <Text style={[es.datoValor, { color: '#3AB7A5' }]}>${item.total.toLocaleString()}</Text>
+            </View>
+          </View>
+
+          {/* Notas */}
+          {!!item.notas && (
+            <View style={[es.cajaNota, { backgroundColor: tema.superficie }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                <Ionicons name="document-text-outline" size={13} color="#3AB7A5" />
+                <Text style={es.notaLabel}>{t('res_notas')}</Text>
+              </View>
+              <Text style={[es.notaTexto, { color: tema.textoSecundario }]}>{item.notas}</Text>
+            </View>
           )}
 
-          {item.estado === 'cancelada' && (
-            <TouchableOpacity
-              style={es.btnReservarOtra}
-              onPress={() => volverAReservar(item)}
-              activeOpacity={0.8}
-            >
-              <Text style={es.textoBtnReservarOtra}>{t('res_btn_reservar')}</Text>
-            </TouchableOpacity>
+          {/* Confirmación inline de cancelación */}
+          {pidioConf && (
+            <View style={es.cajaConfirmar}>
+              <Text style={es.textoConfirmar}>{t('res_cancelar_msg', { folio: item.folio })}</Text>
+              <View style={es.filaConfirmar}>
+                <TouchableOpacity style={es.btnMantener} onPress={() => setConfirmandoId(null)} activeOpacity={0.8}>
+                  <Text style={es.textoBtnMantener}>{t('res_cancelar_no')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={es.btnConfirmarCancelar} onPress={() => confirmarCancelacion(item)} activeOpacity={0.8}>
+                  <Text style={es.textoBtnConfirmarCancelar}>{t('res_cancelar_si')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
+
+          {/* Acciones */}
+          <View style={[es.filaAcciones, { borderTopColor: tema.borde }]}>
+            <TouchableOpacity style={es.btnVerDetalle} onPress={() => irADetalle(item)} activeOpacity={0.8}>
+              <Text style={es.textoBtnDetalle}>{t('res_ver_destino')}</Text>
+            </TouchableOpacity>
+
+            {cancelable && (
+              <TouchableOpacity
+                style={[es.btnCancelar, (esCancelando || pidioConf) && { opacity: 0.5 }]}
+                onPress={() => setConfirmandoId(item.id)}
+                activeOpacity={0.8}
+                disabled={esCancelando || pidioConf}
+              >
+                {esCancelando
+                  ? <ActivityIndicator size="small" color="#DD331D" />
+                  : <Text style={es.textoBtnCancelar}>{t('res_btn_cancelar')}</Text>
+                }
+              </TouchableOpacity>
+            )}
+
+            {item.estado === 'cancelada' && (
+              <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8}>
+                <Text style={es.textoBtnReservarOtra}>{t('res_btn_reservar')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
-  const chips = (
-    <FlatList
-      horizontal
-      data={FILTROS}
-      keyExtractor={f => f.clave}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={es.listaFiltros}
-      renderItem={({ item: f }) => {
-        const activo = filtro === f.clave;
-        const n = conteo(f.clave);
-        return (
-          <TouchableOpacity
-            style={[es.chipFiltro, { backgroundColor: tema.superficie }, activo && es.chipFiltroActivo]}
-            onPress={() => setFiltro(f.clave)}
-            activeOpacity={0.75}
-          >
-            <Text style={[es.textoChip, { color: tema.textoSecundario }, activo && es.textoChipActivo]}>
-              {f.label}
-              {n > 0 ? ` (${n})` : ''}
-            </Text>
-          </TouchableOpacity>
-        );
-      }}
-    />
+  // ── Chips fijos (ScrollView horizontal, fuera del FlatList) ──
+  const chipsRow = (
+    <View style={[es.contenedorChips, { backgroundColor: tema.fondo }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={es.listaFiltros}
+        bounces={false}
+      >
+        {FILTROS.map(f => {
+          const activo = filtro === f.clave;
+          const n      = conteo(f.clave);
+          return (
+            <TouchableOpacity
+              key={f.clave}
+              onPressIn={() => chipPressIn(f.clave)}
+              onPressOut={() => chipPressOut(f.clave)}
+              onPress={() => setFiltro(f.clave)}
+              activeOpacity={1}
+            >
+              <Animated.View style={[
+                es.chipFiltro,
+                { backgroundColor: tema.superficie, transform: [{ scale: getChipAnim(f.clave) }] },
+                activo && es.chipFiltroActivo,
+              ]}>
+                <Text style={[es.textoChip, { color: tema.textoSecundario }, activo && es.textoChipActivo]}>
+                  {f.label}{n > 0 ? ` (${n})` : ''}
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 
   const footer = hasNextPage && filtro === 'todas' ? (
@@ -295,46 +350,60 @@ export default function MisReservasScreen() {
     </TouchableOpacity>
   ) : null;
 
-  const cuerpo = cargando ? (
+  // ── Contenido principal con animación de entrada ─────────────
+  const contenido = cargando ? (
     <SkeletonFilas cantidad={5} />
   ) : reservasFiltradas.length === 0 ? (
-    <View style={es.vacio}>
+    <Animated.View style={[es.vacio, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>{t('res_vacio')}</Text>
-    </View>
+    </Animated.View>
   ) : (
-    <FlatList
-      data={reservasFiltradas}
-      keyExtractor={item => String(item.id)}
-      renderItem={renderReserva}
-      contentContainerStyle={es.lista}
-      showsVerticalScrollIndicator={false}
-      ListFooterComponent={footer}
-      refreshControl={<RefreshControl refreshing={isFetching && !isFetchingNextPage} onRefresh={onRefresh} colors={['#3AB7A5']} tintColor="#3AB7A5" />}
-    />
+    <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <FlatList
+        style={{ flex: 1 }}
+        data={reservasFiltradas}
+        keyExtractor={item => String(item.id)}
+        renderItem={renderReserva}
+        contentContainerStyle={es.lista}
+        showsVerticalScrollIndicator={false}
+        ListFooterComponent={footer}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isFetchingNextPage}
+            onRefresh={onRefresh}
+            colors={['#3AB7A5']}
+            tintColor="#3AB7A5"
+          />
+        }
+      />
+    </Animated.View>
   );
 
   return (
     <TabChrome
       esPC={esPC}
       title={t('res_titulo')}
-      onBack={() => router.back()}
+      onBack={() => setTimeout(() => router.replace('/(tabs)/perfil' as never), 0)}
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >
       <View style={es.subheader}>
-        <Text style={[es.subtitulo, { color: tema.textoMuted }]}>{(reservas as Reserva[]).length} {(reservas as Reserva[]).length !== 1 ? t('res_total_plural') : t('res_total_singular')}</Text>
+        <Text style={[es.subtitulo, { color: tema.textoMuted }]}>
+          {reservas.length} {reservas.length !== 1 ? t('res_total_plural') : t('res_total_singular')}
+        </Text>
       </View>
-      {chips}
-      {cuerpo}
+      {chipsRow}
+      {contenido}
     </TabChrome>
   );
 }
 
 const es = StyleSheet.create({
   headerSpacer:         { width: 38, height: 38 },
-  subheader:            { paddingHorizontal: 16, paddingBottom: 6, width: '100%', maxWidth: 700, alignSelf: 'center' },
+  subheader:            { paddingHorizontal: 16, paddingBottom: 4, width: '100%', maxWidth: 700, alignSelf: 'center' },
   subtitulo:            { fontSize: 12, color: '#888', marginTop: 2 },
 
+  contenedorChips:      { width: '100%', maxWidth: 700, alignSelf: 'center' },
   listaFiltros:         { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
   chipFiltro:           { paddingHorizontal: 18, height: 40, borderRadius: 20, backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   chipFiltroActivo:     { backgroundColor: '#3AB7A5', borderColor: '#3AB7A5' },
@@ -356,14 +425,14 @@ const es = StyleSheet.create({
   datoLabel:            { fontSize: 11, color: '#aaa', marginBottom: 3 },
   datoValor:            { fontSize: 13, fontWeight: '600', color: '#333' },
 
-  cajaConfirmar:          { backgroundColor: '#fff8f8', borderRadius: 12, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#f5c0c0' },
-  textoConfirmar:         { fontSize: 13, color: '#555', marginBottom: 10, lineHeight: 18 },
-  filaConfirmar:          { flexDirection: 'row', gap: 8 },
-  btnMantener:            { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: '#ccc' },
-  textoBtnMantener:       { color: '#666', fontWeight: '600', fontSize: 13 },
-  btnConfirmarCancelar:   { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 20, backgroundColor: '#DD331D' },
+  cajaConfirmar:           { backgroundColor: '#fff8f8', borderRadius: 12, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#f5c0c0' },
+  textoConfirmar:          { fontSize: 13, color: '#555', marginBottom: 10, lineHeight: 18 },
+  filaConfirmar:           { flexDirection: 'row', gap: 8 },
+  btnMantener:             { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: '#ccc' },
+  textoBtnMantener:        { color: '#666', fontWeight: '600', fontSize: 13 },
+  btnConfirmarCancelar:    { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 20, backgroundColor: '#DD331D' },
   textoBtnConfirmarCancelar: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  filaAcciones:           { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  filaAcciones:            { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   btnVerDetalle:        { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: '#3AB7A5' },
   textoBtnDetalle:      { color: '#3AB7A5', fontWeight: '700', fontSize: 13 },
   btnCancelar:          { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#fef0f0', borderWidth: 1.5, borderColor: '#DD331D' },

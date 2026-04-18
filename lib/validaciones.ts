@@ -25,11 +25,24 @@ export const validarFechaFutura = (fecha: string): boolean => {
   return fechaObj >= hoy;
 };
 
-// Validación de tarjeta de crédito (básica)
+// Validación de tarjeta de crédito con algoritmo de Luhn
 export const validarTarjeta = (numero: string): boolean => {
   const numeroLimpio = numero.replace(/\s+/g, '');
-  const regex = /^[0-9]{13,19}$/;
-  return regex.test(numeroLimpio);
+  if (!/^[0-9]{13,19}$/.test(numeroLimpio)) return false;
+
+  // Algoritmo de Luhn
+  let suma = 0;
+  let doble = false;
+  for (let i = numeroLimpio.length - 1; i >= 0; i--) {
+    let digito = parseInt(numeroLimpio[i], 10);
+    if (doble) {
+      digito *= 2;
+      if (digito > 9) digito -= 9;
+    }
+    suma += digito;
+    doble = !doble;
+  }
+  return suma % 10 === 0;
 };
 
 // Validación de fechas de viaje (no más de 1 año adelante)

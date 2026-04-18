@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { captureException } from '../lib/sentry';
 
 interface State { hasError: boolean; error: Error | null }
 
@@ -14,8 +15,7 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // eslint-disable-next-line no-console
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    captureException(error, { componentStack: info.componentStack ?? '' });
   }
 
   reset = () => this.setState({ hasError: false, error: null });

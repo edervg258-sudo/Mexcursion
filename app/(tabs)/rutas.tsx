@@ -1,16 +1,18 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, Image, Platform, ScrollView,
+  Animated, Platform, ScrollView,
   StyleSheet, Text, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
 import MapaRutas from '../../components/MapaRutas';
+import { RutaChip } from '../../components/Rutas/RutaChip';
+import { TimelineItem } from '../../components/Rutas/TimelineItem';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { RUTAS_TEMATICAS, RutaTematica } from '../../lib/datos/rutas-tematicas';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerUsuarioActivo } from '../../lib/supabase-db';
@@ -18,7 +20,7 @@ import { useTemaContext } from '../../lib/TemaContext';
 import { Estado } from '../../lib/tipos';
 import { SkeletonFilas } from './skeletonloader';
 
-// ─── Imagen representativa por ruta ─────────────────────────────────────────
+// ─── Imagen representativa por ruta (usada en el hero) ──────────────────────
 const RUTA_IMG: Record<string, number> = {
   colonial: require('../../assets/images/guanajuato.png') as number,
   maya:     require('../../assets/images/chiapas.png') as number,
@@ -30,104 +32,6 @@ const RUTA_IMG: Record<string, number> = {
 const DIFICULTAD_COLOR: Record<string, string> = {
   'Fácil': '#3AB7A5', 'Moderada': '#e9c46a', 'Exigente': '#DD331D',
 };
-
-// ─── Chip selector de ruta ───────────────────────────────────────────────────
-const RutaChip = React.memo(function RutaChip({
-  ruta, activa, onPress,
-}: { ruta: RutaTematica; activa: boolean; onPress: () => void }) {
-  const { tema } = useTemaContext();
-  const img = RUTA_IMG[ruta.id];
-  return (
-    <TouchableOpacity
-      style={[
-        es.rutaChip,
-        { backgroundColor: activa ? ruta.color : tema.superficie, borderColor: activa ? ruta.color : tema.borde },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      {img ? (
-        <Image source={img} style={es.rutaChipImg} resizeMode="cover" />
-      ) : (
-        <View style={[es.rutaChipImgPlaceholder, { backgroundColor: ruta.color + '44' }]} />
-      )}
-      <Text style={[es.rutaChipNombre, { color: activa ? '#fff' : tema.texto }]} numberOfLines={1}>
-        {ruta.nombre.replace('Ruta ', '')}
-      </Text>
-      <Text style={[es.rutaChipDias, { color: activa ? 'rgba(255,255,255,0.85)' : tema.textoMuted }]}>
-        {ruta.estadoIds.length * ruta.diasPorEstado}d
-      </Text>
-    </TouchableOpacity>
-  );
-});
-
-// ─── Ítem en el timeline de destinos ────────────────────────────────────────
-const TimelineItem = React.memo(function TimelineItem({
-  estado, index, total, esFavorito, rutaColor, onPress, onToggleFav,
-}: {
-  estado: Estado; index: number; total: number; esFavorito: boolean;
-  rutaColor: string; onPress: () => void; onToggleFav: () => void;
-}) {
-  const { tema } = useTemaContext();
-  const escalaFav  = useRef(new Animated.Value(1)).current;
-  const escalaCard = useRef(new Animated.Value(1)).current;
-
-  const handleFav = () => {
-    Animated.sequence([
-      Animated.spring(escalaFav, { toValue: 1.45, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 8 }),
-      Animated.spring(escalaFav, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 4 }),
-    ]).start();
-    onToggleFav();
-  };
-  const handlePressIn  = () => Animated.spring(escalaCard, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 60, bounciness: 2 }).start();
-  const handlePressOut = () => Animated.spring(escalaCard, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 30, bounciness: 6 }).start();
-
-  return (
-    <Animated.View style={[es.timelineItem, { transform: [{ scale: escalaCard }] }]}>
-      {index < total - 1 && <View style={[es.timelineLinea, { backgroundColor: tema.borde }]} />}
-      <View style={[es.timelineNum, { backgroundColor: rutaColor }]}>
-        <Text style={es.timelineNumTxt}>{index + 1}</Text>
-      </View>
-      <TouchableOpacity
-        style={[es.timelineCard, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
-      >
-        <ExpoImage
-          source={estado.imagen}
-          style={es.timelineImg}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-          recyclingKey={String(estado.id)}
-        />
-        <View style={es.timelineInfo}>
-          <Text style={[es.timelineNombre, { color: tema.texto }]} numberOfLines={1}>{estado.nombre}</Text>
-          <Text style={[es.timelineDesc,   { color: tema.textoMuted }]} numberOfLines={2}>{estado.descripcion}</Text>
-          <Text style={[es.timelinePrecio, { color: rutaColor }]}>
-            Desde ${estado.precio.toLocaleString()} MXN
-          </Text>
-        </View>
-        <View style={es.timelineAcciones}>
-          <TouchableOpacity onPress={handleFav} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-            <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
-              <Image
-                source={esFavorito
-                  ? require('../../assets/images/favoritos_rojo.png')
-                  : require('../../assets/images/favoritos_gris.png')}
-                style={{ width: 18, height: 18 }}
-                resizeMode="contain"
-              />
-            </Animated.View>
-          </TouchableOpacity>
-          <Text style={[es.timelineChevron, { color: rutaColor }]}>›</Text>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PANTALLA PRINCIPAL
@@ -243,7 +147,7 @@ export default function RutasScreen() {
         <TopActionHeader
           title={t('tab_rutas')}
           showInlineLogo={false}
-          onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
+          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
         />
 
         {/* Tabs sin emojis */}
@@ -419,11 +323,6 @@ const es = StyleSheet.create({
 
   selectorContenedor: { height: 84 },
   selectorScroll:   { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 0, gap: 8, alignItems: 'center', flexGrow: 1, justifyContent: 'center' },
-  rutaChip:         { width: 72, height: 72, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderRadius: 10, borderWidth: 1.5, gap: 2, overflow: 'hidden' },
-  rutaChipImg:      { width: 32, height: 32, borderRadius: 6, marginBottom: 2 },
-  rutaChipImgPlaceholder: { width: 32, height: 32, borderRadius: 6, marginBottom: 2 },
-  rutaChipNombre:   { fontSize: 9, fontWeight: '700', textAlign: 'center', lineHeight: 11 },
-  rutaChipDias:     { fontSize: 9, fontWeight: '500' },
 
   rutasScroll:      { paddingBottom: 20, paddingTop: 8 },
 
@@ -466,18 +365,6 @@ const es = StyleSheet.create({
   seccionTitulo:    { fontSize: 14, fontWeight: '800', marginHorizontal: 14, marginBottom: 8 },
 
   timeline:         { paddingHorizontal: 14, paddingTop: 4 },
-  timelineItem:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10, position: 'relative' },
-  timelineLinea:    { position: 'absolute', left: 13, top: 28, width: 2, bottom: -10, zIndex: 0 },
-  timelineNum:      { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, marginTop: 6 },
-  timelineNumTxt:   { color: '#fff', fontSize: 12, fontWeight: '800' },
-  timelineCard:     { flex: 1, flexDirection: 'row', borderRadius: 12, overflow: 'hidden', borderWidth: 1, minHeight: 64 },
-  timelineImg:      { width: 64, height: 64 },
-  timelineInfo:     { flex: 1, padding: 9, justifyContent: 'center', gap: 2 },
-  timelineNombre:   { fontSize: 13, fontWeight: '800' },
-  timelineDesc:     { fontSize: 11, lineHeight: 14 },
-  timelinePrecio:   { fontSize: 10, fontWeight: '700' },
-  timelineAcciones: { paddingHorizontal: 8, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  timelineChevron:  { fontSize: 20, fontWeight: '700', lineHeight: 24 },
 
   btnVerMapa:       { marginHorizontal: 14, marginTop: 10, borderRadius: 25, paddingVertical: 13, alignItems: 'center' },
   btnVerMapaTxt:    { color: '#fff', fontSize: 14, fontWeight: '800' },

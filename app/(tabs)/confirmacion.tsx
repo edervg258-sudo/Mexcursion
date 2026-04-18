@@ -12,8 +12,9 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 
 export default function ConfirmacionScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo } =
+  const { nombre, paquete, precio, personas, fecha, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo, estado } =
     useLocalSearchParams<Record<string, string>>();
+  const esPendiente = estado === 'pendiente_pago';
   const { t } = useIdioma();
   const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
@@ -61,16 +62,24 @@ export default function ConfirmacionScreen() {
     >
       <ScrollView testID="confirmacion-screen" contentContainerStyle={es.scroll} showsVerticalScrollIndicator={false}>
 
-        <Animated.View style={[es.circuloCheck, { transform: [{ scale: escala }] }]}>
-          <View style={es.circuloInterno}>
-            <Text style={es.checkIcon}>✓</Text>
+        <Animated.View style={[es.circuloCheck, esPendiente && es.circuloPendiente, { transform: [{ scale: escala }] }]}>
+          <View style={[es.circuloInterno, esPendiente && es.circuloInternoPendiente]}>
+            <Text style={es.checkIcon}>{esPendiente ? '⏳' : '✓'}</Text>
           </View>
         </Animated.View>
 
         <Animated.View style={{ opacity: opacidad, transform: [{ translateY: slideY }], alignItems: 'center', width: '100%' }}>
 
-          <Text style={[es.titulo, { color: tema.texto }]}>{t('conf_titulo')}</Text>
-          <Text style={[es.subtitulo, { color: tema.textoMuted }]}>{t('conf_subtitulo')}</Text>
+          <Text style={[es.titulo, { color: tema.texto }]}>
+            {esPendiente ? 'Reserva en proceso' : t('conf_titulo')}
+          </Text>
+          <Text style={[es.subtitulo, { color: tema.textoMuted }]}>
+            {esPendiente
+              ? metodo === 'oxxo'
+                ? 'Realiza el pago en cualquier OXXO con la referencia de abajo.'
+                : 'Realiza la transferencia SPEI. Tu reserva se activará al recibir el pago.'
+              : t('conf_subtitulo')}
+          </Text>
 
           {/* Folio */}
           <View style={[es.tarjetaFolio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
@@ -148,9 +157,11 @@ export default function ConfirmacionScreen() {
 const es = StyleSheet.create({
   scroll:             { padding: 20, alignItems: 'center', maxWidth: 700, alignSelf: 'center', width: '100%' },
 
-  circuloCheck:       { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(58,183,165,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 18, marginTop: 10 },
-  circuloInterno:     { width: 76, height: 76, borderRadius: 38, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', ...sombra({ color: '#3AB7A5', opacity: 0.4, radius: 10, offsetY: 4, elevation: 6 }) },
-  checkIcon:          { fontSize: 38, color: '#fff', fontWeight: '700', lineHeight: 44 },
+  circuloCheck:         { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(58,183,165,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 18, marginTop: 10 },
+  circuloInterno:       { width: 76, height: 76, borderRadius: 38, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', ...sombra({ color: '#3AB7A5', opacity: 0.4, radius: 10, offsetY: 4, elevation: 6 }) },
+  circuloPendiente:     { backgroundColor: 'rgba(211,84,0,0.12)' },
+  circuloInternoPendiente: { backgroundColor: '#D35400', ...sombra({ color: '#D35400', opacity: 0.35, radius: 10, offsetY: 4, elevation: 6 }) },
+  checkIcon:            { fontSize: 38, color: '#fff', fontWeight: '700', lineHeight: 44 },
 
   titulo:             { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
   subtitulo:          { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 22 },

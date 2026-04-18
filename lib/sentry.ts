@@ -20,7 +20,13 @@ type ApiErrorInput = {
 
 export const initSentry = () => {
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  if (!dsn || dsn.includes('your-sentry-dsn')) { return; } // no configurado aún
+  if (!dsn || dsn.includes('your-sentry-dsn')) {
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.warn('[Sentry] EXPO_PUBLIC_SENTRY_DSN no configurado — crashes en producción no serán registrados. Crea un proyecto en sentry.io y añade el DSN a .env');
+    }
+    return;
+  }
   Sentry.init({
     dsn,
     tracesSampleRate: 1.0,

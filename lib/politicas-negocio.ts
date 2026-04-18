@@ -2,7 +2,7 @@
 //  lib/politicas-negocio.ts  —  Políticas de negocio y reglas
 // ============================================================
 
-import { differenceInDays, parse, isBefore, addDays } from 'date-fns';
+import { differenceInDays, format, isBefore, parse } from 'date-fns';
 
 // Políticas de cancelación
 export const POLITICAS_CANCELACION = {
@@ -104,20 +104,26 @@ export const PROGRAMA_FIDELIDAD = {
   }
 };
 
+interface PromoData {
+  descuento: number;
+  tipo: 'porcentaje' | 'fijo';
+  descripcion: string;
+}
+
+const PROMOCIONES: Record<string, PromoData> = {
+  'BIENVENIDO': { descuento: 0.1, tipo: 'porcentaje', descripcion: '10% de descuento para nuevos usuarios' },
+  'VERANO2026': { descuento: 200, tipo: 'fijo', descripcion: '$200 de descuento en viajes de verano' },
+  'AMIGOS': { descuento: 0.15, tipo: 'porcentaje', descripcion: '15% por referido' }
+};
+
 // Validación de promociones
 export const validarPromocion = (codigo: string): {
   valido: boolean;
   descuento: number;
   tipo: 'porcentaje' | 'fijo';
   mensaje: string;
-} => {
-  const promociones: Record<string, any> = {
-    'BIENVENIDO': { descuento: 0.1, tipo: 'porcentaje', descripcion: '10% de descuento para nuevos usuarios' },
-    'VERANO2026': { descuento: 200, tipo: 'fijo', descripcion: '$200 de descuento en viajes de verano' },
-    'AMIGOS': { descuento: 0.15, tipo: 'porcentaje', descripcion: '15% por referido' }
-  };
-
-  const promo = promociones[codigo.toUpperCase()];
+} => {  
+  const promo = PROMOCIONES[codigo.toUpperCase()];
   if (!promo) {
     return { valido: false, descuento: 0, tipo: 'porcentaje', mensaje: 'Código inválido' };
   }
@@ -138,8 +144,8 @@ export const calcularPrecioDinamico = (
   fecha: string,
   temporadaAlta: string[] = ['12/25', '01/01', '07/15', '12/31']
 ): { precioFinal: number; factor: number; razon: string } => {
-  const [dia, mes] = fecha.split('/');
-  const fechaCorta = `${mes}/${dia}`;
+  const fechaObj = parse(fecha, 'dd/MM/yyyy', new Date());
+  const fechaCorta = format(fechaObj, 'MM/dd');
 
   let factor = 1.0;
   let razon = 'Precio estándar';
@@ -151,7 +157,6 @@ export const calcularPrecioDinamico = (
   }
 
   // Fin de semana (+10%)
-  const fechaObj = parse(fecha, 'dd/MM/yyyy', new Date());
   if (fechaObj.getDay() === 0 || fechaObj.getDay() === 6) {
     factor *= 1.1;
     razon = 'Fin de semana';

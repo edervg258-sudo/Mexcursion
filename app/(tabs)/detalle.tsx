@@ -5,13 +5,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert, Animated,
     Dimensions,
-    KeyboardAvoidingView,
-    Modal,
     Platform, ScrollView, Share,
     StatusBar, StyleSheet, Text,
-    TextInput,
     TouchableOpacity, UIManager, View, useWindowDimensions
 } from 'react-native';
+import { CarruselImagenes } from '../../components/CarruselImagenes';
+import { ModalSeleccionItinerario } from '../../components/ModalSeleccionItinerario';
 // FIX 1: Importar SafeAreaView de react-native en lugar de react-native-safe-area-context
 // para el contenedor principal, y usar solo useSafeAreaInsets para medidas puntuales.
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import { TopActionHeader } from '../../components/TopActionHeader';
 import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
@@ -34,96 +34,7 @@ if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).native
 }
 
 
-// ARROW_STYLE movido dentro del componente CarruselImagenes (usa CAROUSEL_H)
-
-const CAROUSEL_H = 260;
-const ARROW_TOP  = CAROUSEL_H / 2 - 16;
-
-const CarruselImagenes = ({ imagenes, color }: { imagenes: string[]; color: string }) => {
-  const [indice, setIndice] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-  const ancho = Math.min(W - 28 * 2, CARD_W - 28);
-  const dotAnims = useRef(imagenes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-
-  const sincronizarPunto = useCallback((i: number) => {
-    Animated.parallel(
-      dotAnims.map((anim, idx) =>
-        Animated.spring(anim, { toValue: idx === i ? 1 : 0, useNativeDriver: false, tension: 70, friction: 12 })
-      )
-    ).start();
-    setIndice(i);
-  }, [dotAnims]);
-
-  const irA = useCallback((i: number) => {
-    scrollRef.current?.scrollTo({ x: ancho * i, animated: true });
-    sincronizarPunto(i);
-  }, [ancho, sincronizarPunto]);
-
-  const arrowStyle = {
-    position: 'absolute' as const,
-    top: ARROW_TOP,
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.90)',
-    alignItems: 'center' as const, justifyContent: 'center' as const,
-    zIndex: 10, elevation: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18, shadowRadius: 4,
-  };
-
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <View style={{ position: 'relative', borderRadius: 14, overflow: 'hidden' }}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={e => sincronizarPunto(Math.round(e.nativeEvent.contentOffset.x / ancho))}
-          style={{ borderRadius: 14 }}
-        >
-          {imagenes.map((uri, i) => (
-            <Image
-              key={i}
-              source={{ uri }}
-              style={{ width: ancho, height: CAROUSEL_H, borderRadius: 14 }}
-              contentFit="cover"
-              transition={250}
-            />
-          ))}
-        </ScrollView>
-
-        {/* Indicador de posición sobre la imagen */}
-        {imagenes.length > 1 && (
-          <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{indice + 1}/{imagenes.length}</Text>
-          </View>
-        )}
-
-        {imagenes.length > 1 && indice > 0 && (
-          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice - 1)} style={{ ...arrowStyle, left: 10 }}>
-            <Text style={{ fontSize: 22, color: '#333', fontWeight: '700', lineHeight: 28 }}>‹</Text>
-          </TouchableOpacity>
-        )}
-        {imagenes.length > 1 && indice < imagenes.length - 1 && (
-          <TouchableOpacity activeOpacity={0.75} onPress={() => irA(indice + 1)} style={{ ...arrowStyle, right: 10 }}>
-            <Text style={{ fontSize: 22, color: '#333', fontWeight: '700', lineHeight: 28 }}>›</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {/* Dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
-        {imagenes.map((_, i) => (
-          <TouchableOpacity key={i} onPress={() => irA(i)}>
-            <Animated.View style={{
-              width: dotAnims[i].interpolate({ inputRange: [0, 1], outputRange: [8, 22] }),
-              height: 8, borderRadius: 4,
-              backgroundColor: dotAnims[i].interpolate({ inputRange: [0, 1], outputRange: ['#ddd', color] }),
-            }} />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
+// CarruselImagenes extraído a components/CarruselImagenes.tsx
 
 const extraerPrecio = (precioTotal: string) => {
   const match = precioTotal.replace(/,/g,'').match(/\d+/);
@@ -277,7 +188,7 @@ export default function DetalleScreen() {
         subtitle={String(categoria ?? '')}
         showInlineLogo={!esPC}
         onBackPress={() => router.back()}
-        onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
+        onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
         maxWidth={800}
       />
 
@@ -360,7 +271,7 @@ export default function DetalleScreen() {
                     opacity:   expandAnims[idx].interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0, 1] }),
                     overflow: 'hidden',
                   }]}>
-                    <CarruselImagenes imagenes={paquete.imagenesHotel} color={paquete.color} />
+                    <CarruselImagenes imagenes={paquete.imagenesHotel} color={paquete.color} ancho={Math.min(W - 28 * 2, CARD_W - 28)} />
 
                     <View style={estilos.seccionInfo}>
                       <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_hotel')}</Text></View>
@@ -506,75 +417,23 @@ export default function DetalleScreen() {
         </SafeAreaView>
       )}
 
-      {/* FIX 7: Modal con KeyboardAvoidingView interno para que el teclado
-          solo desplace el contenido del modal y NO el layout principal.
-          Sin esto, Android empuja TODO el árbol de vistas hacia arriba
-          al aparecer el teclado dentro del Modal. */}
-      <Modal
+      <ModalSeleccionItinerario
         visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-        // FIX 8: statusBarTranslucent evita que el Modal recalcule su altura
-        // en función de la StatusBar al abrirse, eliminando el salto visual.
-        statusBarTranslucent={true}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={estilos.modalOverlay}>
-            <View style={[estilos.modalContent, { backgroundColor: tema.superficieBlanca }]}>
-              <Text style={[estilos.modalTitle, { color: tema.texto }]}>{t('det_add_itinerario')}</Text>
-              
-              <ScrollView
-                style={{ maxHeight: 200, width: '100%', marginBottom: 15 }}
-                keyboardShouldPersistTaps="handled"
-              >
-                {itinerarios.map(iti => {
-                  const yaEsta = iti.items?.includes(paqueteSeleccionado ?? '');
-                  return (
-                    <TouchableOpacity
-                      key={iti.id}
-                      style={[estilos.modalItiCard, { backgroundColor: tema.superficie, borderColor: tema.borde }, yaEsta && estilos.modalItiCardActivo]}
-                      onPress={() => agregarAItinerario(iti.id)}
-                    >
-                      <Text style={[estilos.modalItiText, { color: tema.textoSecundario }, yaEsta && estilos.modalItiTextActivo]}>
-                        {iti.nombre}{yaEsta ? ` ${t('det_quitar')}` : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                {itinerarios.length === 0 && (
-                  <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{t('det_sin_itinerarios')}</Text>
-                )}
-              </ScrollView>
-
-              <View style={{ width: '100%', marginBottom: 15 }}>
-                <Text style={[estilos.modalLabel, { color: tema.textoMuted }]}>{t('det_nuevo_itinerario')}</Text>
-                <TextInput
-                  style={[estilos.modalInput, { backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto }]}
-                  placeholder={t('det_ej_itinerario')}
-                  value={nuevoNombre}
-                  onChangeText={setNuevoNombre}
-                  placeholderTextColor={tema.textoMuted}
-                />
-                <TouchableOpacity
-                  style={[estilos.modalBtnCrear, !nuevoNombre.trim() && { opacity: 0.5 }]}
-                  disabled={!nuevoNombre.trim()}
-                  onPress={crearYNuevoItinerario}
-                >
-                  <Text style={estilos.modalBtnCrearTxt}>{t('det_crear_agregar')}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={estilos.modalBtnCerrar} onPress={() => { setModalVisible(false); setNuevoNombre(''); }}>
-                <Text style={[estilos.modalBtnCerrarTxt, { color: tema.textoMuted }]}>{t('det_cancelar')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        itinerarios={itinerarios}
+        paqueteSeleccionado={paqueteSeleccionado}
+        nuevoNombre={nuevoNombre}
+        tituloModal={t('det_add_itinerario')}
+        labelNuevo={t('det_nuevo_itinerario')}
+        placeholderNuevo={t('det_ej_itinerario')}
+        labelCrearAgregar={t('det_crear_agregar')}
+        labelCancelar={t('det_cancelar')}
+        labelQuitar={t('det_quitar')}
+        sinItinerariosMsg={t('det_sin_itinerarios')}
+        onCerrar={() => { setModalVisible(false); setNuevoNombre(''); }}
+        onAgregarAItinerario={agregarAItinerario}
+        onCrearYAgregar={crearYNuevoItinerario}
+        onNuevoNombreChange={setNuevoNombre}
+      />
 
     </View>
   );

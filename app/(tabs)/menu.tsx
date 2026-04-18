@@ -2,6 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { router, usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DestinoCard } from '../../components/DestinoCard';
+import { SkeletonLista } from './skeletonloader';
 import {
     Animated,
     FlatList,
@@ -18,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PESTANAS, TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { LIST_PERF_PRESET } from '../../lib/performance';
 import {
     alternarFavorito as alternarFavoritoBD,
@@ -56,6 +59,7 @@ export default function MenuScreen() {
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
   const rutaActual = usePathname();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const animsFav = useRef<Map<number, Animated.Value>>(new Map()).current;
@@ -76,6 +80,7 @@ export default function MenuScreen() {
   useFocusEffect(
     useCallback(() => {
       const iniciar = async () => {
+        setCargando(true);
         const usuario = await obtenerUsuarioActivo();
         if (usuario) {
           setUsuarioId(usuario.id);
@@ -83,6 +88,7 @@ export default function MenuScreen() {
           const idsFav = await cargarFavoritos(usuario.id);
           setEstados((ant) => ant.map((e) => ({ ...e, favorito: idsFav.includes(e.id) })));
         }
+        setCargando(false);
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: false }).start();
       };
       iniciar();
@@ -124,67 +130,12 @@ export default function MenuScreen() {
   const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? 'Ordenar';
 
   const renderizarEstado = ({ item }: { item: Estado }) => (
-    <Animated.View
-      style={{
-        opacity: fadeAnim,
-        transform: [
-          {
-            translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }),
-          },
-        ],
-      }}
-    >
-      {/* Contenedor relativo para que el botón de favorito (absolute) se posicione sobre la tarjeta */}
-      <View style={estilos.tarjetaContenedor}>
-        <TouchableOpacity
-          testID="destination-card"
-          style={estilos.tarjeta}
-          activeOpacity={0.88}
-          accessibilityRole="button"
-          accessibilityLabel={`Abrir destino ${item.nombre}`}
-          accessibilityHint="Muestra paquetes y detalle del destino"
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/detalle',
-              params: { nombre: item.nombre, categoria: item.categoria },
-            } as any)
-          }
-        >
-          <Image source={item.imagen} style={estilos.imagenTarjeta} resizeMode="cover" />
-          <View style={estilos.sombra} />
-          <View style={estilos.badgeCategoria}>
-            <Text style={estilos.textoBadge}>{item.categoria}</Text>
-          </View>
-          <View style={estilos.badgePrecio}>
-            <Text style={estilos.textoPrecio}>Desde ${item.precio.toLocaleString()}</Text>
-          </View>
-          <Text style={estilos.nombreTarjeta}>{item.nombre}</Text>
-          <Text style={estilos.descripcionTarjeta} numberOfLines={2}>
-            {item.descripcion}
-          </Text>
-        </TouchableOpacity>
-        {/* Botón favorito FUERA del TouchableOpacity de la tarjeta — evita conflicto de eventos en web */}
-        <TouchableOpacity
-          style={estilos.botonFavorito}
-          onPress={() => manejarFavorito(item.id)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={item.favorito ? `Quitar ${item.nombre} de favoritos` : `Agregar ${item.nombre} a favoritos`}
-        >
-          <Animated.View style={{ transform: [{ scale: obtenerAnimFav(item.id) }] }}>
-            <Image
-              source={
-                item.favorito
-                  ? require('../../assets/images/favoritos_rojo.png')
-                  : require('../../assets/images/favoritos_gris.png')
-              }
-              style={{ width: 20, height: 20 }}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
+    <DestinoCard
+      item={item}
+      fadeAnim={fadeAnim}
+      animFav={obtenerAnimFav(item.id)}
+      onToggleFavorito={manejarFavorito}
+    />
   );
 
   // Sidebar (PC)
@@ -232,7 +183,7 @@ export default function MenuScreen() {
                 borderColor: isDark ? tema.borde : tema.bordeInput,
               },
             ]}
-            onPress={() => router.push('/(tabs)/notificaciones' as any)}
+            onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)}
           >
             <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
           </TouchableOpacity>
@@ -340,7 +291,9 @@ export default function MenuScreen() {
           />
         )}
 
-        {estadosFiltrados.length === 0 ? (
+        {cargando ? (
+          <SkeletonLista cantidad={4} />
+        ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>
             <Text style={estilos.textoVacio}>🗺️</Text>
             <Text style={estilos.tituloVacio}>Sin resultados</Text>

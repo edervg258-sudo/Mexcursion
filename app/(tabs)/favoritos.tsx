@@ -10,6 +10,7 @@ import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
+import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
@@ -157,7 +158,7 @@ export default function FavoritosScreen() {
   // ── Contenido ──────────────────────────────────────────────────────────
   const Contenido = () => (
     <View style={{ flex: 1 }}>
-      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)} />
+      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)} />
 
       <View style={s.contenedorCentrado}>
         {cargando ? (

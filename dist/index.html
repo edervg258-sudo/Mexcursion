@@ -23,30 +23,7 @@
         flex: 1;
       }
     </style>
-  <link rel="icon" href="/favicon.ico" />
-  <!-- SEO -->
-  <meta name="description" content="Mercursión — Descubre y reserva experiencias únicas cerca de ti." />
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Mercursión" />
-  <meta property="og:description" content="Descubre y reserva experiencias únicas cerca de ti." />
-  <meta property="og:image" content="/icons/icon-1024.png" />
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Mercursión" />
-  <meta name="twitter:description" content="Descubre y reserva experiencias únicas cerca de ti." />
-  <meta name="twitter:image" content="/icons/icon-1024.png" />
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#3AB7A5" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Mercursión" />
-  <link rel="apple-touch-icon" href="/icons/icon-1024.png" />
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/icons/icon-1024.png" />
-  <link rel="icon" type="image/png" sizes="48x48"     href="/icons/icon-48.png" />
-</head>
+  <link rel="icon" href="/favicon.ico" /></head>
 
   <body>
     <!-- Use static rendering with Expo Router to support running without JavaScript. -->
@@ -55,27 +32,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/_expo/static/js/web/entry-d19a113d567bfa76593aba7d9b9b6526.js" defer></script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker
-          .register('/sw.js', { scope: '/' })
-          .then(function (reg) {
-            reg.addEventListener('updatefound', function () {
-              var installing = reg.installing;
-              installing.addEventListener('statechange', function () {
-                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                  installing.postMessage('SKIP_WAITING');
-                }
-              });
-            });
-          })
-          .catch(function (err) { console.warn('[SW] registro fallido:', err); });
-      });
-    }
-  </script>
-
+  <script src="/_expo/static/js/web/entry-8ec823742c7415c631ce806b5fdfad05.js" defer></script>
 </body>
 </html>

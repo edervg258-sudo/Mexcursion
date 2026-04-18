@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -148,7 +149,7 @@ export default function LoginScreen() {
                     onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
-                    <Text style={estilos.textoOjo}>{verContrasena ? '🙈' : '👁️'}</Text>
+                    <Ionicons name={verContrasena ? 'eye-off' : 'eye'} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
                 {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
@@ -241,5 +242,4 @@ const estilos = StyleSheet.create({
   tituloModal:      { fontSize: 20, fontWeight: '700', color: '#222', marginBottom: 6, textAlign: 'center' },
   subtituloModal:   { fontSize: 13, color: '#666', marginBottom: 16, textAlign: 'center' },
   botonOjo:         { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
-  textoOjo:         { fontSize: 18 },
 });

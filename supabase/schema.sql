@@ -9,9 +9,10 @@
 --  FUNCIÓN AUXILIAR: detectar si el usuario actual es admin
 --  SECURITY DEFINER evita recursividad en las políticas RLS
 -- ════════════════════════════════════════════════════════════
-CREATE OR REPLACE FUNCTION es_admin()
+CREATE OR REPLACE FUNCTION public.es_admin()
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.usuarios
@@ -81,7 +82,8 @@ CREATE POLICY "admin_update_usuarios"
 --  TRIGGER: crear perfil automáticamente al confirmar email
 -- ════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.crear_perfil_usuario()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
 BEGIN
   INSERT INTO public.usuarios (id, email, nombre, nombre_usuario, telefono,
                                 idioma, notificaciones, tipo, activo)

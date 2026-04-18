@@ -1,4 +1,4 @@
-# Mercursión 🗺️
+# Mexcursión 🗺️
 
 Una aplicación móvil para descubrir y reservar viajes por México, construida con React Native y Expo. Explora 32 estados mexicanos con paquetes personalizados para todos los presupuestos.
 

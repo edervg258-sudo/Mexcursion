@@ -8,6 +8,7 @@ import {
 import { SkeletonFilas } from './skeletonloader';
 import { TabChrome } from '../../components/TabChrome';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { limpiarBadge } from '../../lib/push-notifications';
 import { type TraduccionClave } from '../../lib/traducciones';
 import {
   cargarNotificaciones,
@@ -65,6 +66,7 @@ export default function NotificacionesScreen() {
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       setCargando(true);
+      limpiarBadge();
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);

@@ -9,7 +9,20 @@
       "Bash(npm test:*)",
       "Bash(git commit -m ':*)",
       "Bash(rm -f .git/index.lock)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(git commit -m 'fix: agregar valores por defecto de Supabase en Dockerfile:*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m 'fix: crear .env.production dinámicamente en Dockerfile:*)",
+      "Bash(git commit -m 'fix: no enviar analytics sin usuario autenticado:*)",
+      "Bash(git commit:*)",
+      "Bash(node -e ':*)",
+      "Bash(node scripts/inject-pwa.js)",
+      "Bash(find app:*)",
+      "Bash(gh.exe pr create --title 'fix: protección ruta admin, Share nativo en detalle, reintento inline en pago' --body ':*)",
+      "Read(//c/Users/usuario/AppData/Local/Programs/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/usuario/**)",
+      "Bash(npx jest *)"
     ]
   }
 }

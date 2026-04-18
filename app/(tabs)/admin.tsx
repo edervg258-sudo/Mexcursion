@@ -4,14 +4,19 @@ import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator, Alert,
     Image,
-    Pressable, ScrollView,
-    StyleSheet, Text, TextInput,
+    ScrollView,
+    StyleSheet, Text,
     TouchableOpacity,
     useWindowDimensions,
     View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdminDashboard } from '../../components/AdminDashboard';
+import { AdminNavBar } from '../../components/Admin/AdminNavBar';
+import { SeccionDestinos } from '../../components/Admin/SeccionDestinos';
+import { SeccionReservas } from '../../components/Admin/SeccionReservas';
+import { SeccionUsuarios } from '../../components/Admin/SeccionUsuarios';
+import { Destino, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
 import { RUTAS_TEMATICAS } from '../../lib/datos/rutas-tematicas';
 import {
     actualizarDestino,
@@ -26,26 +31,6 @@ import {
     toggleActivoUsuarioAdmin
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
-import { SkeletonFilas } from './skeletonloader';
-
-// ── Tipos ──────────────────────────────────────────────────────────────────
-type Seccion = 'dashboard' | 'destinos' | 'rutas' | 'reservas' | 'usuarios';
-
-type Destino = {
-  id: number; nombre: string; categoria: string;
-  precio: number; descripcion: string; activo: boolean;
-};
-
-type Reserva = {
-  id: number; folio: string; usuario_id: number; nombre_usuario: string;
-  destino: string; paquete: string; fecha: string; personas: number;
-  total: number; metodo: string; estado: string; creado_en: string;
-};
-
-type Usuario = {
-  id: string; nombre: string; correo: string; nombre_usuario: string;
-  creado_en: string; reservas_count: number; activo: number; tipo: string;
-};
 
 // ── Imágenes de rutas ──────────────────────────────────────────────────────
 const RUTA_IMG: Record<string, number> = {
@@ -190,7 +175,7 @@ export default function AdminScreen() {
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
   };
 
-  // ── Usuarios ──────────────────────────────────────────────────────────
+  // ── Usuarios ──────────────────────────────────────────────────────────────
   const handleCambiarTipo = async (id: string, tipoActual: string) => {
     const nuevoTipo = tipoActual === 'admin' ? 'normal' : 'admin';
     setUsuarios(u => u.map(x => x.id === id ? { ...x, tipo: nuevoTipo } : x));
@@ -343,41 +328,7 @@ export default function AdminScreen() {
     });
   })();
 
-  // ── Nav ───────────────────────────────────────────────────────────────
-  const NAV: { id: Seccion; label: string; abrev: string }[] = [
-    { id: 'dashboard', label: 'Panel',    abrev: 'PNL' },
-    { id: 'destinos',  label: 'Destinos', abrev: 'DST' },
-    { id: 'rutas',     label: 'Rutas',    abrev: 'RTS' },
-    { id: 'reservas',  label: 'Reservas', abrev: 'RSV' },
-    { id: 'usuarios',  label: 'Usuarios', abrev: 'USR' },
-  ];
-
-  const NavBar = () => esPC ? (
-    <View style={[s.sidebar, { backgroundColor: isDark ? '#0D1412' : '#0f172a' }]}>
-      <View style={s.sidebarHeader}>
-        <Text style={s.sidebarTitulo}>Admin</Text>
-        <Text style={s.sidebarSub}>Mexcursión</Text>
-      </View>
-      <View style={s.separador} />
-      {NAV.map(n => (
-        <TouchableOpacity key={n.id} style={[s.navItem, seccion === n.id && s.navItemActivo]} onPress={() => setSeccion(n.id)}>
-          <View style={[s.navAbrev, seccion === n.id && { backgroundColor: tema.primario }]}>
-            <Text style={[s.navAbrevTxt, seccion === n.id && s.navAbrevTxtActivo]}>{n.abrev}</Text>
-          </View>
-          <Text style={[s.navLabel, seccion === n.id && s.navLabelActivo]}>{n.label}</Text>
-        </TouchableOpacity>
-      ))}
-      <View style={{ flex: 1 }} />
-    </View>
-  ) : (
-    <View style={[s.bottomBar, { paddingBottom: Math.max(bottomInset, 8), backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, borderTopWidth: 1 }]}>
-      {NAV.map(n => (
-        <TouchableOpacity key={n.id} style={[s.bottomItem, seccion === n.id && { backgroundColor: tema.primarioSuave, borderRadius: 10 }]} onPress={() => setSeccion(n.id)}>
-          <Text style={[s.bottomLabel, { color: seccion === n.id ? tema.primario : tema.textoMuted }, seccion === n.id && { fontWeight: '700' }]}>{n.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  // NavBar delegado a AdminNavBar
 
   // ── Banner de error global (con botón Reintentar) ─────────────────────
   const ErrorBanner = () => errorCarga ? (
@@ -393,148 +344,38 @@ export default function AdminScreen() {
     </View>
   ) : null;
 
-  // ── Dashboard ─────────────────────────────────────────────────────────
+  // ── Secciones delegadas a componentes externos ────────────────────────
   const Dashboard = () => (
     <AdminDashboard stats={stats} cargando={cargando} esPC={esPC} />
   );
 
-  // ── Destinos ──────────────────────────────────────────────────────────
   const Destinos = () => (
-    <View style={{ flex: 1 }}>
-      {modoForm ? (
-        <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-          <View style={s.rowHeader}>
-            <Text style={[s.seccionTitulo, { color: tema.texto }]}>{modoForm === 'nuevo' ? 'Nuevo destino' : 'Editar destino'}</Text>
-            <TouchableOpacity onPress={() => setModoForm(null)}>
-              <Text style={[s.btnCancelarTxt, { color: tema.acento }]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-          {([
-            { key: 'nombre',    label: 'Nombre',      val: formNombre,    set: setFormNombre,    ph: 'Ej: Oaxaca' },
-            { key: 'categoria', label: 'Categoría',   val: formCategoria, set: setFormCategoria, ph: 'Playa / Cultura / Aventura...' },
-            { key: 'precio',    label: 'Precio base', val: formPrecio,    set: setFormPrecio,    ph: 'Ej: 2500', numeric: true },
-            { key: 'desc',      label: 'Descripción', val: formDesc,      set: setFormDesc,      ph: 'Descripción breve' },
-          ] as { key: string; label: string; val: string; set: (v: string) => void; ph: string; numeric?: boolean }[]).map(f => {
-            const error = formErrores[f.key];
-            return (
-              <View key={f.key} style={{ marginBottom: 14 }}>
-                <Text style={[s.formLabel, { color: tema.textoMuted }]}>{f.label}</Text>
-                <TextInput
-                  style={[s.formInput, { backgroundColor: tema.superficieBlanca, color: tema.texto, borderColor: error ? '#DD331D' : tema.borde, borderWidth: 1 }]}
-                  value={f.val}
-                  onChangeText={v => { f.set(v); if (error) setFormErrores(e => ({ ...e, [f.key]: undefined })); }}
-                  placeholder={f.ph}
-                  placeholderTextColor={tema.textoMuted}
-                  keyboardType={f.numeric ? 'numeric' : 'default'}
-                />
-                {error && <Text style={s.formError}>{error}</Text>}
-              </View>
-            );
-          })}
-          <TouchableOpacity style={s.btnPrimario} onPress={guardarDestino}>
-            <Text style={s.btnPrimarioTxt}>Guardar destino</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      ) : (
-        <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-          <View style={s.rowHeader}>
-            <Text style={[s.seccionTitulo, { color: tema.texto }]}>
-              Destinos{' '}
-              <Text style={{ color: tema.textoMuted, fontSize: 16, fontWeight: '400' }}>
-                ({destinosFiltrados.length}{destinosFiltrados.length !== destinos.length ? ` de ${destinos.length}` : ''})
-              </Text>
-            </Text>
-            <TouchableOpacity style={[s.btnNuevo, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo}>
-              <Text style={s.btnNuevoTxt}>+ Nuevo</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Búsqueda */}
-          <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-            <Text style={{ color: tema.textoMuted, fontSize: 15, marginRight: 6 }}>🔍</Text>
-            <TextInput
-              style={{ flex: 1, color: tema.texto, fontSize: 14 }}
-              placeholder="Buscar destino…"
-              placeholderTextColor={tema.textoMuted}
-              value={busquedaDestino}
-              onChangeText={setBusquedaDestino}
-              returnKeyType="search"
-            />
-            {busquedaDestino.length > 0 && (
-              <TouchableOpacity onPress={() => setBusquedaDestino('')}>
-                <Text style={{ color: tema.textoMuted, fontSize: 16, paddingLeft: 6 }}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Chips categoría */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-              {categoriasDestino.map(cat => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[s.chipFiltro, { backgroundColor: filtroCategoria === cat ? tema.primario : tema.superficieBlanca }]}
-                  onPress={() => setFiltroCategoria(cat)}
-                >
-                  <Text style={[s.chipFiltroTxt, { color: filtroCategoria === cat ? '#fff' : tema.textoMuted }, filtroCategoria === cat && { fontWeight: '700' }]}>
-                    {cat === 'todas' ? 'Todas' : cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Chips orden */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-              {[{ id: 'nombre', label: 'A-Z' }, { id: 'precio-asc', label: 'Precio ↑' }, { id: 'precio-desc', label: 'Precio ↓' }, { id: 'activos', label: 'Activos' }].map(o => (
-                <TouchableOpacity
-                  key={o.id}
-                  style={[s.chipFiltro, { backgroundColor: ordenDestinos === o.id ? tema.acento : tema.superficieBlanca }]}
-                  onPress={() => setOrdenDestinos(o.id)}
-                >
-                  <Text style={[s.chipFiltroTxt, { color: ordenDestinos === o.id ? '#fff' : tema.textoMuted }, ordenDestinos === o.id && { fontWeight: '700' }]}>
-                    {o.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-
-          {destinosFiltrados.length === 0 ? (
-            <View style={s.vacioCentrado}>
-              <Text style={[s.textoVacio, { color: tema.textoMuted }]}>
-                {destinos.length === 0 ? 'Sin destinos registrados' : busquedaDestino ? `Sin resultados para "${busquedaDestino}"` : 'Sin resultados para este filtro'}
-              </Text>
-            </View>
-          ) : destinosFiltrados.map(d => (
-            <View key={d.id} style={[s.itemCard, { backgroundColor: tema.superficieBlanca }, !d.activo && s.itemCardInactivo]}>
-              <View style={{ flex: 1 }}>
-                <View style={s.itemCardRow}>
-                  <Text style={[s.itemNombre, { color: tema.texto }]}>{d.nombre}</Text>
-                  <View style={[s.badge, { backgroundColor: d.activo ? tema.primarioSuave : tema.superficie }]}>
-                    <Text style={[s.badgeTxt, { color: d.activo ? tema.primario : tema.textoMuted }]}>{d.categoria}</Text>
-                  </View>
-                </View>
-                <Text style={[s.itemSub, { color: tema.textoMuted }]}>{d.descripcion}</Text>
-                <Text style={[s.itemPrecio, { color: tema.acento }]}>${d.precio.toLocaleString()} MXN / persona</Text>
-              </View>
-              <View style={s.itemAcciones}>
-                <Pressable style={[s.btnAccion, { backgroundColor: tema.superficie }]} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => handleToggleActivoDestino(d.id)}>
-                  <Text style={[s.btnAccionTxt, { color: d.activo ? '#9A7118' : tema.primario }]}>{d.activo ? 'Pausar' : 'Activar'}</Text>
-                </Pressable>
-                <Pressable style={[s.btnAccion, { backgroundColor: tema.superficie }]} android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }} onPress={() => abrirFormEditar(d)}>
-                  <Text style={[s.btnAccionTxt, { color: tema.texto }]}>Editar</Text>
-                </Pressable>
-                <Pressable style={[s.btnAccion, { backgroundColor: tema.superficie }]} android_ripple={{ color: 'rgba(221,51,29,0.12)', borderless: false }} onPress={() => handleEliminarDestino(d.id)}>
-                  <Text style={[s.btnAccionTxt, { color: tema.acento }]}>Eliminar</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </View>
+    <SeccionDestinos
+      destinos={destinos}
+      destinosFiltrados={destinosFiltrados}
+      modoForm={modoForm}
+      form={{ nombre: formNombre, categoria: formCategoria, precio: formPrecio, desc: formDesc, errores: formErrores }}
+      busqueda={busquedaDestino}
+      filtroCategoria={filtroCategoria}
+      ordenDestinos={ordenDestinos}
+      categoriasDestino={categoriasDestino}
+      onAbrirFormNuevo={abrirFormNuevo}
+      onCancelarForm={() => setModoForm(null)}
+      onGuardar={guardarDestino}
+      onSetForm={(campo, val) => {
+        if (campo === 'nombre')    setFormNombre(val);
+        if (campo === 'categoria') setFormCategoria(val);
+        if (campo === 'precio')    setFormPrecio(val);
+        if (campo === 'desc')      setFormDesc(val);
+      }}
+      onLimpiarError={campo => setFormErrores(e => ({ ...e, [campo]: undefined }))}
+      onEliminar={handleEliminarDestino}
+      onToggleActivo={handleToggleActivoDestino}
+      onEditar={abrirFormEditar}
+      onBusqueda={setBusquedaDestino}
+      onFiltroCategoria={setFiltroCategoria}
+      onOrden={setOrdenDestinos}
+    />
   );
 
   // ── Rutas temáticas (datos locales — RUTAS_TEMATICAS) ─────────────────
@@ -593,239 +434,38 @@ export default function AdminScreen() {
     </ScrollView>
   );
 
-  // ── Reservas ──────────────────────────────────────────────────────────
-  const Reservas = () => {
-    const filtradas = reservasFiltradas;
-    return (
-      <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-        <Text style={[s.seccionTitulo, { color: tema.texto }]}>
-          Reservas{' '}
-          <Text style={{ color: tema.textoMuted, fontSize: 16, fontWeight: '400' }}>
-            ({filtradas.length}{filtradas.length !== reservas.length ? ` de ${reservas.length}` : ''})
-          </Text>
-        </Text>
-        {cargando ? <SkeletonFilas cantidad={4} /> : (
-          <>
-            {/* Búsqueda */}
-            <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Text style={{ color: tema.textoMuted, fontSize: 15, marginRight: 6 }}>🔍</Text>
-              <TextInput
-                style={{ flex: 1, color: tema.texto, fontSize: 14 }}
-                placeholder="Buscar por folio, usuario o destino…"
-                placeholderTextColor={tema.textoMuted}
-                value={busquedaReserva}
-                onChangeText={setBusquedaReserva}
-                returnKeyType="search"
-              />
-              {busquedaReserva.length > 0 && (
-                <TouchableOpacity onPress={() => setBusquedaReserva('')}>
-                  <Text style={{ color: tema.textoMuted, fontSize: 16, paddingLeft: 6 }}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+  const Reservas = () => (
+    <SeccionReservas
+      reservas={reservas}
+      reservasFiltradas={reservasFiltradas}
+      cargando={cargando}
+      busqueda={busquedaReserva}
+      filtroEstado={filtroReserva}
+      filtroFecha={filtroFecha}
+      orden={ordenReservas}
+      onBusqueda={setBusquedaReserva}
+      onFiltroEstado={setFiltroReserva}
+      onFiltroFecha={setFiltroFecha}
+      onOrden={setOrdenReservas}
+      onCambiarEstado={handleCambiarEstado}
+    />
+  );
 
-            {/* Chips estado */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-              <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-                {['todas', 'pendiente', 'confirmada', 'completada', 'cancelada'].map(f => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[s.chipFiltro, { backgroundColor: filtroReserva === f ? tema.primario : tema.superficieBlanca }]}
-                    onPress={() => setFiltroReserva(f)}
-                  >
-                    <Text style={[s.chipFiltroTxt, { color: filtroReserva === f ? '#fff' : tema.textoMuted }, filtroReserva === f && { fontWeight: '700' }]}>
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            {/* Chips fecha */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-              <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-                {[{ id: 'todas', label: 'Cualquier fecha' }, { id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Últimos 7 días' }, { id: 'mes', label: 'Últimos 30 días' }].map(f => (
-                  <TouchableOpacity
-                    key={f.id}
-                    style={[s.chipFiltro, { backgroundColor: filtroFecha === f.id ? tema.acento : tema.superficieBlanca }]}
-                    onPress={() => setFiltroFecha(f.id)}
-                  >
-                    <Text style={[s.chipFiltroTxt, { color: filtroFecha === f.id ? '#fff' : tema.textoMuted }, filtroFecha === f.id && { fontWeight: '700' }]}>
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            {/* Chips orden */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-                {[{ id: 'reciente', label: 'Más nuevo' }, { id: 'antiguo', label: 'Más antiguo' }, { id: 'total-desc', label: 'Mayor total' }, { id: 'total-asc', label: 'Menor total' }].map(o => (
-                  <TouchableOpacity
-                    key={o.id}
-                    style={[s.chipFiltro, { backgroundColor: ordenReservas === o.id ? tema.acento : tema.superficieBlanca }]}
-                    onPress={() => setOrdenReservas(o.id)}
-                  >
-                    <Text style={[s.chipFiltroTxt, { color: ordenReservas === o.id ? '#fff' : tema.textoMuted }, ordenReservas === o.id && { fontWeight: '700' }]}>
-                      {o.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            {filtradas.length === 0 ? (
-              <View style={s.vacioCentrado}><Text style={[s.textoVacio, { color: tema.textoMuted }]}>{reservas.length === 0 ? 'Sin reservas registradas' : busquedaReserva ? `Sin resultados para "${busquedaReserva}"` : 'Sin resultados para este filtro'}</Text></View>
-            ) : filtradas.map(r => {
-              const ce = C_ESTADO_BASE[r.estado] ?? { fondo: '#f0f0f0', texto: '#888', label: r.estado };
-              const transiciones = TRANSICIONES[r.estado] ?? [];
-              const esCancelada = r.estado === 'cancelada';
-              const esPendiente = r.estado === 'pendiente';
-              return (
-                <View key={r.folio ?? r.id} style={[
-                  s.itemCard,
-                  { backgroundColor: esCancelada
-                      ? (isDark ? '#2A1210' : '#FEF0EE')
-                      : esPendiente
-                        ? (isDark ? '#2A2410' : '#FEFBEC')
-                        : tema.superficieBlanca,
-                    opacity: esCancelada ? 0.82 : 1,
-                  },
-                ]}>
-                  <View style={[s.barraEstado, { backgroundColor: ce.texto }]} />
-                  <View style={{ flex: 1 }}>
-                    <View style={s.itemCardRow}>
-                      <Text style={[s.itemNombre, { color: esCancelada ? ce.texto : tema.texto, textDecorationLine: esCancelada ? 'line-through' : 'none' }]}>{r.folio}</Text>
-                      <View style={[s.badge, { backgroundColor: ce.fondo }]}>
-                        <Text style={[s.badgeTxt, { color: ce.texto }]}>{ce.label}</Text>
-                      </View>
-                    </View>
-                    <Text style={[s.itemSub, { color: esCancelada ? ce.texto + 'AA' : tema.textoMuted }]}>{r.nombre_usuario} · {r.destino}</Text>
-                    <Text style={[s.itemSub, { color: tema.textoMuted }]}>{r.fecha} · {r.personas} persona{r.personas !== 1 ? 's' : ''} · Paq. {r.paquete}</Text>
-                    <Text style={[s.itemSub, { color: tema.textoMuted }]}>{r.metodo}</Text>
-                    <Text style={[
-                      s.itemPrecio,
-                      { color: esCancelada ? '#DD331D' : tema.acento,
-                        textDecorationLine: esCancelada ? 'line-through' : 'none' },
-                    ]}>
-                      {esCancelada ? '−' : ''}${(r.total ?? 0).toLocaleString()} MXN
-                    </Text>
-                    {transiciones.length > 0 && (
-                      <View style={s.transicionRow}>
-                        {transiciones.map(tr => (
-                          <Pressable key={tr.estado} style={[s.btnTransicion, { borderColor: tr.color, backgroundColor: tr.color + '15' }]} android_ripple={{ color: tr.color + '30', borderless: false }} onPress={() => handleCambiarEstado(r, tr.estado)}>
-                            <Text style={[s.btnTransicionTxt, { color: tr.color }]}>{tr.label}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </>
-        )}
-      </ScrollView>
-    );
-  };
-
-  // ── Usuarios ──────────────────────────────────────────────────────────
-  const Usuarios = () => {
-    const filtrados = usuariosFiltradosOrdenados;
-    return (
-      <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-        <View style={s.rowHeader}>
-          <Text style={[s.seccionTitulo, { color: tema.texto }]}>
-            Usuarios{' '}
-            <Text style={{ color: tema.textoMuted, fontSize: 16, fontWeight: '400' }}>
-              ({filtrados.length}{filtrados.length !== usuarios.length ? ` de ${usuarios.length}` : ''})
-            </Text>
-          </Text>
-          <View style={[s.badge, { backgroundColor: tema.primarioSuave }]}>
-            <Text style={[s.badgeTxt, { color: tema.primario }]}>{usuarios.filter(u => u.tipo === 'admin').length} admin</Text>
-          </View>
-        </View>
-
-        {/* Búsqueda */}
-        <View style={[s.inputBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-          <Text style={{ color: tema.textoMuted, fontSize: 15, marginRight: 6 }}>🔍</Text>
-          <TextInput
-            style={{ flex: 1, color: tema.texto, fontSize: 14 }}
-            placeholder="Buscar por nombre, usuario o correo…"
-            placeholderTextColor={tema.textoMuted}
-            value={busquedaUsuario}
-            onChangeText={setBusquedaUsuario}
-            returnKeyType="search"
-          />
-          {busquedaUsuario.length > 0 && (
-            <TouchableOpacity onPress={() => setBusquedaUsuario('')}>
-              <Text style={{ color: tema.textoMuted, fontSize: 16, paddingLeft: 6 }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Chips tipo */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-            {[{ clave: 'todos', label: 'Todos' }, { clave: 'admin', label: 'Admin' }, { clave: 'activos', label: 'Activos' }, { clave: 'inactivos', label: 'Inactivos' }].map(f => (
-              <TouchableOpacity key={f.clave} style={[s.chipFiltro, { backgroundColor: filtroUsuario === f.clave ? tema.primario : tema.superficieBlanca }]} onPress={() => setFiltroUsuario(f.clave)}>
-                <Text style={[s.chipFiltroTxt, { color: filtroUsuario === f.clave ? '#fff' : tema.textoMuted }, filtroUsuario === f.clave && { fontWeight: '700' }]}>{f.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* Chips orden */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
-            {[{ id: 'nombre', label: 'A-Z' }, { id: 'reservas', label: '+ Reservas' }, { id: 'reciente', label: 'Más nuevos' }].map(o => (
-              <TouchableOpacity
-                key={o.id}
-                style={[s.chipFiltro, { backgroundColor: ordenUsuarios === o.id ? tema.acento : tema.superficieBlanca }]}
-                onPress={() => setOrdenUsuarios(o.id)}
-              >
-                <Text style={[s.chipFiltroTxt, { color: ordenUsuarios === o.id ? '#fff' : tema.textoMuted }, ordenUsuarios === o.id && { fontWeight: '700' }]}>
-                  {o.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        {cargando ? <SkeletonFilas cantidad={4} /> : filtrados.length === 0 ? (
-          <View style={s.vacioCentrado}><Text style={[s.textoVacio, { color: tema.textoMuted }]}>{usuarios.length === 0 ? 'Sin usuarios registrados' : busquedaUsuario ? `Sin resultados para "${busquedaUsuario}"` : 'Sin resultados'}</Text></View>
-        ) : filtrados.map(u => (
-          <View key={u.id} style={[s.itemCard, { backgroundColor: tema.superficieBlanca }, !u.activo && s.itemCardInactivo]}>
-            <View style={[s.avatarGrande, { backgroundColor: u.tipo === 'admin' ? tema.primario : tema.borde }]}>
-              <Text style={[s.avatarLetraGrande, { color: u.tipo === 'admin' ? '#fff' : tema.textoSecundario }]}>{u.nombre?.[0]?.toUpperCase()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={s.itemCardRow}>
-                <Text style={[s.itemNombre, { color: tema.texto }]}>{u.nombre}</Text>
-                <View style={[s.badge, { backgroundColor: u.activo ? tema.primarioSuave : tema.superficie }]}>
-                  <Text style={[s.badgeTxt, { color: u.activo ? tema.primario : tema.textoMuted }]}>{u.activo ? 'Activo' : 'Inactivo'}</Text>
-                </View>
-              </View>
-              <Text style={[s.itemSub, { color: tema.textoMuted }]}>{u.correo}</Text>
-              <Text style={[s.itemSub, { color: tema.textoMuted }]}>{u.reservas_count} reserva{u.reservas_count !== 1 ? 's' : ''}</Text>
-              <View style={s.tipoRow}>
-                <View style={[s.badge, { backgroundColor: u.tipo === 'admin' ? tema.primarioSuave : tema.superficie }]}>
-                  <Text style={[s.badgeTxt, { color: u.tipo === 'admin' ? tema.primario : tema.textoMuted }]}>{u.tipo === 'admin' ? 'Administrador' : 'Normal'}</Text>
-                </View>
-                <Pressable style={[s.btnTransicion, { borderColor: u.tipo === 'admin' ? '#9A7118' : tema.primario, backgroundColor: (u.tipo === 'admin' ? '#9A7118' : tema.primario) + '15' }]} android_ripple={{ borderless: false }} onPress={() => handleCambiarTipo(u.id, u.tipo)}>
-                  <Text style={[s.btnTransicionTxt, { color: u.tipo === 'admin' ? '#9A7118' : tema.primario }]}>{u.tipo === 'admin' ? 'Quitar admin' : 'Hacer admin'}</Text>
-                </Pressable>
-              </View>
-            </View>
-            <Pressable style={[s.btnAccion, { backgroundColor: tema.superficie, borderColor: u.activo ? tema.acento : tema.primario }]} android_ripple={{ borderless: false }} onPress={() => handleToggleActivo(u.id)}>
-              <Text style={[s.btnAccionTxt, { color: u.activo ? tema.acento : tema.primario }]}>{u.activo ? 'Bloquear' : 'Activar'}</Text>
-            </Pressable>
-          </View>
-        ))}
-      </ScrollView>
-    );
-  };
+  const Usuarios = () => (
+    <SeccionUsuarios
+      usuarios={usuarios}
+      usuariosFiltrados={usuariosFiltradosOrdenados}
+      cargando={cargando}
+      busqueda={busquedaUsuario}
+      filtro={filtroUsuario}
+      orden={ordenUsuarios}
+      onBusqueda={setBusquedaUsuario}
+      onFiltro={setFiltroUsuario}
+      onOrden={setOrdenUsuarios}
+      onCambiarTipo={handleCambiarTipo}
+      onToggleActivo={handleToggleActivo}
+    />
+  );
 
   const SECCIONES: Record<Seccion, React.ReactNode> = {
     dashboard: <Dashboard />,
@@ -851,7 +491,7 @@ export default function AdminScreen() {
       <SafeAreaView style={s.segura}>
         {esPC ? (
           <View style={s.layoutPC}>
-            <NavBar />
+            <AdminNavBar esPC={esPC} seccion={seccion} onSeleccionar={setSeccion} />
             <View style={[s.contenidoPC, { backgroundColor: tema.fondo }]}>
               <View style={[s.headerPC, { borderBottomColor: tema.borde, borderBottomWidth: 1, paddingBottom: 16 }]}>
                 <TouchableOpacity onPress={() => router.back()}>
@@ -882,7 +522,7 @@ export default function AdminScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <NavBar />
+            <AdminNavBar esPC={esPC} seccion={seccion} onSeleccionar={setSeccion} />
           </View>
         )}
       </SafeAreaView>
@@ -891,107 +531,45 @@ export default function AdminScreen() {
 }
 
 const s = StyleSheet.create({
-  contenedor:    { flex: 1 },
-  segura:        { flex: 1 },
-  layoutMovil:   { flex: 1 },
-  layoutPC:      { flexDirection: 'row', flex: 1 },
+  // Layout
+  contenedor:  { flex: 1 },
+  segura:      { flex: 1 },
+  layoutMovil: { flex: 1 },
+  layoutPC:    { flexDirection: 'row', flex: 1 },
 
-  headerMovil:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, elevation: 2 },
-  headerTitulo:  { fontSize: 16, fontWeight: '700' },
-  btnAtras:      { fontSize: 16, fontWeight: '600' },
-
-  seccionScroll: { padding: 16, gap: 14, paddingBottom: 120 },
-  seccionTitulo: { fontSize: 22, fontWeight: '800' },
-  subTitulo:     { fontSize: 14, fontWeight: '600' },
-
-  // Cards
-  itemCard:         { borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, elevation: 1 },
-  itemCardInactivo: { opacity: 0.5 },
-  itemCardRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemNombre:       { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
-  itemSub:          { fontSize: 12, marginTop: 3 },
-  itemPrecio:       { fontSize: 14, fontWeight: '700', marginTop: 6 },
-  itemAcciones:     { flexDirection: 'column', gap: 6 },
-
-  badge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeTxt: { fontSize: 11, fontWeight: '700' },
-
-  // Formularios
-  formLabel: { fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  formInput: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, elevation: 0 },
-  formError: { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 2 },
-
-  // Botones
-  btnAccion:      { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  btnAccionTxt:   { fontSize: 12, fontWeight: '700' },
-  btnPrimario:    { backgroundColor: '#3AB7A5', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  btnPrimarioTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnNuevo:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
-  btnNuevoTxt:    { color: '#fff', fontWeight: '600', fontSize: 13 },
-  btnCancelarTxt: { fontWeight: '600' },
-
-  // Chips filtro
-  chipFiltro:    { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, elevation: 1 },
-  chipFiltroTxt: { fontSize: 13 },
-
-  // Bottom bar
-  bottomBar:   { flexDirection: 'row', elevation: 8 },
-  bottomItem:  { flex: 1, alignItems: 'center', paddingVertical: 11 },
-  bottomLabel: { fontSize: 11 },
-
-  // FAB
-  fab:    { position: 'absolute', right: 20, bottom: 80, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', elevation: 6 },
-  fabTxt: { color: '#fff', fontSize: 26, fontWeight: 'bold' },
-
-  // Sidebar PC
-  sidebar:           { width: 80, paddingVertical: 16, alignItems: 'center', elevation: 4 },
-  sidebarHeader:     { alignItems: 'center', marginBottom: 20 },
-  sidebarTitulo:     { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sidebarSub:        { color: '#94a3b8', fontSize: 11 },
-  separador:         { height: 1, backgroundColor: '#1e293b', width: '80%', marginVertical: 12 },
-  navItem:           { width: '100%', alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
-  navItemActivo:     { backgroundColor: '#1e293b' },
-  navAbrev:          { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e293b' },
-  navAbrevTxt:       { color: '#cbd5f5', fontWeight: '600', fontSize: 11 },
-  navAbrevTxtActivo: { color: '#fff' },
-  navLabel:          { fontSize: 10, color: '#94a3b8', marginTop: 3 },
-  navLabelActivo:    { color: '#fff' },
+  // Header
+  headerMovil:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, elevation: 2 },
+  headerTitulo: { fontSize: 16, fontWeight: '700' },
+  btnAtras:     { fontSize: 16, fontWeight: '600' },
 
   // Contenido PC
   contenidoPC: { flex: 1, padding: 20 },
   headerPC:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
 
-  // Reservas
-  barraEstado:      { width: 4, borderRadius: 4, marginRight: 4 },
-  transicionRow:    { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
-  btnTransicion:    { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
-  btnTransicionTxt: { fontSize: 12, fontWeight: '600' },
+  // FAB
+  fab:    { position: 'absolute', right: 20, bottom: 80, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', elevation: 6 },
+  fabTxt: { color: '#fff', fontSize: 26, fontWeight: 'bold' },
 
-  // Usuarios
-  tipoRow:            { flexDirection: 'row', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' },
-  avatarGrande:       { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
-  avatarLetraGrande:  { color: '#fff', fontSize: 18, fontWeight: '700' },
-
-  // Otros
-  rowHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  vacioCentrado:{ paddingVertical: 40, alignItems: 'center' },
-  textoVacio:   { fontSize: 14 },
-
-  // Búsqueda
-  inputBusqueda: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
-
-  // Error
+  // Error banner
   errorBannerTxt: { fontSize: 13, fontWeight: '600' },
 
-  // Rutas temáticas
+  // Rutas temáticas (SeccionRutas inline)
   rutaCard:     { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
   rutaCardTop:  { flexDirection: 'row', gap: 12, padding: 14 },
   rutaCardImg:  { width: 68, height: 68, borderRadius: 10 },
-  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14, gap: 0 },
+  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
   rutaInfoItem: { flex: 1, alignItems: 'center', gap: 2 },
   rutaInfoLbl:  { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
   rutaInfoVal:  { fontSize: 13, fontWeight: '800' },
   rutaTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
   rutaTag:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
   rutaTagTxt:   { fontSize: 11, fontWeight: '600' },
+  itemCardRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  itemNombre:   { fontSize: 15, fontWeight: '700', flex: 1 },
+  itemSub:      { fontSize: 12, marginTop: 2 },
+  badge:        { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
+  badgeTxt:     { fontSize: 11, fontWeight: '700' },
+  subTitulo:    { fontSize: 14, fontWeight: '600' },
+  seccionScroll:{ padding: 16, gap: 14, paddingBottom: 120 },
+  seccionTitulo:{ fontSize: 22, fontWeight: '800' },
 });

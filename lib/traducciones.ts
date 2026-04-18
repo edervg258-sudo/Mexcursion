@@ -1,6 +1,8 @@
 export type Idioma = 'es' | 'en';
 
-const T = {
+type Traducible = { [key in Idioma]: string };
+
+const T: Record<string, Traducible> = {
   // ── Pestañas de navegación ─────────────────────────────────
   tab_menu:        { es: 'Inicio',      en: 'Home'        },
   tab_favoritos:   { es: 'Favoritos',   en: 'Favorites'   },
@@ -245,8 +247,8 @@ const T = {
   // ── Perfil / Configuración ────────────────────────────────
   prf_titulo:           { es: 'Configuración',                en: 'Settings'                   },
   prf_accesos:          { es: 'Accesos rápidos',              en: 'Quick access'               },
-  prf_mis_reservas:     { es: '📋 Mis reservas',              en: '📋 My bookings'             },
-  prf_historial:        { es: '📜 Historial',                 en: '📜 History'                 },
+  prf_mis_reservas:     { es: 'Mis reservas',                  en: 'My bookings'                },
+  prf_historial:        { es: 'Historial',                    en: 'History'                    },
   prf_cuenta:           { es: 'Cuenta',                       en: 'Account'                    },
   prf_editar_perfil:    { es: 'Editar perfil',                en: 'Edit profile'               },
   prf_cambiar_pass:     { es: 'Cambiar contraseña',           en: 'Change password'            },
@@ -285,8 +287,8 @@ const T = {
   // Notificaciones
   prf_notif_push:       { es: 'Notificaciones push',          en: 'Push notifications'         },
   prf_notif_desc:       { es: 'Recibir alertas de nuevos destinos y ofertas', en: 'Receive alerts for new destinations and offers' },
-  prf_notif_on:         { es: '✅ Activadas',                  en: '✅ Enabled'                 },
-  prf_notif_off:        { es: '🔕 Desactivadas',               en: '🔕 Disabled'               },
+  prf_notif_on:         { es: 'Activadas',                     en: 'Enabled'                    },
+  prf_notif_off:        { es: 'Desactivadas',                  en: 'Disabled'                   },
   prf_notif_estado:     { es: 'Notificaciones:',              en: 'Notifications:'             },
   // Idioma
   prf_idioma_titulo:    { es: 'Idioma',                       en: 'Language'                   },
@@ -297,8 +299,8 @@ const T = {
   prf_tema_titulo:      { es: 'Tema de la app',               en: 'App theme'                 },
   prf_tema_oscuro:      { es: 'Modo oscuro',                  en: 'Dark mode'                 },
   prf_tema_desc:        { es: 'Cambiar entre tema claro y oscuro', en: 'Switch between light and dark theme' },
-  prf_tema_on:          { es: '🌙 Activado',                   en: '🌙 Enabled'                 },
-  prf_tema_off:         { es: '☀️ Desactivado',                en: '☀️ Disabled'               },
+  prf_tema_on:          { es: 'Activado',                      en: 'Enabled'                    },
+  prf_tema_off:         { es: 'Desactivado',                   en: 'Disabled'                   },
   prf_tema_estado:      { es: 'Tema oscuro:',                 en: 'Dark theme:'               },
   // Ayuda
   prf_ayuda_titulo:     { es: 'Centro de ayuda',              en: 'Help center'                },
@@ -456,8 +458,8 @@ export type TraduccionClave = keyof typeof T;
 // Cambiar de idioma = swap de referencia, sin ningún cómputo adicional.
 type MapaPlano = Record<TraduccionClave, string>;
 export const TEXTOS: Record<Idioma, MapaPlano> = {
-  es: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, (v as any).es])) as MapaPlano,
-  en: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, (v as any).en])) as MapaPlano,
+  es: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v.es])) as MapaPlano,
+  en: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v.en])) as MapaPlano,
 };
 
 /** Devuelve el string en el idioma solicitado, con soporte de interpolación {var} */

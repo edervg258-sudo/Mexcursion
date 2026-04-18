@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
+import { useTemaContext } from '../lib/TemaContext';
 
 // ── Patrones binarios Code 128 (1 = barra, 0 = espacio) ──────────────────────
 // Índices 0-99 = datos, 100-102 = Code B/A/FNC1, 103-105 = Start A/B/C
@@ -81,6 +82,7 @@ interface Props {
 }
 
 export default function CodigoBarrasOxxo({ referencia, precio, ancho = 300 }: Props) {
+  const { tema } = useTemaContext();
   const bits = useMemo(() => bitsCodigo128C(referencia), [referencia]);
 
   const zonasSilencio = 20; // módulos de margen (10 izq + 10 der)
@@ -91,8 +93,14 @@ export default function CodigoBarrasOxxo({ referencia, precio, ancho = 300 }: Pr
   // Formatea referencia en grupos de 4: XXXX XXXX XXXX XXXX XX
   const referenciaFormateada = referencia.replace(/(\d{4})(?=\d)/g, '$1 ');
 
+  const eo = useMemo(() => crearEstilos(tema.acento), [tema.acento]);
+
   return (
-    <View style={eo.contenedor}>
+    <View
+      style={eo.contenedor}
+      accessible={true}
+      accessibilityLabel={`Referencia de pago OXXO Pay por ${precio} pesos. Número de referencia: ${referencia}`}
+    >
 
       {/* Cabecera roja OXXO */}
       <View style={eo.cabecera}>
@@ -148,20 +156,23 @@ export default function CodigoBarrasOxxo({ referencia, precio, ancho = 300 }: Pr
 }
 
 // ── Estilos ───────────────────────────────────────────────────────────────────
-const eo = StyleSheet.create({
+const crearEstilos = (acento: string) => StyleSheet.create({
   contenedor: {
-  width: '100%',
-  backgroundColor: '#fff',
-  borderRadius: 18,
-  overflow: 'hidden',
-  borderWidth: 1.5,
-  borderColor: '#DD331D',
-  marginBottom: 16,
-  elevation: 4,
-  boxShadow: '0px 3px 8px rgba(221,51,29,0.15)'
-},
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: acento,
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: acento,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
 
-  cabecera:            { backgroundColor: '#DD331D', paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center' },
+  cabecera:            { backgroundColor: acento, paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center' },
   textoOxxo:           { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1.5 },
   subCabecera:         { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 2 },
 
@@ -171,7 +182,7 @@ const eo = StyleSheet.create({
 
   filaMonto:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#fafafa' },
   labelMonto:          { fontSize: 13, color: '#888', fontWeight: '600' },
-  valorMonto:          { fontSize: 20, color: '#DD331D', fontWeight: '900' },
+  valorMonto:          { fontSize: 20, color: acento, fontWeight: '900' },
 
   instrucciones:       { padding: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   instrTitulo:         { fontSize: 11, fontWeight: '800', color: '#555', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
