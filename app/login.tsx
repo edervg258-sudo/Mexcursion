@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { EyeIcon } from '../components/EyeIcon';
 import React, { useEffect, useState } from 'react';
 import {
     Image, Modal, ScrollView,
@@ -149,7 +149,7 @@ export default function LoginScreen() {
                     onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
-                    <Ionicons name={verContrasena ? 'eye-off' : 'eye'} size={22} color="#888" />
+                    <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
                 {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}

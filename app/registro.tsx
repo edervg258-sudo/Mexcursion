@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { EyeIcon } from '../components/EyeIcon';
 import React, { useEffect, useState } from 'react';
 import {
     Image,
@@ -203,7 +203,7 @@ export default function RegistroScreen() {
                     secureTextEntry={!verContrasena}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
-                    <Ionicons name={verContrasena ? 'eye-off' : 'eye'} size={22} color="#888" />
+                    <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
                 {errores.contrasena ? <Text style={estilos.textoError}>⚠ {errores.contrasena}</Text> : null}
