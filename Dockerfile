@@ -8,6 +8,7 @@ RUN npx expo export -p web
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
+RUN echo "" > /usr/share/nginx/html/favicon.ico
 COPY nginx.conf /etc/nginx/nginx.template.conf
 EXPOSE 8080
 CMD sh -c "sed s/PORT_PLACEHOLDER/${PORT:-8080}/ /etc/nginx/nginx.template.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
