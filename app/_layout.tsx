@@ -2,6 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
@@ -102,6 +105,9 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notifListener = useRef<NotificationSubscription | null>(null);
   const [fontsLoaded] = useFonts({ ...Ionicons.font });
+  useEffect(() => {
+    if (fontsLoaded) { SplashScreen.hideAsync(); }
+  }, [fontsLoaded]);
   if (!fontsLoaded) { return null; }
   const responseListener = useRef<NotificationSubscription | null>(null);
 

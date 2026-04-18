@@ -42,15 +42,15 @@
     "android": {
       "package": "com.mercursion.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
-        "backgroundColor": "#FAF7F0"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single"
     },
     "plugins": [
       "expo-router",
@@ -75,8 +75,7 @@
           }
         }
       ],
-      "expo-sqlite",
-      "expo-secure-store"
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
