@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
@@ -104,7 +103,11 @@ const asyncStoragePersister = createAsyncStoragePersister({
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notifListener = useRef<NotificationSubscription | null>(null);
-  const [fontsLoaded] = useFonts({ ...Ionicons.font });
+  const [fontsLoaded] = useFonts({
+    Ionicons: Platform.OS === 'web'
+      ? { uri: 'https://unpkg.com/@expo/vector-icons@15.0.3/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' }
+      : require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
+  });
   useEffect(() => {
     if (fontsLoaded) { SplashScreen.hideAsync(); }
   }, [fontsLoaded]);
