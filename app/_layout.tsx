@@ -1,14 +1,12 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync();
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { LogBox, Platform } from 'react-native';
@@ -28,24 +26,23 @@ import {
     getNotifications,
     registrarParaPush,
 } from '../lib/push-notifications';
-import '../lib/react-19-filter'; // Importar filtro de advertencias
+import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
 import { initSentry, setUser } from '../lib/sentry';
+
 type NotificationSubscription = { remove: () => void };
+
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync();
+}
 
 // Parches web globales
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  // Elimina el outline azul del browser en todos los TextInput
   const style = document.createElement('style');
   style.textContent = 'input, textarea { outline: none !important; }';
   document.head.appendChild(style);
 
-  // Fix: cuando React Navigation aplica aria-hidden a una screen inactiva, el
-  // browser bloquea el atributo y emite una advertencia si algún descendiente
-  // retiene el foco. El MutationObserver es asíncrono (llega tarde); en cambio,
-  // interceptar setAttribute de forma síncrona mueve el foco ANTES de que el
-  // browser valide el cambio, eliminando la advertencia por completo.
   const origSetAttr = HTMLElement.prototype.setAttribute;
   HTMLElement.prototype.setAttribute = function (name: string, value: string) {
     if (name === 'aria-hidden' && value === 'true') {
@@ -58,7 +55,6 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   };
 }
 
-// Lista de warnings a ignorar
 const IGNORED_WARNINGS = [
   'props.pointerEvents is deprecated',
   'VirtualizedLists should never be nested',
@@ -66,18 +62,12 @@ const IGNORED_WARNINGS = [
   'Require cycle:'
 ];
 
-// Ignorar en nativo (Android/iOS)
 LogBox.ignoreLogs(IGNORED_WARNINGS);
 
-// Ignorar en web (Expo Web)
 if (typeof window !== 'undefined') {
-  // eslint-disable-next-line no-console
   const originalWarn = console.warn;
-  // eslint-disable-next-line no-console
   console.warn = (...args) => {
-    if (typeof args[0] === 'string' && IGNORED_WARNINGS.some(msg => args[0].includes(msg))) {
-      return;
-    }
+    if (typeof args[0] === 'string' && IGNORED_WARNINGS.some(msg => args[0].includes(msg))) { return; }
     originalWarn(...args);
   };
 }
@@ -89,96 +79,65 @@ export const unstable_settings = {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 horas de cache persistente
-      staleTime: 1000 * 60 * 2,    // Evita requests si los datos tienen menos de 2 minutos
+      gcTime: 1000 * 60 * 60 * 24,
+      staleTime: 1000 * 60 * 2,
       retry: 1,
     },
   },
 });
 
-const asyncStoragePersister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-});
+const asyncStoragePersister = createAsyncStoragePersister({ storage: AsyncStorage });
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notifListener = useRef<NotificationSubscription | null>(null);
+  const responseListener = useRef<NotificationSubscription | null>(null);
+
   const [fontsLoaded] = useFonts({
     Ionicons: Platform.OS === 'web'
       ? { uri: 'https://unpkg.com/@expo/vector-icons@15.0.3/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' }
       : require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
   });
+
   useEffect(() => {
-    if (fontsLoaded) { SplashScreen.hideAsync(); }
+    if (fontsLoaded && Platform.OS !== 'web') { SplashScreen.hideAsync(); }
   }, [fontsLoaded]);
-  if (!fontsLoaded) { return null; }
-  const responseListener = useRef<NotificationSubscription | null>(null);
 
-  // Barra de navegación Android
-  useEffect(() => {
-    const configurarBarra = async () => {
-      await configurarBarraAndroid();
-    };
-    configurarBarra();
-  }, []);
+  useEffect(() => { configurarBarraAndroid(); }, []);
+  useEffect(() => { configurarNotificaciones(); }, []);
+  useEffect(() => { initSentry(); }, []);
 
-  // Configuración base de notificaciones
-  useEffect(() => {
-    configurarNotificaciones();
-  }, []);
-
-  // Inicializar Sentry
-  useEffect(() => {
-    initSentry();
-  }, []);
-
-  // Warm-up recursos críticos y hooks de performance
   useEffect(() => {
     const initRuntime = async () => {
       const flags = await getFeatureFlags();
       preloadCriticalResources();
-      if (flags.enablePerfTracking) {
-        initPerformanceMonitoring();
-      }
-      if (flags.enableRealtimeAnalytics) {
-        await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' });
-      }
+      if (flags.enablePerfTracking) { initPerformanceMonitoring(); }
+      if (flags.enableRealtimeAnalytics) { await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' }); }
     };
     initRuntime();
   }, []);
 
-  // Sesión: redirect en cambios de auth
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
-      }
-      // Registrar push token al iniciar sesión
-      if (event === 'SIGNED_IN' && session?.user?.id) {
-        registrarParaPush(session.user.id).catch(() => {});
-        // Analytics
-        setUserId(session.user.id);
-        logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
-        // Sentry
-        setUser({ id: session.user.id, email: session.user.email ?? undefined });
-      }
-      if (event === 'SIGNED_OUT') {
         setUserId('');
         setUser({ id: '', email: '' });
+      }
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        registrarParaPush(session.user.id).catch(() => {});
+        setUserId(session.user.id);
+        logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
+        setUser({ id: session.user.id, email: session.user.email ?? undefined });
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // Listeners de notificaciones push
   useEffect(() => {
     const Notifications = getNotifications();
     if (!Notifications) { return; }
-
-    // Notificación recibida con la app en primer plano
     notifListener.current = Notifications.addNotificationReceivedListener(() => {});
-
-    // Tap en una notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       if (response.notification.request.content.data?.ruta) {
         setTimeout(() => router.push(response.notification.request.content.data.ruta as never), 0);
@@ -186,12 +145,13 @@ export default function RootLayout() {
         setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0);
       }
     });
-
     return () => {
       notifListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);
+
+  if (!fontsLoaded) { return null; }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -208,7 +168,6 @@ export default function RootLayout() {
                     <Stack.Screen name="nueva-contrasena" options={{ headerShown: false }} />
                     <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
                   </Stack>
-
                   <StatusBar style="auto" />
                 </BottomSheetModalProvider>
               </ThemeProvider>
