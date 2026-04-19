@@ -1,30 +1,26 @@
-// MapaRutas.native.tsx — implementación con expo-maps (compatible con Expo)
+// MapaRutas.native.tsx — expo-maps 0.12.x (AppleMaps/GoogleMaps)
 import { Image as ExpoImage } from 'expo-image';
-import React, { useState } from 'react';
-import { Image, NativeModules, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { TODOS_LOS_ESTADOS } from '../lib/constantes';
 import { RutaTematica } from '../lib/datos/rutas-tematicas';
 import { Estado } from '../lib/tipos';
 
-// Detectar si expo-maps nativo está disponible (solo en development builds, no en Expo Go)
-const MAPS_DISPONIBLE = !!NativeModules.ExpoMaps;
-
-// Lazy-load expo-maps solo si el módulo nativo está disponible
-let ExpoMap: any = null;
-let Marker: any = null;
-if (MAPS_DISPONIBLE) {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-    const Maps = require('expo-maps');
-    ExpoMap = Maps.default;
-    Marker = Maps.Marker;
-  } catch {
-    // fallback
-  }
+// Lazy-load expo-maps. En Expo Go el módulo nativo no está disponible.
+let AppleMaps: any = null;
+let GoogleMaps: any = null;
+let MAPS_DISPONIBLE = false;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const Maps = require('expo-maps');
+  AppleMaps = Maps.AppleMaps;
+  GoogleMaps = Maps.GoogleMaps;
+  MAPS_DISPONIBLE = !!(AppleMaps?.View && GoogleMaps?.View);
+} catch {
+  MAPS_DISPONIBLE = false;
 }
 
-// ── Constantes ───────────────────────────────────────────────────────────────
 const CATEGORIA_COLORES: Record<string, string> = {
   Aventura: '#4B7BEC',
   Playa: '#3AB7A5',
@@ -38,7 +34,6 @@ const MEXICO_REGION = {
   longitude: -102.5528,
 };
 
-// ── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   rutaActiva: RutaTematica;
   estadosRuta: Estado[];
@@ -50,11 +45,10 @@ interface Props {
   onIrADetalle: (estado: Estado) => void;
 }
 
-// ── Componente principal ─────────────────────────────────────────────────────
 export default function MapaRutas({
   rutaActiva,
   estadosRuta: _estadosRuta,
-  polylineCoords: _polylineCoords,
+  polylineCoords,
   favoritos,
   isDark,
   tema,
@@ -63,10 +57,66 @@ export default function MapaRutas({
 }: Props) {
   const [estadoSel, setEstadoSel] = useState<Estado | null>(null);
 
-  const estadosFiltrados = TODOS_LOS_ESTADOS.filter(e => e.latitude && e.longitude);
+  const estadosFiltrados = useMemo(
+    () => TODOS_LOS_ESTADOS.filter(e => e.latitude && e.longitude),
+    [],
+  );
 
-  // Fallback si el módulo nativo no está disponible (Expo Go, etc)
-  if (!MAPS_DISPONIBLE || !ExpoMap || !Marker) {
+  // Markers para ambas plataformas — estructura común
+  const markers = useMemo(
+    () =>
+      estadosFiltrados.map(estado => {
+        const enRuta = rutaActiva.estadoIds.includes(estado.id);
+        const color = enRuta
+          ? rutaActiva.color
+          : CATEGORIA_COLORES[estado.categoria] ?? '#888';
+        const orden = enRuta ? rutaActiva.estadoIds.indexOf(estado.id) + 1 : null;
+
+        const base = {
+          id: String(estado.id),
+          coordinates: { latitude: estado.latitude!, longitude: estado.longitude! },
+          title: estado.nombre,
+          tintColor: color,
+        };
+
+        // iOS: monogram soporta 1-2 chars (iOS 17+). Usamos el orden si está en ruta.
+        if (Platform.OS === 'ios' && orden !== null) {
+          return { ...base, monogram: String(orden) };
+        }
+        // Android: sin monogram — título revela el orden vía callout.
+        if (Platform.OS === 'android' && orden !== null) {
+          return { ...base, snippet: `Parada ${orden}` };
+        }
+        return base;
+      }),
+    [estadosFiltrados, rutaActiva],
+  );
+
+  // Polyline para la ruta activa (si se pasa)
+  const polylines = useMemo(() => {
+    if (!polylineCoords?.length) return [];
+    return [
+      {
+        id: 'ruta-activa',
+        coordinates: polylineCoords,
+        color: rutaActiva.color,
+        width: 4,
+      },
+    ];
+  }, [polylineCoords, rutaActiva.color]);
+
+  const handleMarkerClick = (event: { id?: string }) => {
+    if (!event?.id) return;
+    const estado = TODOS_LOS_ESTADOS.find(e => String(e.id) === event.id);
+    if (estado) setEstadoSel(estado);
+  };
+
+  const cameraPosition = {
+    coordinates: MEXICO_REGION,
+    zoom: 4.5,
+  };
+
+  if (!MAPS_DISPONIBLE) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <Text style={{ fontSize: 40, marginBottom: 12 }}>🗺️</Text>
@@ -83,50 +133,26 @@ export default function MapaRutas({
 
   return (
     <View style={{ flex: 1 }}>
-      <ExpoMap
-        style={{ flex: 1 }}
-        initialCamera={{
-          center: MEXICO_REGION,
-          zoom: 4.5,
-        }}
-        mapStyle={isDark ? 'dark' : 'light'}
-      >
-        {/* Markers de estados */}
-        {estadosFiltrados.map(estado => {
-          const enRuta = rutaActiva.estadoIds.includes(estado.id);
-          const color = enRuta
-            ? rutaActiva.color
-            : CATEGORIA_COLORES[estado.categoria] ?? '#888';
-          const orden = enRuta ? rutaActiva.estadoIds.indexOf(estado.id) + 1 : null;
+      {Platform.OS === 'ios' ? (
+        <AppleMaps.View
+          style={{ flex: 1 }}
+          cameraPosition={cameraPosition}
+          markers={markers}
+          polylines={polylines}
+          colorScheme={isDark ? 'DARK' : 'LIGHT'}
+          onMarkerClick={handleMarkerClick}
+        />
+      ) : (
+        <GoogleMaps.View
+          style={{ flex: 1 }}
+          cameraPosition={cameraPosition}
+          markers={markers}
+          polylines={polylines}
+          colorScheme={isDark ? 'DARK' : 'LIGHT'}
+          onMarkerClick={handleMarkerClick}
+        />
+      )}
 
-          return (
-            <Marker
-              key={estado.id}
-              latitude={estado.latitude!}
-              longitude={estado.longitude!}
-              onPress={() => setEstadoSel(estado)}
-            >
-              <View
-                style={[
-                  s.marker,
-                  {
-                    backgroundColor: color,
-                    borderColor: enRuta ? '#fff' : 'transparent',
-                  },
-                ]}
-              >
-                {orden !== null ? (
-                  <Text style={s.markerNum}>{orden}</Text>
-                ) : (
-                  <Text style={s.markerDot}>•</Text>
-                )}
-              </View>
-            </Marker>
-          );
-        })}
-      </ExpoMap>
-
-      {/* Mini-card del estado seleccionado */}
       {estadoSel && (
         <View
           style={[
@@ -188,21 +214,6 @@ export default function MapaRutas({
 }
 
 const s = StyleSheet.create({
-  marker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  markerNum: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  markerDot: { color: '#fff', fontSize: 12 },
   estadoCard: {
     position: 'absolute',
     bottom: 16,
