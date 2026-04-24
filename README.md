@@ -139,6 +139,31 @@ npm run test:e2e:ios        # Ejecutar tests E2E
 - Variables de entorno de desarrollo
 - App construida con Detox
 
+## 📦 Versions & Releases
+
+All changes are documented in [CHANGELOG.md](./CHANGELOG.md).
+
+### Semantic Versioning
+
+This project follows [Semantic Versioning](https://semver.org):
+- **MAJOR** (X.0.0): Breaking changes (schema changes incompatible with old clients)
+- **MINOR** (0.Y.0): New features, backward compatible
+- **PATCH** (0.0.Z): Bug fixes and security patches
+
+### Release Process
+
+1. **Bump version**: `node scripts/bump-version.js <major|minor|patch>`
+2. **Run preflight**: `npm run release:preflight`
+3. **Tag release**: `./scripts/tag-release.sh v0.2.0`
+4. **Generate changelog**: `node scripts/generate-changelog.js`
+5. **Push**: `git push origin main && git push origin v0.2.0`
+
+### Current Version
+
+Read from [.version](./.version) file.
+
+---
+
 ## 🚀 Despliegue
 
 ### CI/CD
