@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # NPM package updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "03:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "edervg258@gmail.com"
+    labels:
+      - "dependencies"
+      - "automated"
+    allow:
+      - dependency-type: "all"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+    # Group related updates
+    groups:
+      patches:
+        dependency-type: "patch"
+        update-types:
+          - "patch"
+      minors:
+        dependency-type: "minor"
+        update-types:
+          - "minor"
+      majors:
+        dependency-type: "major"
+        update-types:
+          - "major"
+    # Ignore certain packages (optional)
+    ignore:
+      # Add any packages that cause issues here
+      # - dependency-name: "package-name"
+
+  # GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "America/Mexico_City"
+    labels:
+      - "dependencies"
+      - "automated"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci):"

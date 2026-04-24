@@ -63,6 +63,14 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
    - Crea un proyecto en [supabase.com](https://supabase.com)
    - Ejecuta los scripts en `supabase/seed.sql`
    - Configura auth providers
+   - Despliega la Edge Function de pagos:
+     ```bash
+     supabase functions deploy create-mercadopago-preference
+     ```
+   - Define secretos en Supabase (no en el repo):
+     ```bash
+     supabase secrets set MERCADOPAGO_ACCESS_TOKEN=APP_USR-... APP_DEEPLINK_SCHEME=mercursion
+     ```
 
 5. **Inicia la app**
    ```bash

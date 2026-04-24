@@ -2,16 +2,19 @@
 //  components/PagoMercadoPago.tsx  —  Integración MercadoPago
 // ============================================================
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { normalizeError, userMessageForError } from '../lib/error-handling';
+import { crearPreferenciaMercadoPago } from '../lib/mercadopago';
 import { addBreadcrumb, captureApiError } from '../lib/sentry';
 import { useTemaContext } from '../lib/TemaContext';
 
 interface PagoMercadoPagoProps {
   amount: number;
   description: string;
+  payerEmail?: string;
+  externalReference: string;
   onSuccess: (paymentId: string) => void;
   onError: (error: string) => void;
   onCancel: () => void;
@@ -20,33 +23,61 @@ interface PagoMercadoPagoProps {
 export function PagoMercadoPago({
   amount,
   description,
+  payerEmail,
+  externalReference,
   onSuccess,
   onError,
   onCancel
 }: PagoMercadoPagoProps) {
   const { isDark } = useTemaContext();
   const [loading, setLoading] = useState(true);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
   // Guard: prevent callback races (success/error/cancel) from WebView multi-events
   const finishedRef = useRef(false);
 
-  // Stable URL: external_reference must not change between renders
-  const checkoutUrl = useMemo(() => {
-    const baseUrl = 'https://www.mercadopago.com.mx/checkout/v1/redirect';
-    const externalRef = `mercursion-${amount}-${Date.now()}`;
-    const params = new URLSearchParams({
-      'public_key': process.env.EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY || 'TEST-123456789',
-      'transaction_amount': amount.toString(),
-      'title': description,
-      'description': description,
-      'currency_id': 'MXN',
-      'external_reference': externalRef,
-      'back_url': 'mercursion://payment/success',
-      'auto_return': 'approved',
-    });
-    return `${baseUrl}?${params.toString()}`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally computed once per mount
+  useEffect(() => {
+    let mounted = true;
+
+    const crearPreferencia = async () => {
+      setLoading(true);
+      try {
+        const preferencia = await crearPreferenciaMercadoPago({
+          amount,
+          description,
+          payerEmail,
+          externalReference,
+        });
+        if (!mounted) return;
+        setCheckoutUrl(preferencia.initPoint);
+      } catch (err) {
+        if (!mounted) return;
+        const normalized = normalizeError(err);
+        const userMessage = userMessageForError(normalized);
+        captureApiError({
+          feature: 'payments',
+          action: 'create_preference',
+          error: err,
+          metadata: { amount, description, externalReference },
+        });
+        if (!finishedRef.current) {
+          finishedRef.current = true;
+          onError(userMessage);
+        }
+        Alert.alert('Error', userMessage);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    crearPreferencia();
+
+    return () => {
+      mounted = false;
+    };
+  }, [amount, description, externalReference, onError, payerEmail]);
 
   const extractPaymentId = (url: string): string => {
     const urlParams = new URLSearchParams(url.split('?')[1]);
@@ -102,35 +133,37 @@ export function PagoMercadoPago({
         </View>
       )}
 
-      <WebView
-        ref={webViewRef}
-        source={{ uri: checkoutUrl }}
-        style={estilos.webview}
-        onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
-        onNavigationStateChange={handleNavigationStateChange}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        startInLoadingState={false}
-        renderLoading={() => <></>}
-        onError={(syntheticEvent) => {
-          setLoading(false);
-          const webError = syntheticEvent.nativeEvent?.description ?? 'checkout_error';
-          const normalized = normalizeError(webError);
-          captureApiError({
-            feature: 'payments',
-            action: 'checkout_webview_error',
-            error: webError,
-            metadata: { amount, description },
-          });
-          const userMessage = userMessageForError(normalized);
-          if (!finishedRef.current) {
-            finishedRef.current = true;
-            onError(userMessage);
-          }
-          Alert.alert('Error', userMessage);
-        }}
-      />
+      {checkoutUrl ? (
+        <WebView
+          ref={webViewRef}
+          source={{ uri: checkoutUrl }}
+          style={estilos.webview}
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
+          onNavigationStateChange={handleNavigationStateChange}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={false}
+          renderLoading={() => <></>}
+          onError={(syntheticEvent) => {
+            setLoading(false);
+            const webError = syntheticEvent.nativeEvent?.description ?? 'checkout_error';
+            const normalized = normalizeError(webError);
+            captureApiError({
+              feature: 'payments',
+              action: 'checkout_webview_error',
+              error: webError,
+              metadata: { amount, description, externalReference },
+            });
+            const userMessage = userMessageForError(normalized);
+            if (!finishedRef.current) {
+              finishedRef.current = true;
+              onError(userMessage);
+            }
+            Alert.alert('Error', userMessage);
+          }}
+        />
+      ) : null}
     </View>
   );
 }

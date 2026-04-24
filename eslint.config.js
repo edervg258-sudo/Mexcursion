@@ -39,6 +39,14 @@ module.exports = defineConfig([
       'no-var': 'error',
       'eqeqeq': ['error', 'always'],
       'curly': ['error', 'all'],
+
+      // Security rules
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-script-url': 'error',
+      'no-with': 'error',
+      'max-len': ['warn', { code: 120, ignoreUrls: true, ignoreStrings: true }],
     },
   },
   {

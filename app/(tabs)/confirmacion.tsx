@@ -14,7 +14,7 @@ import { useTemaContext } from '../../lib/TemaContext';
 export default function ConfirmacionScreen() {
   const { nombre, paquete, precio, personas, fecha, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo, estado } =
     useLocalSearchParams<Record<string, string>>();
-  const esPendiente = estado === 'pendiente_pago';
+  const esPendiente = estado === 'pendiente' || estado === 'pendiente_pago';
   const { t } = useIdioma();
   const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];

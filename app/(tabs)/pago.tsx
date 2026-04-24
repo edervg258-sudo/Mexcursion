@@ -35,6 +35,9 @@ export default function PagoScreen() {
   const [errorPago, setErrorPago]   = useState<{ mensaje: string } | null>(null);
   // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
   const procesandoRef = useRef(false);
+  const [externalReference] = useState(
+    () => `mexcursion-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  );
 
   // Stable OXXO reference derived deterministically from booking params (no Math.random)
   const [refOxxo] = useState(() => {
@@ -82,7 +85,7 @@ export default function PagoScreen() {
           }
 
           // SPEI y OXXO quedan pendientes hasta verificación del banco/tienda
-          const estadoReserva = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente_pago' : 'confirmada';
+          const estadoReserva = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente' : 'confirmada';
           const payload = [
             usuario.id,
             folio,
@@ -119,7 +122,7 @@ export default function PagoScreen() {
         message: 'payment_completed',
         data: { metodo, folio },
       });
-      const estadoConfirmacion = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente_pago' : 'confirmada';
+      const estadoConfirmacion = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente' : 'confirmada';
       router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo, estado: estadoConfirmacion } });
     } catch (err) {
       procesandoRef.current = false;
@@ -167,6 +170,8 @@ export default function PagoScreen() {
       <PagoMercadoPago
         amount={parseInt(precio ?? '0') * parseInt(personas ?? '1')}
         description={`Reserva ${nombre} - ${paquete}`}
+        payerEmail={email}
+        externalReference={externalReference}
         onSuccess={handlePagoMercadoPagoSuccess}
         onError={handlePagoMercadoPagoError}
         onCancel={handlePagoMercadoPagoCancel}

@@ -1,0 +1,26 @@
+# Supabase configuration for migrations and project setup
+# See: https://supabase.com/docs/guides/local-development
+
+[project]
+name = "miprimerapp"
+
+[api]
+# Port for local API (when using supabase start)
+port = 54321
+
+# Database configuration
+[db]
+port = 54322
+# Connection string parameters
+shadow_database_url = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+
+[realtime]
+enabled = true
+max_connections = 20
+max_message_length = 200000
+# Should we log HTTP requests?
+log_level = "info"
+
+[analytics]
+# Self-hosted: Analytics disabled for local dev
+enabled = false
