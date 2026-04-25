@@ -575,7 +575,7 @@ export async function guardarReserva(
   estado: string = 'confirmada',
   notas?: string
 ): Promise<boolean> {
-  const METODOS_PERMITIDOS = new Set(['mercadopago', 'tarjeta', 'spei', 'oxxo']);
+  const METODOS_PERMITIDOS = new Set(['tarjeta', 'spei', 'oxxo']);
   const ESTADOS_PERMITIDOS = new Set(['confirmada', 'pendiente', 'cancelada']);
 
   try {
