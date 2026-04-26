@@ -25,6 +25,11 @@ describe('OWASP Input Validation', () => {
       expect(isValidEmail(payload)).toBe(false);
     });
 
+    test('should reject email with dots only', () => {
+      const payload = '....@test.com';
+      expect(isValidEmail(payload)).toBe(false);
+    });
+
     test('should accept valid email', () => {
       const payload = 'user@example.com';
       expect(isValidEmail(payload)).toBe(true);
@@ -172,7 +177,7 @@ describe('OWASP Input Validation', () => {
 // Placeholder validation functions - implement in lib/validadores.ts
 function isValidEmail(email: string): boolean {
   const regex = /\S+@\S+\.\S+/;
-  return regex.test(email) && !/<|>|;|'|"|`/.test(email);
+  return regex.test(email) && !/<|>|;|'|"|`|(\.\.)/.test(email) && !email.startsWith('.');
 }
 
 function isValidPhone(phone: string): boolean {

@@ -21,7 +21,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 - **Estado**: TanStack Query + AsyncStorage
 - **Navegación**: Expo Router (file-based routing)
 - **UI**: React Native components + custom styling
-- **Pagos**: Integración con MercadoPago/OXXO
+- **Pagos**: Stripe (tarjeta) + simulación SPEI/OXXO
 - **Mapas**: expo-maps (nativo, requiere development build)
 - **Analytics**: stub/no-op (pendiente integración real)
 - **Crash Reporting**: Sentry
@@ -61,15 +61,20 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 
 4. **Configura Supabase**
    - Crea un proyecto en [supabase.com](https://supabase.com)
-   - Ejecuta los scripts en `supabase/seed.sql`
-   - Configura auth providers
-   - Despliega la Edge Function de pagos:
+   - Aplica las migraciones versionadas en orden:
      ```bash
-     supabase functions deploy create-mercadopago-preference
+     supabase db push                       # CLI (recomendado)
+     # o copia/pega cada archivo de supabase/migrations/ en el SQL Editor
+     ```
+   - Configura auth providers
+   - Despliega las Edge Functions de pagos (Stripe):
+     ```bash
+     supabase functions deploy create-payment-intent
+     supabase functions deploy confirm-payment
      ```
    - Define secretos en Supabase (no en el repo):
      ```bash
-     supabase secrets set MERCADOPAGO_ACCESS_TOKEN=APP_USR-... APP_DEEPLINK_SCHEME=mercursion
+     supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...
      ```
 
 5. **Inicia la app**

@@ -8,10 +8,11 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import { PermisoOnboarding } from '../components/PermisoOnboarding';
+import { StripeProviderWrapper } from '../components/StripeProviderWrapper';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -60,16 +61,29 @@ const IGNORED_WARNINGS = [
   'props.pointerEvents is deprecated',
   'VirtualizedLists should never be nested',
   'Non-serializable values were found in the navigation state',
-  'Require cycle:'
+  'Require cycle:',
+  '"shadow*" style props are deprecated',
+  '"textShadow*" style props are deprecated',
+  'Invalid Refresh Token',
+  'Refresh Token Not Found',
 ];
 
 LogBox.ignoreLogs(IGNORED_WARNINGS);
 
 if (typeof window !== 'undefined') {
+  const matches = (arg: unknown) =>
+    typeof arg === 'string' && IGNORED_WARNINGS.some(msg => arg.includes(msg));
+
   const originalWarn = console.warn;
   console.warn = (...args) => {
-    if (typeof args[0] === 'string' && IGNORED_WARNINGS.some(msg => args[0].includes(msg))) { return; }
+    if (matches(args[0])) { return; }
     originalWarn(...args);
+  };
+
+  const originalError = console.error;
+  console.error = (...args) => {
+    if (matches(args[0]) || (args[0] instanceof Error && matches(args[0].message))) { return; }
+    originalError(...args);
   };
 }
 
@@ -93,6 +107,8 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notifListener = useRef<NotificationSubscription | null>(null);
   const responseListener = useRef<NotificationSubscription | null>(null);
+  // uid pendiente de permiso: muestra onboarding antes de pedir push
+  const [pendingPushUid, setPendingPushUid] = useState<string | null>(null);
 
   const [fontsLoaded] = useFonts({
     Ionicons: Platform.OS === 'web'
@@ -120,16 +136,34 @@ export default function RootLayout() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        supabase.auth.signOut().catch(() => {});
+        return;
+      }
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
         setUserId('');
         setUser({ id: '', email: '' });
       }
       if (event === 'SIGNED_IN' && session?.user?.id) {
-        registrarParaPush(session.user.id).catch(() => {});
-        setUserId(session.user.id);
+        const uid = session.user.id;
+        setUserId(uid);
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
-        setUser({ id: session.user.id, email: session.user.email ?? undefined });
+        setUser({ id: uid, email: session.user.email ?? undefined });
+
+        // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
+        const Notifications = getNotifications();
+        if (Notifications) {
+          Notifications.getPermissionsAsync().then(({ status }) => {
+            if (status === 'granted') {
+              registrarParaPush(uid).catch(() => {});
+            } else {
+              setPendingPushUid(uid);
+            }
+          }).catch(() => {
+            registrarParaPush(uid).catch(() => {});
+          });
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -160,7 +194,7 @@ export default function RootLayout() {
         <ErrorBoundary>
           <IdiomaProvider>
             <TemaProvider>
-              <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
+              <StripeProviderWrapper publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
                 <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
                   <OfflineBanner />
@@ -171,9 +205,19 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
                   </Stack>
                   <StatusBar style="auto" />
+                  {/* Onboarding de permisos antes de pedir push al SO */}
+                  <PermisoOnboarding
+                    visible={!!pendingPushUid}
+                    tipo="notificaciones"
+                    onAceptar={() => {
+                      if (pendingPushUid) { registrarParaPush(pendingPushUid).catch(() => {}); }
+                      setPendingPushUid(null);
+                    }}
+                    onRechazar={() => setPendingPushUid(null)}
+                  />
                 </BottomSheetModalProvider>
               </ThemeProvider>
-              </StripeProvider>
+              </StripeProviderWrapper>
             </TemaProvider>
           </IdiomaProvider>
         </ErrorBoundary>

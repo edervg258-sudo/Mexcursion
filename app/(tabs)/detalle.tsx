@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,7 +25,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
-import { Itinerario, alternarDestinoItinerario, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = Math.min(W, 800);
@@ -102,6 +103,12 @@ export default function DetalleScreen() {
   }, []));
 
   const paquetes      = PAQUETES_POR_ESTADO[nombre ?? ''] ?? PAQUETES_POR_ESTADO['default'];
+  const { data: resumenResenas = {} } = useQuery({
+    queryKey: ['resumen-resenas-detalle', nombre],
+    queryFn: () => cargarResumenResenas(nombre ? [nombre] : []),
+    staleTime: 1000 * 60 * 10,
+  });
+  const resumenDestino = nombre ? resumenResenas[nombre] : undefined;
   const paqueteAnims  = useRef(paquetes.map(() => new Animated.Value(0))).current;
   const cabAnims      = useRef(paquetes.map(() => new Animated.Value(1))).current;
   const rutaAnims     = useRef(paquetes.map(() => new Animated.Value(1))).current;
@@ -195,8 +202,17 @@ export default function DetalleScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
         <View style={estilos.contenedorCentrado}>
           <View style={estilos.filaHero}>
-            <View style={estilos.heroBadge}>
-              <Text style={estilos.heroBadgeTexto}>{categoria}</Text>
+            <View style={estilos.heroBadgesGrupo}>
+              <View style={estilos.heroBadge}>
+                <Text style={estilos.heroBadgeTexto}>{categoria}</Text>
+              </View>
+              {resumenDestino?.total ? (
+                <View style={estilos.heroBadgeResenas}>
+                  <Text style={estilos.heroBadgeResenasTexto}>
+                    {resumenDestino.promedio.toFixed(1)} ★ · {resumenDestino.total} reseñas
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <TouchableOpacity
               style={estilos.btnResenas}
@@ -320,14 +336,20 @@ export default function DetalleScreen() {
 
                     <View style={estilos.filaBotones}>
                       <TouchableOpacity
+                        testID="add-itinerary-button"
                         style={[estilos.botonRuta, enRuta && estilos.botonRutaActivo]}
                         onPressIn={() => spring(rutaAnims[idx], 0.93)}
                         onPressOut={() => spring(rutaAnims[idx], 1)}
                         onPress={() => abrirSeleccionRuta(paquete.nivel)}
                         activeOpacity={1}
+                        accessibilityRole="button"
+                        accessibilityLabel={enRuta ? 'Gestionar itinerario' : 'Agregar a itinerario'}
+                        accessibilityHint="Abre el selector de itinerarios para este paquete"
                       >
                         <Animated.View style={{ transform: [{ scale: rutaAnims[idx] }] }}>
-                          <Text style={estilos.textoBotonRuta}>{enRuta ? t('det_en_ruta') : t('det_add_ruta')}</Text>
+                          <Text style={estilos.textoBotonRuta}>
+                            {enRuta ? t('det_en_ruta') : t('det_add_itinerario')}
+                          </Text>
                         </Animated.View>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -458,8 +480,11 @@ const estilos = StyleSheet.create({
   scroll:                { paddingBottom:10 },
   contenedorCentrado:    { width:'100%', maxWidth:800, alignSelf:'center', paddingHorizontal:14 },
   filaHero:              { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
+  heroBadgesGrupo:       { flexDirection:'row', alignItems:'center', flexWrap:'wrap', gap:8, flex:1, marginRight:8 },
   heroBadge:             { backgroundColor:'#3AB7A5', paddingHorizontal:12, paddingVertical:4, borderRadius:20 },
   heroBadgeTexto:        { color:'#fff', fontWeight:'700', fontSize:12 },
+  heroBadgeResenas:      { backgroundColor:'#f0faf9', paddingHorizontal:12, paddingVertical:4, borderRadius:20, borderWidth:1, borderColor:'#3AB7A5' },
+  heroBadgeResenasTexto: { color:'#27897b', fontWeight:'700', fontSize:12 },
   btnResenas:            { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1.5, borderColor:'#e9c46a', backgroundColor:'#fef9e7' },
   btnCompartir:          { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1.5, borderColor:'#3AB7A5', backgroundColor:'#f0faf9', marginLeft: 8 },
   txtBtnResenas:         { fontSize:13, fontWeight:'700', color:'#c8a000' },
@@ -490,7 +515,7 @@ const estilos = StyleSheet.create({
   textoActividad:        { fontSize:13, color:'#444', flex:1 },
   filaBotones:           { flexDirection:'row', gap:10, marginTop:16 },
   botonRuta:             { flex:1, backgroundColor:'#3AB7A5', paddingVertical:13, borderRadius:25, alignItems:'center', elevation:3 },
-  botonRutaActivo:       { backgroundColor:'#aaa' },
+  botonRutaActivo:       { backgroundColor:'#27897b' },
   textoBotonRuta:        { color:'#fff', fontWeight:'700', fontSize:14 },
   botonReservar:         { flex:1, paddingVertical:13, borderRadius:25, alignItems:'center', elevation:3 },
   textoBotonReservar:    { color:'#fff', fontWeight:'700', fontSize:14 },

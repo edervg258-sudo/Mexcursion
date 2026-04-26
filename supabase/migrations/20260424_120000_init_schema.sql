@@ -268,7 +268,7 @@ BEGIN
     RAISE EXCEPTION 'Total inválido';
   END IF;
 
-  IF NEW.metodo IS NULL OR NEW.metodo NOT IN ('mercadopago', 'tarjeta', 'spei', 'oxxo') THEN
+  IF NEW.metodo IS NULL OR NEW.metodo NOT IN ('tarjeta', 'spei', 'oxxo') THEN
     RAISE EXCEPTION 'Método de pago inválido';
   END IF;
 

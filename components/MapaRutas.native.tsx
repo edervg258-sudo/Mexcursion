@@ -94,7 +94,7 @@ export default function MapaRutas({
 
   // Polyline para la ruta activa (si se pasa)
   const polylines = useMemo(() => {
-    if (!polylineCoords?.length) return [];
+    if (!polylineCoords?.length) {return [];}
     return [
       {
         id: 'ruta-activa',
@@ -106,9 +106,9 @@ export default function MapaRutas({
   }, [polylineCoords, rutaActiva.color]);
 
   const handleMarkerClick = (event: { id?: string }) => {
-    if (!event?.id) return;
+    if (!event?.id) {return;}
     const estado = TODOS_LOS_ESTADOS.find(e => String(e.id) === event.id);
-    if (estado) setEstadoSel(estado);
+    if (estado) {setEstadoSel(estado);}
   };
 
   const cameraPosition = {

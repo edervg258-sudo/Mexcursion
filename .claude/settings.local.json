@@ -22,7 +22,13 @@
       "Read(//c/Users/usuario/AppData/Local/Programs/**)",
       "Read(//c/Program Files/**)",
       "Read(//c/Users/usuario/**)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(npm uninstall *)",
+      "Bash(git stash *)",
+      "Bash(mkdir -p supabase/audits)",
+      "Bash(git mv *)",
+      "Bash(git rm *)",
+      "PowerShell(cd \"C:\\\\Users\\\\usuario\\\\MiPrimerApp\" && npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"mis_reservas|resenas|menu\\\\.tsx|DetalleReserva|PermisoOn|_layout\" })"
     ]
   }
 }

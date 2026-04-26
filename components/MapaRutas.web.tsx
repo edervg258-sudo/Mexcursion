@@ -2,16 +2,22 @@
 import { Image as ExpoImage } from 'expo-image';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-const RUTA_IMG_WEB: Record<string, number> = {
-  colonial: require('../assets/images/guanajuato.png') as number,
-  maya:     require('../assets/images/chiapas.png') as number,
-  pacifico: require('../assets/images/sinaloa.png') as number,
-  sabor:    require('../assets/images/jalisco.png') as number,
-  aventura: require('../assets/images/chihuahua.png') as number,
-};
 import { RutaTematica } from '../lib/datos/rutas-tematicas';
 import { Estado } from '../lib/tipos';
+
+import guanajuatoImg from '../assets/images/guanajuato.png';
+import chiapasImg from '../assets/images/chiapas.png';
+import sinaloaImg from '../assets/images/sinaloa.png';
+import jaliscoImg from '../assets/images/jalisco.png';
+import chihuahuaImg from '../assets/images/chihuahua.png';
+
+const RUTA_IMG_WEB: Record<string, number> = {
+  colonial: guanajuatoImg,
+  maya:     chiapasImg,
+  pacifico: sinaloaImg,
+  sabor:    jaliscoImg,
+  aventura: chihuahuaImg,
+};
 
 interface Props {
   rutaActiva: RutaTematica;

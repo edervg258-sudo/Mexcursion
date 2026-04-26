@@ -82,7 +82,7 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
                   borderWidth: 1,
                 }]}
                 value={f.val}
-                onChangeText={v => { onSetForm(f.key, v); if (error) onLimpiarError(f.key); }}
+                onChangeText={v => { onSetForm(f.key, v); if (error) {onLimpiarError(f.key);} }}
                 placeholder={f.ph}
                 placeholderTextColor={tema.textoMuted}
                 keyboardType={f.numeric ? 'numeric' : 'default'}

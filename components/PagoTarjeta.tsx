@@ -22,6 +22,7 @@ interface PagoTarjetaProps {
   externalReference: string;
   onSuccess: (paymentId: string) => void;
   onError: (error: string) => void;
+  onBack?: () => void;
 }
 
 export function PagoTarjeta({
@@ -31,6 +32,7 @@ export function PagoTarjeta({
   externalReference,
   onSuccess,
   onError,
+  onBack: _onBack,
 }: PagoTarjetaProps) {
   const { isDark } = useTemaContext();
   const stripe = useStripe();
@@ -56,7 +58,7 @@ export function PagoTarjeta({
           externalReference,
         });
 
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         setClientSecret(result.clientSecret);
         setIntentId(result.intentId);
@@ -67,7 +69,7 @@ export function PagoTarjeta({
           data: { intentId: result.intentId, amount, description },
         });
       } catch (err) {
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         const normalized = normalizeError(err);
         const userMessage = userMessageForError(normalized);

@@ -2,11 +2,12 @@ import { useRouter } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
 import React, { useEffect, useState } from 'react';
 import {
+    Alert,
     Image, Modal, ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { buscarUsuarioPorCorreo, iniciarSesion, obtenerUsuarioActivo } from '../lib/supabase-db';
+import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } from '../lib/supabase-db';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -72,7 +73,6 @@ export default function LoginScreen() {
   };
 
   const handleRecuperar = async () => {
-    // FIX #2: Validar formato del correo en el modal
     if (!correoRecup.trim()) {
       setErrorCorreoRecup('Ingresa tu correo');
       return;
@@ -83,22 +83,20 @@ export default function LoginScreen() {
       return;
     }
 
-    const usuario = await buscarUsuarioPorCorreo(correoRecup.trim());
+    setCargando(true);
+    const resultado = await solicitarRecuperacionContrasena(correoRecup.trim());
+    setCargando(false);
 
-    if (!usuario) {
-      setErrorCorreoRecup('No existe una cuenta con ese correo');
+    if (!resultado.exito) {
+      setErrorCorreoRecup(resultado.error ?? 'No se pudo enviar el correo de recuperación');
       return;
     }
 
-    // FIX #3: Limpiar estado del modal al cerrar
-    setModalRecuperar(false);
-    setErrorCorreoRecup('');
-
-    // FIX #4: Usar params de navegación en lugar de query string en la URL
-    router.push({
-      pathname: '/nueva-contrasena',
-      params: { correo: correoRecup.trim() },
-    });
+    cerrarModal();
+    Alert.alert(
+      'Revisa tu correo',
+      'Si existe una cuenta con ese correo, te enviamos instrucciones para restablecer tu contraseña.'
+    );
   };
 
   // FIX #3: Función de cierre del modal que limpia el estado
