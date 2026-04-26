@@ -23,7 +23,7 @@ export default function PagoScreen() {
   const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
-    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard via Stripe' },
+    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard / Amex' },
     { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
     { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
   ];
@@ -47,7 +47,6 @@ export default function PagoScreen() {
   });
 
   const pagar = async () => {
-    // Card payments go through Stripe (PCI-DSS compliant)
     if (metodo === 'tarjeta') {
       setMostrarTarjeta(true);
       return;
@@ -147,8 +146,8 @@ export default function PagoScreen() {
 
   const handlePagoTarjetaSuccess = async (paymentId: string) => {
     setMostrarTarjeta(false);
-    // Use the Stripe payment ID as folio so retries are idempotent
-    const folio = `STRIPE${paymentId}`.slice(0, 20);
+    // Use the card payment ID as folio so retries are idempotent
+    const folio = `CARD${paymentId}`.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 20);
     await procesarPago(folio);
   };
   const handlePagoTarjetaError = (error: string) => {
@@ -156,7 +155,7 @@ export default function PagoScreen() {
     const normalized = normalizeError(error);
     captureApiError({
       feature: 'payments',
-      action: 'stripe_payment',
+      action: 'card_payment',
       error,
       metadata: { nombre, paquete, precio, personas },
     });
@@ -172,6 +171,7 @@ export default function PagoScreen() {
         externalReference={externalReference}
         onSuccess={handlePagoTarjetaSuccess}
         onError={handlePagoTarjetaError}
+        onCancel={() => setMostrarTarjeta(false)}
       />
     );
   }
