@@ -6,7 +6,7 @@ import {
 } from './pago';
 
 describe('estadoReservaPorMetodo', () => {
-  test('tarjeta queda confirmada (cobro inmediato Stripe)', () => {
+  test('tarjeta queda confirmada (cobro inmediato con tarjeta)', () => {
     expect(estadoReservaPorMetodo('tarjeta')).toBe('confirmada');
   });
   test('spei queda pendiente hasta verificación bancaria', () => {
@@ -54,13 +54,16 @@ describe('generarReferenciaOxxo', () => {
 });
 
 describe('folioDesdeStripe', () => {
-  test('máximo 20 chars', () => {
+  test('máximo 20 chars para encajar en columnas con límite', () => {
     expect(folioDesdeStripe('pi_3OabcDEFghijKLMNopqrSTUV').length).toBeLessThanOrEqual(20);
   });
-  test('lleva prefijo STRIPE', () => {
+  test('incluye prefijo identificador del proveedor', () => {
     expect(folioDesdeStripe('pi_123')).toBe('STRIPEpi_123');
   });
   test('determinista para el mismo paymentId (idempotencia de reintentos)', () => {
     expect(folioDesdeStripe('pi_xyz')).toBe(folioDesdeStripe('pi_xyz'));
+  });
+  test('paymentId vacío produce "STRIPE" de 6 chars', () => {
+    expect(folioDesdeStripe('')).toBe('STRIPE');
   });
 });
