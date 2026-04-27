@@ -137,9 +137,9 @@ export default function MenuScreen() {
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
     .filter((e) => {
-      if (rangoPrecio === 'bajo')  return e.precio < 5000;
-      if (rangoPrecio === 'medio') return e.precio >= 5000 && e.precio <= 10000;
-      if (rangoPrecio === 'alto')  return e.precio > 10000;
+      if (rangoPrecio === 'bajo') { return e.precio < 5000; }
+      if (rangoPrecio === 'medio') { return e.precio >= 5000 && e.precio <= 10000; }
+      if (rangoPrecio === 'alto') { return e.precio > 10000; }
       return true;
     })
     .sort((a, b) => {
