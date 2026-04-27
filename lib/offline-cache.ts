@@ -28,18 +28,35 @@ NetInfo.addEventListener(state => {
   isOnline = state.isConnected ?? false;
 });
 
-// Cache inteligente con expiración
 export class CacheManager {
   static async set(key: string, data: any, expiryMinutes = 1440): Promise<void> {
     try {
+      if (!key || typeof key !== 'string') {
+        throw new Error('Cache key debe ser un string válido');
+      }
+      if (expiryMinutes <= 0) {
+        throw new Error('Cache expiry debe ser > 0');
+      }
+
       const cacheData = {
         data,
         timestamp: Date.now(),
         expiry: expiryMinutes * 60 * 1000,
       };
       await AsyncStorage.setItem(key, JSON.stringify(cacheData));
+      addBreadcrumb({
+        category: 'cache',
+        message: 'cache_set',
+        data: { key, expiryMinutes },
+      });
     } catch (error) {
       console.warn('Error guardando cache:', error);
+      captureApiError({
+        feature: 'cache_manager',
+        action: 'set',
+        error,
+        metadata: { key },
+      });
     }
   }
 
@@ -176,7 +193,10 @@ class OfflineQueue {
   private static async processOperation(operation: OfflineOperation): Promise<void> {
     const handler = this.handlers[operation.type];
     if (!handler) {
-      throw new Error(`Operación no soportada: ${operation.type}`);
+      throw new Error(`Handler no registrado para operación: ${operation.type}`);
+    }
+    if (typeof handler !== 'function') {
+      throw new Error(`Handler inválido para tipo: ${operation.type}`);
     }
     await handler(operation.payload);
   }
@@ -236,7 +256,7 @@ export const withOfflineSupport = async <T>(
   }
 };
 
-type OfflineOperation = {
+export type OfflineOperation = {
   id?: string;
   type: string;
   payload: Record<string, unknown>;
@@ -244,8 +264,32 @@ type OfflineOperation = {
   attempts?: number;
 };
 
-export const enqueueOfflineOperation = (operation: OfflineOperation) => OfflineQueue.add(operation);
+// Validación de operación antes de encolar
+function validateOperation(operation: OfflineOperation): boolean {
+  if (!operation.type || typeof operation.type !== 'string') return false;
+  if (!operation.payload || typeof operation.payload !== 'object') return false;
+  return true;
+}
+
+export const enqueueOfflineOperation = (operation: OfflineOperation) => {
+  if (!validateOperation(operation)) {
+    console.warn('Invalid offline operation:', operation);
+    return;
+  }
+  OfflineQueue.add(operation);
+};
+
 export const processOfflineQueue = () => OfflineQueue.process();
-export const registerOfflineHandler = (type: string, handler: (payload: Record<string, unknown>) => Promise<void>) =>
+
+export const registerOfflineHandler = (
+  type: string,
+  handler: (payload: Record<string, unknown>) => Promise<void>
+) => {
+  if (!type || typeof type !== 'string') {
+    console.warn('Invalid handler type:', type);
+    return;
+  }
   OfflineQueue.registerHandler(type, handler);
+};
+
 export const getOfflineQueueSize = () => OfflineQueue.getSize();

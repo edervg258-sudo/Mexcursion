@@ -939,3 +939,129 @@ export async function cambiarTipoUsuario(usuario_id: string, tipo: string): Prom
 }
 
 export const toggleActivoUsuarioAdmin  = (usuario_id: string) => toggleActivo('usuarios', 'id', usuario_id);
+
+// ══════════════════════════════════════════════════════════════════════════
+//  BÚSQUEDA Y FILTRADO AVANZADO
+// ══════════════════════════════════════════════════════════════════════════
+
+export async function cargarReservasPorRangoFechas(
+  usuario_id: string,
+  fecha_inicio: string,
+  fecha_fin: string,
+  limite = 20,
+  offset = 0
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .gte('fecha', fecha_inicio)
+      .lte('fecha', fecha_fin)
+      .order('fecha', { ascending: false })
+      .range(offset, offset + limite - 1);
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('cargarReservasPorRangoFechas error:', err);
+    return [];
+  }
+}
+
+export async function cargarReservasOrdenadas(
+  usuario_id: string,
+  sortBy: 'fecha' | 'precio' | 'destino' | 'estado' = 'fecha',
+  sortOrder: 'asc' | 'desc' = 'desc',
+  limite = 20,
+  offset = 0
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(offset, offset + limite - 1);
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('cargarReservasOrdenadas error:', err);
+    return [];
+  }
+}
+
+export async function buscarReservasPorFechaYEstado(
+  usuario_id: string,
+  fecha_inicio: string,
+  fecha_fin: string,
+  estado?: string,
+  limite = 20,
+  offset = 0
+): Promise<any[]> {
+  try {
+    let q = supabase
+      .from('reservas')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .gte('fecha', fecha_inicio)
+      .lte('fecha', fecha_fin);
+
+    if (estado) {
+      q = q.eq('estado', estado);
+    }
+
+    const { data, error } = await q
+      .order('fecha', { ascending: false })
+      .range(offset, offset + limite - 1);
+
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('buscarReservasPorFechaYEstado error:', err);
+    return [];
+  }
+}
+
+export async function cargarDestinosOrdenados(
+  sortBy: 'precio' | 'nombre' | 'categoria' = 'precio',
+  sortOrder: 'asc' | 'desc' = 'asc',
+  limite = 50,
+  offset = 0
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('estados')
+      .select('*')
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(offset, offset + limite - 1);
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('cargarDestinosOrdenados error:', err);
+    return [];
+  }
+}
+
+export async function cargarResenasPorRating(
+  destino: string,
+  ratingMinimo = 1,
+  ratingMaximo = 5,
+  limite = 10,
+  offset = 0
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('resenas')
+      .select('*, usuarios(nombre)')
+      .eq('destino', destino)
+      .gte('calificacion', ratingMinimo)
+      .lte('calificacion', ratingMaximo)
+      .order('calificacion', { ascending: false })
+      .range(offset, offset + limite - 1);
+    if (error) return [];
+    return (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' }));
+  } catch (err) {
+    console.error('cargarResenasPorRating error:', err);
+    return [];
+  }
+}
