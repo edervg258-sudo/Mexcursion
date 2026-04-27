@@ -37,17 +37,38 @@ const initMixpanel = async () => {
 initMixpanel();
 
 export const AnalyticsEvents = {
-  APP_OPEN: 'app_open',
-  LOGIN: 'login',
-  SIGN_UP: 'sign_up',
-  SEARCH: 'search',
-  VIEW_ITEM: 'view_item',
-  BEGIN_CHECKOUT: 'begin_checkout',
-  PURCHASE: 'purchase',
-  ADD_TO_FAVORITES: 'add_to_favorites',
-  REMOVE_FROM_FAVORITES: 'remove_from_favorites',
-  SHARE: 'share',
-  RATE_APP: 'rate_app',
+  // Sesión
+  APP_OPEN:               'app_open',
+  LOGIN:                  'login',
+  SIGN_UP:                'sign_up',
+
+  // Descubrimiento
+  SEARCH:                 'search',
+  VIEW_ITEM:              'view_item',
+  VIEW_CATEGORY:          'view_category',
+
+  // Checkout funnel
+  BEGIN_CHECKOUT:         'begin_checkout',
+  CHECKOUT_STEP:          'checkout_step',     // step: 1=form, 2=payment, 3=confirm
+  SELECT_PAYMENT_METHOD:  'select_payment_method',
+  PURCHASE:               'purchase',
+  PURCHASE_FAILED:        'purchase_failed',
+  PURCHASE_RETRY:         'purchase_retry',
+
+  // Reservas
+  CANCEL_RESERVATION:     'cancel_reservation',
+  MODIFY_RESERVATION:     'modify_reservation',
+
+  // Social / UGC
+  ADD_TO_FAVORITES:       'add_to_favorites',
+  REMOVE_FROM_FAVORITES:  'remove_from_favorites',
+  SHARE:                  'share',
+  RATE_APP:               'rate_app',
+  SUBMIT_REVIEW:          'submit_review',
+
+  // Itinerarios
+  CREATE_ITINERARY:       'create_itinerary',
+  ADD_TO_ITINERARY:       'add_to_itinerary',
 } as const;
 
 const loadQueue = async (): Promise<AnalyticsEvent[]> => {
