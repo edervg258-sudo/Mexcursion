@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StripeProviderWrapper } from '../components/StripeProviderWrapper';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -159,7 +160,8 @@ export default function RootLayout() {
         <ErrorBoundary>
           <IdiomaProvider>
             <TemaProvider>
-              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <StripeProviderWrapper publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
+                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
                   <OfflineBanner />
                   <Stack screenOptions={{ headerShown: false }}>
@@ -171,6 +173,7 @@ export default function RootLayout() {
                   <StatusBar style="auto" />
                 </BottomSheetModalProvider>
               </ThemeProvider>
+              </StripeProviderWrapper>
             </TemaProvider>
           </IdiomaProvider>
         </ErrorBoundary>

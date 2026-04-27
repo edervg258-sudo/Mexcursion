@@ -6,7 +6,7 @@ import {
   TouchableOpacity, View
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
-import { PagoMercadoPago } from '../../components/PagoMercadoPago';
+import { PagoTarjeta } from '../../components/PagoTarjeta';
 import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
@@ -14,7 +14,7 @@ import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 
-type MetodoPago = 'mercadopago' | 'tarjeta' | 'spei' | 'oxxo';
+type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
 
 export default function PagoScreen() {
   const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
@@ -23,15 +23,14 @@ export default function PagoScreen() {
   const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
-    { id: 'mercadopago', emoji: '💳', label: 'MercadoPago',   sub: 'Pago seguro en línea' },
-    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard via MercadoPago' },
+    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard via Stripe' },
     { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
     { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
   ];
 
-  const [metodo, setMetodo]         = useState<MetodoPago>('mercadopago');
+  const [metodo, setMetodo]         = useState<MetodoPago>('tarjeta');
   const [procesando, setProcesando] = useState(false);
-  const [mostrarMercadoPago, setMostrarMercadoPago] = useState(false);
+  const [mostrarTarjeta, setMostrarTarjeta] = useState(false);
   const [errorPago, setErrorPago]   = useState<{ mensaje: string } | null>(null);
   // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
   const procesandoRef = useRef(false);
@@ -48,9 +47,9 @@ export default function PagoScreen() {
   });
 
   const pagar = async () => {
-    // All card payments go through MercadoPago's hosted checkout (PCI-DSS compliant).
-    if (metodo === 'mercadopago' || metodo === 'tarjeta') {
-      setMostrarMercadoPago(true);
+    // Card payments go through Stripe (PCI-DSS compliant)
+    if (metodo === 'tarjeta') {
+      setMostrarTarjeta(true);
       return;
     }
     await procesarPago();
@@ -146,35 +145,33 @@ export default function PagoScreen() {
     }
   };
 
-  const handlePagoMercadoPagoSuccess = async (paymentId: string) => {
-    setMostrarMercadoPago(false);
-    // Use the real MP payment ID as folio so retries are idempotent
-    const folio = `MP${paymentId}`.slice(0, 20);
+  const handlePagoTarjetaSuccess = async (paymentId: string) => {
+    setMostrarTarjeta(false);
+    // Use the Stripe payment ID as folio so retries are idempotent
+    const folio = `STRIPE${paymentId}`.slice(0, 20);
     await procesarPago(folio);
   };
-  const handlePagoMercadoPagoError = (error: string) => {
-    setMostrarMercadoPago(false);
+  const handlePagoTarjetaError = (error: string) => {
+    setMostrarTarjeta(false);
     const normalized = normalizeError(error);
     captureApiError({
       feature: 'payments',
-      action: 'mercadopago_checkout',
+      action: 'stripe_payment',
       error,
       metadata: { nombre, paquete, precio, personas },
     });
     Alert.alert('Error en pago', userMessageForError(normalized));
   };
-  const handlePagoMercadoPagoCancel = () => setMostrarMercadoPago(false);
 
-  if (mostrarMercadoPago) {
+  if (mostrarTarjeta) {
     return (
-      <PagoMercadoPago
+      <PagoTarjeta
         amount={parseInt(precio ?? '0') * parseInt(personas ?? '1')}
         description={`Reserva ${nombre} - ${paquete}`}
         payerEmail={email}
         externalReference={externalReference}
-        onSuccess={handlePagoMercadoPagoSuccess}
-        onError={handlePagoMercadoPagoError}
-        onCancel={handlePagoMercadoPagoCancel}
+        onSuccess={handlePagoTarjetaSuccess}
+        onError={handlePagoTarjetaError}
       />
     );
   }
