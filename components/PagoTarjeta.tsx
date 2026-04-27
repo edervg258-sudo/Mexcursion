@@ -1,5 +1,6 @@
-import { CardField, useStripe } from '@stripe/stripe-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,23 +25,24 @@ interface PagoTarjetaProps {
   onError: (error: string) => void;
 }
 
-export function PagoTarjeta({
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+
+const PagoTarjetaContent = ({
   amount,
   description,
   payerEmail,
   externalReference,
   onSuccess,
   onError,
-}: PagoTarjetaProps) {
+}: PagoTarjetaProps) => {
   const { isDark } = useTemaContext();
   const stripe = useStripe();
+  const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [procesando, setProcesando] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [intentId, setIntentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const procesandoRef = useRef(false);
-  const cardFieldRef = useRef<any>(null);
 
   // Create payment intent on mount
   useEffect(() => {
@@ -97,82 +99,70 @@ export function PagoTarjeta({
   }, [amount, description, payerEmail, externalReference, onError]);
 
   const handlePay = async () => {
-    if (!stripe || !clientSecret || !intentId || procesandoRef.current) {
+    if (!stripe || !elements || !clientSecret || !intentId || procesando) {
       return;
     }
 
-    procesandoRef.current = true;
     setProcesando(true);
     setError(null);
 
     try {
-      // Get payment method ID from CardField
-      const cardFieldValue = await cardFieldRef.current?.getDetails?.();
+      const cardElement = elements.getElement(CardElement);
 
-      if (!cardFieldValue) {
+      if (!cardElement) {
         const msg = 'Por favor completa los datos de tu tarjeta.';
         setError(msg);
         onError(msg);
         Alert.alert('Error', msg);
-        procesandoRef.current = false;
         setProcesando(false);
         return;
       }
 
-      // Create payment method from card details
-      const { paymentMethod, error: paymentMethodError } = await stripe.createPaymentMethod({
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          billingDetails: {
-            email: payerEmail,
+      const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: {
+          return_url: typeof window !== 'undefined' ? window.location.href : '',
+          payment_method_data: {
+            billing_details: {
+              email: payerEmail,
+            },
           },
         },
       });
 
-      if (paymentMethodError) {
-        const userMessage = userMessageForError(normalizeError(paymentMethodError));
+      if (confirmError) {
+        const userMessage = userMessageForError(normalizeError(confirmError));
         captureApiError({
           feature: 'payments',
-          action: 'create_payment_method',
-          error: paymentMethodError,
+          action: 'confirm_payment',
+          error: confirmError,
           metadata: { amount, description },
         });
         setError(userMessage);
         onError(userMessage);
         Alert.alert('Error', userMessage);
-        procesandoRef.current = false;
         setProcesando(false);
         return;
       }
 
-      if (!paymentMethod) {
-        const msg = 'No se pudo procesar la tarjeta. Intenta de nuevo.';
+      if (!paymentIntent) {
+        const msg = 'No se pudo procesar el pago. Intenta de nuevo.';
         setError(msg);
         onError(msg);
         Alert.alert('Error', msg);
-        procesandoRef.current = false;
         setProcesando(false);
         return;
       }
-
-      // Confirm payment
-      const confirmResult = await confirmarPago({
-        intentId,
-        paymentMethodId: paymentMethod.id,
-      });
-
-      procesandoRef.current = false;
-      setProcesando(false);
 
       addBreadcrumb({
         category: 'payments',
         message: 'payment_confirmed',
-        data: { paymentId: confirmResult.paymentId, status: confirmResult.status },
+        data: { paymentId: paymentIntent.id, status: paymentIntent.status },
       });
 
-      onSuccess(confirmResult.paymentId);
+      onSuccess(paymentIntent.id);
     } catch (err) {
-      procesandoRef.current = false;
       setProcesando(false);
 
       const normalized = normalizeError(err);
@@ -224,22 +214,27 @@ export function PagoTarjeta({
         </View>
       )}
 
-      {/* Card Field */}
+      {/* Card Element */}
       {!loading && clientSecret && (
         <>
           <View style={[estilos.cardContainer, { borderColor: isDark ? '#444' : '#ddd' }]}>
-            <CardField
-              ref={cardFieldRef}
-              postalCodeEnabled={false}
-              placeholders={{
-                number: '4242 4242 4242 4242',
-                expiration: 'MM/YY',
-                cvc: 'CVC',
+            <CardElement
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: isDark ? '#fff' : '#333',
+                    backgroundColor: isDark ? '#1a1a1a' : '#fff',
+                    '::placeholder': {
+                      color: isDark ? '#aaa' : '#999',
+                    },
+                  },
+                  invalid: {
+                    color: '#DD331D',
+                  },
+                },
+                hidePostalCode: true,
               }}
-              onCardChange={() => {
-                // Card details changed
-              }}
-              style={estilos.cardField}
             />
           </View>
 
@@ -285,6 +280,24 @@ export function PagoTarjeta({
 
       <View style={{ height: 30 }} />
     </ScrollView>
+  );
+};
+
+export function PagoTarjeta(props: PagoTarjetaProps) {
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Error: Stripe key not configured</Text>
+      </View>
+    );
+  }
+
+  const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+
+  return (
+    <Elements stripe={stripePromise}>
+      <PagoTarjetaContent {...props} />
+    </Elements>
   );
 }
 

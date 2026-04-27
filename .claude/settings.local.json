@@ -22,7 +22,13 @@
       "Read(//c/Users/usuario/AppData/Local/Programs/**)",
       "Read(//c/Program Files/**)",
       "Read(//c/Users/usuario/**)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Read(//d C:/Users/usuario/MiPrimerApp/.claude/worktrees/**)",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:8082)",
+      "Bash(pkill -f \"expo start\")",
+      "Bash(curl -s http://localhost:8081)",
+      "Bash(curl -s http://localhost:8083)"
     ]
   }
 }
