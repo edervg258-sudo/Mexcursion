@@ -8,7 +8,7 @@ export function OfflineBanner() {
   const { isDark } = useTemaContext();
   const offline = !isConnected || !isInternetReachable;
 
-  if (!offline) return null;
+  if (!offline) {return null;}
 
   return (
     <View

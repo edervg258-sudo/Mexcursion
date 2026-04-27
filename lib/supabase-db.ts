@@ -247,17 +247,35 @@ export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
 }
 export async function buscarUsuarioPorCorreo(correo: string): Promise<any | null> {
   try {
-    // Supabase no permite consultar la tabla usuarios sin sesión activa (RLS).
-    // Usamos resetPasswordForEmail para verificar si el correo existe:
-    // si no existe, Supabase devuelve error; si existe, envía el link y devuelve ok.
-    const { error } = await supabase.auth.resetPasswordForEmail(correo, {
-      redirectTo: undefined, // sin redirect, solo queremos el email
-    });
-    // Devolvemos un objeto truthy si no hay error (correo registrado)
-    return error ? null : { email: correo };
+    const email = (correo ?? '').trim().toLowerCase();
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return null;
+    }
+    return { email };
   } catch (err) {
     console.error('buscarUsuarioPorCorreo error:', err);
     return null;
+  }
+}
+
+export async function solicitarRecuperacionContrasena(
+  correo: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const email = (correo ?? '').trim().toLowerCase();
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return { exito: false, error: 'Ingresa un correo electrónico válido.' };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) {
+      return { exito: false, error: 'No se pudo enviar el correo de recuperación.' };
+    }
+
+    return { exito: true };
+  } catch (err) {
+    console.error('solicitarRecuperacionContrasena error:', err);
+    return { exito: false, error: 'No se pudo enviar el correo de recuperación.' };
   }
 }
 
@@ -722,6 +740,67 @@ export async function cargarResenas(destino: string): Promise<any[]> {
   } catch (err) {
     console.error('cargarResenas error:', err);
     return [];
+  }
+}
+
+export async function cargarResenasPaginadas(
+  destino: string,
+  limite: number = 10,
+  offset: number = 0
+): Promise<{ resenas: any[]; total: number }> {
+  try {
+    const { data, error, count } = await supabase
+      .from('resenas')
+      .select('*, usuarios(nombre)', { count: 'exact' })
+      .eq('destino', destino)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limite - 1);
+    if (error) return { resenas: [], total: 0 };
+    return {
+      resenas: (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' })),
+      total: count ?? 0,
+    };
+  } catch (err) {
+    console.error('cargarResenasPaginadas error:', err);
+    return { resenas: [], total: 0 };
+  }
+}
+
+export async function cargarResumenResenas(destinos: string[]): Promise<Record<string, { promedio: number; total: number }>> {
+  const nombres = destinos
+    .map(destino => destino?.trim())
+    .filter((destino): destino is string => !!destino);
+
+  if (!nombres.length) {
+    return {};
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('resenas')
+      .select('destino, calificacion')
+      .in('destino', nombres);
+
+    if (error || !data) {
+      return {};
+    }
+
+    return data.reduce((acc: Record<string, { promedio: number; total: number; suma?: number }>, item: any) => {
+      const destino = String(item.destino ?? '');
+      if (!destino) {
+        return acc;
+      }
+
+      const actual = acc[destino] ?? { promedio: 0, total: 0, suma: 0 };
+      actual.total += 1;
+      actual.suma = (actual.suma ?? 0) + Number(item.calificacion ?? 0);
+      actual.promedio = actual.total > 0 ? actual.suma / actual.total : 0;
+      acc[destino] = actual;
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error('cargarResumenResenas error:', err);
+    return {};
   }
 }
 

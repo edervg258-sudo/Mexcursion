@@ -57,11 +57,11 @@ jest.mock('../lib/constantes', () => ({
 // Mock Image and other RN components
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const MockImage = ({ source: _source, ...props }: { source: unknown; [key: string]: unknown }) => <RN.View {...props} />;
   MockImage.displayName = 'Image';
   RN.Image = MockImage;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const MockStatusBar = ({ ...props }: { [key: string]: unknown }) => <RN.View {...props} />;
   MockStatusBar.displayName = 'StatusBar';
   RN.StatusBar = MockStatusBar;

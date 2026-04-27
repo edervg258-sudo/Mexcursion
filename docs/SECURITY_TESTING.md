@@ -185,8 +185,8 @@ npm audit fix --force
 ### Payment Security
 
 Test payment processing with:
-- **Test Cards** (from MercadoPago): 4111 1111 1111 1111
-- **Test Mode**: Set `EXPO_PUBLIC_MERCADOPAGO_PUBLIC_KEY` to TEST key
+- **Test Cards** (from Stripe): 4242 4242 4242 4242
+- **Test Mode**: Set `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` to a `pk_test_...` key
 - **Idempotency**: Verify duplicate payments with same `folio` fail safely
 
 ```bash

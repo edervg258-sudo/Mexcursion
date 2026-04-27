@@ -13,8 +13,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
-
-type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
+import { estadoReservaPorMetodo, folioDesdeStripe, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
 
 export default function PagoScreen() {
   const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
@@ -32,6 +31,8 @@ export default function PagoScreen() {
   const [procesando, setProcesando] = useState(false);
   const [mostrarTarjeta, setMostrarTarjeta] = useState(false);
   const [errorPago, setErrorPago]   = useState<{ mensaje: string } | null>(null);
+  const totalReserva = parseInt(precio ?? '0');
+  const totalPersonas = parseInt(personas ?? '1');
   // Re-entrancy guard: prevents duplicate reservations from double-tap or stale callbacks
   const procesandoRef = useRef(false);
   const [externalReference] = useState(
@@ -39,12 +40,9 @@ export default function PagoScreen() {
   );
 
   // Stable OXXO reference derived deterministically from booking params (no Math.random)
-  const [refOxxo] = useState(() => {
-    const seed = `${nombre ?? ''}${paquete ?? ''}${fecha ?? ''}${personas ?? ''}`;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 0x01000193) >>> 0; }
-    return '85700000' + (h % 100_000_000).toString().padStart(8, '0');
-  });
+  const [refOxxo] = useState(() =>
+    generarReferenciaOxxo(`${nombre ?? ''}${paquete ?? ''}${fecha ?? ''}${personas ?? ''}`)
+  );
 
   const pagar = async () => {
     // Card payments go through Stripe (PCI-DSS compliant)
@@ -83,16 +81,15 @@ export default function PagoScreen() {
             throw new Error('no_session');
           }
 
-          // SPEI y OXXO quedan pendientes hasta verificación del banco/tienda
-          const estadoReserva = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente' : 'confirmada';
+          const estadoReserva = estadoReservaPorMetodo(metodo);
           const payload = [
             usuario.id,
             folio,
             nombre ?? '',
             paquete ?? '',
             fecha ?? '',
-            parseInt(personas ?? '1'),
-            parseInt(precio ?? '0'),
+            totalPersonas,
+            totalReserva,
             metodo,
             estadoReserva,
             notas ?? '',
@@ -109,7 +106,7 @@ export default function PagoScreen() {
           }
 
           await crearNotificacion(usuario.id, 'pago_exitoso', `Pago confirmado - Folio: ${folio}`, JSON.stringify({ folio, metodo }));
-          await agregarHistorial(usuario.id, 'pago', `Pago realizado con ${metodo} - Folio: ${folio}`, JSON.stringify({ folio, metodo, monto: parseInt(precio ?? '0') * parseInt(personas ?? '1') }));
+          await agregarHistorial(usuario.id, 'pago', `Pago realizado con ${metodo} - Folio: ${folio}`, JSON.stringify({ folio, metodo, monto: totalReserva }));
         })(),
         timeoutPromise,
       ]);
@@ -121,8 +118,23 @@ export default function PagoScreen() {
         message: 'payment_completed',
         data: { metodo, folio },
       });
-      const estadoConfirmacion = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente' : 'confirmada';
-      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo, estado: estadoConfirmacion } });
+      router.push({
+        pathname: '/(tabs)/confirmacion',
+        params: {
+          nombre,
+          paquete,
+          precio: String(totalReserva),
+          personas: String(totalPersonas),
+          fecha,
+          nombre_viajero: _nombre_viajero,
+          telefono: _telefono,
+          notas,
+          folio,
+          metodo,
+          ref_oxxo: metodo === 'oxxo' ? refOxxo : '',
+          estado: estadoReservaPorMetodo(metodo),
+        },
+      });
     } catch (err) {
       procesandoRef.current = false;
       setProcesando(false);
@@ -148,8 +160,7 @@ export default function PagoScreen() {
   const handlePagoTarjetaSuccess = async (paymentId: string) => {
     setMostrarTarjeta(false);
     // Use the Stripe payment ID as folio so retries are idempotent
-    const folio = `STRIPE${paymentId}`.slice(0, 20);
-    await procesarPago(folio);
+    await procesarPago(folioDesdeStripe(paymentId));
   };
   const handlePagoTarjetaError = (error: string) => {
     setMostrarTarjeta(false);
@@ -163,15 +174,20 @@ export default function PagoScreen() {
     Alert.alert('Error en pago', userMessageForError(normalized));
   };
 
+  const handlePagoTarjetaBack = () => {
+    setMostrarTarjeta(false);
+  };
+
   if (mostrarTarjeta) {
     return (
       <PagoTarjeta
-        amount={parseInt(precio ?? '0') * parseInt(personas ?? '1')}
+        amount={totalReserva}
         description={`Reserva ${nombre} - ${paquete}`}
         payerEmail={email}
         externalReference={externalReference}
         onSuccess={handlePagoTarjetaSuccess}
         onError={handlePagoTarjetaError}
+        onBack={handlePagoTarjetaBack}
       />
     );
   }
@@ -188,7 +204,7 @@ export default function PagoScreen() {
         {/* Tarjeta monto — siempre verde, no necesita dark mode */}
         <View style={es.tarjetaMonto}>
           <Text style={es.montoLabel}>{t('pago_total')}</Text>
-          <Text style={es.monto}>${parseInt(precio ?? '0').toLocaleString()}<Text style={es.montoMXN}> MXN</Text></Text>
+          <Text style={es.monto}>${totalReserva.toLocaleString()}<Text style={es.montoMXN}> MXN</Text></Text>
           <View style={es.separadorMonto} />
           <View style={es.filasMonto}>
             <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_destino')}</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
@@ -261,7 +277,7 @@ export default function PagoScreen() {
               <View style={[es.cajaClabe, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
                 <Text style={es.clabeLabel}>{t('pago_oxxo_ref')}</Text>
                 <Text style={[es.clabe, { color: tema.texto }]}>{refOxxo}</Text>
-                <Text style={es.clabeLabel}>{t('pago_oxxo_monto', { precio: parseInt(precio ?? '0').toLocaleString() })}</Text>
+                <Text style={es.clabeLabel}>{t('pago_oxxo_monto', { precio: totalReserva.toLocaleString() })}</Text>
               </View>
             </View>
           </View>

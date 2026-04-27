@@ -21,7 +21,7 @@ jest.mock('../lib/TemaContext', () => ({
 // Mock Image
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const MockImage = ({ source: _source, ...props }: { source: unknown; [key: string]: unknown }) => <RN.View {...props} />;
   MockImage.displayName = 'Image';
   RN.Image = MockImage;

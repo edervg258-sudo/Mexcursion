@@ -40,7 +40,7 @@ type SesionUsuario = {
 export default function PerfilScreen() {
   const { width }  = useWindowDimensions();
   const esPC       = width >= 768;
-  const { bottom: bottomInset } = useSafeAreaInsets();
+  useSafeAreaInsets();
   const { t, idioma, cambiarIdioma } = useIdioma();
   const { isDark, toggleTema, tema } = useTemaContext();
 

@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
+import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DestinoCard } from '../../components/DestinoCard';
@@ -9,6 +10,7 @@ import {
     FlatList,
     Image,
     Platform,
+    RefreshControl,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -24,6 +26,7 @@ import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { LIST_PERF_PRESET } from '../../lib/performance';
 import {
     alternarFavorito as alternarFavoritoBD,
+    cargarResumenResenas,
     cargarFavoritos,
     obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
@@ -32,6 +35,7 @@ import { useTemaContext } from '../../lib/TemaContext';
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
+type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
 
 const CATEGORIAS = ['Todos', 'Playa', 'Cultura', 'Aventura', 'Gastronomía', 'Ciudad'];
 
@@ -39,6 +43,13 @@ const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
   { clave: 'az', etiqueta: 'Orden A-Z' },
   { clave: 'mas_barato', etiqueta: 'Menor precio' },
   { clave: 'mas_caro', etiqueta: 'Mayor precio' },
+];
+
+const RANGOS_PRECIO: { clave: RangoPrecio; etiqueta: string }[] = [
+  { clave: 'todos', etiqueta: 'Todos' },
+  { clave: 'bajo',  etiqueta: '< $5,000' },
+  { clave: 'medio', etiqueta: '$5k – $10k' },
+  { clave: 'alto',  etiqueta: '> $10,000' },
 ];
 
 export default function MenuScreen() {
@@ -60,6 +71,8 @@ export default function MenuScreen() {
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [rangoPrecio, setRangoPrecio] = useState<RangoPrecio>('todos');
   const rutaActual = usePathname();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const animsFav = useRef<Map<number, Animated.Value>>(new Map()).current;
@@ -95,6 +108,15 @@ export default function MenuScreen() {
     }, [fadeAnim])
   );
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (usuarioId) {
+      const idsFav = await cargarFavoritos(usuarioId);
+      setEstados(ant => ant.map(e => ({ ...e, favorito: idsFav.includes(e.id) })));
+    }
+    setRefreshing(false);
+  }, [usuarioId]);
+
   const manejarFavorito = async (id: number) => {
     if (!usuarioId) {return;}
     // Animación spring: crece y vuelve
@@ -114,11 +136,23 @@ export default function MenuScreen() {
   const estadosFiltrados = estados
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
+    .filter((e) => {
+      if (rangoPrecio === 'bajo')  return e.precio < 5000;
+      if (rangoPrecio === 'medio') return e.precio >= 5000 && e.precio <= 10000;
+      if (rangoPrecio === 'alto')  return e.precio > 10000;
+      return true;
+    })
     .sort((a, b) => {
       if (orden === 'mas_caro') {return b.precio - a.precio;}
       if (orden === 'mas_barato') {return a.precio - b.precio;}
       return a.nombre.localeCompare(b.nombre);
     });
+
+  const { data: resumenesResenas = {} } = useQuery({
+    queryKey: ['resumen-resenas-menu'],
+    queryFn: () => cargarResumenResenas(TODOS_LOS_ESTADOS.map(estado => estado.nombre)),
+    staleTime: 1000 * 60 * 10,
+  });
 
   const navegarPestana = (ruta: string) => router.replace(ruta as any);
 
@@ -135,6 +169,7 @@ export default function MenuScreen() {
       fadeAnim={fadeAnim}
       animFav={obtenerAnimFav(item.id)}
       onToggleFavorito={manejarFavorito}
+      resumenResenas={resumenesResenas[item.nombre]}
     />
   );
 
@@ -270,6 +305,28 @@ export default function MenuScreen() {
           </ScrollView>
         </View>
 
+        {/* Rango de precio */}
+        <View style={estilos.listaCategoriasContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[estilos.listaCategorias, { paddingTop: 0 }]}
+            bounces={false}
+          >
+            {RANGOS_PRECIO.map((rp) => (
+              <TouchableOpacity
+                key={rp.clave}
+                style={[estilos.chipPrecio, rangoPrecio === rp.clave && estilos.chipPrecioActivo]}
+                onPress={() => setRangoPrecio(rp.clave)}
+              >
+                <Text style={[estilos.textoChipPrecio, rangoPrecio === rp.clave && estilos.textoChipPrecioActivo]}>
+                  {rp.etiqueta}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <Text style={estilos.contadorResultados}>
           {estadosFiltrados.length} destino{estadosFiltrados.length !== 1 ? 's' : ''} encontrado
           {estadosFiltrados.length !== 1 ? 's' : ''}
@@ -298,7 +355,7 @@ export default function MenuScreen() {
             <Text style={estilos.textoVacio}>🗺️</Text>
             <Text style={estilos.tituloVacio}>Sin resultados</Text>
             <Text style={estilos.subtituloVacio}>Intenta con otra búsqueda o categoría</Text>
-            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
+            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); setRangoPrecio('todos'); }}>
               <Text style={estilos.limpiarFiltros}>Limpiar filtros</Text>
             </TouchableOpacity>
           </View>
@@ -314,6 +371,14 @@ export default function MenuScreen() {
             windowSize={LIST_PERF_PRESET.windowSize}
             updateCellsBatchingPeriod={LIST_PERF_PRESET.updateCellsBatchingPeriod}
             removeClippedSubviews={LIST_PERF_PRESET.removeClippedSubviews}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#3AB7A5']}
+                tintColor="#3AB7A5"
+              />
+            }
           />
         )}
       </View>
@@ -526,6 +591,20 @@ const estilos = StyleSheet.create({
   textoChip: { fontSize: 14, fontWeight: '600', color: Tema.textoSecundario, lineHeight: 18 },
   textoChipActivo: { color: '#fff', fontWeight: '700' },
   contadorResultados: { fontSize: 13, color: Tema.textoMuted, marginHorizontal: 16, marginBottom: 8, marginTop: 4, fontWeight: '500' },
+  chipPrecio: {
+    paddingHorizontal: 14,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Tema.superficieBlanca,
+    borderWidth: 1,
+    borderColor: Tema.borde,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipPrecioActivo: { backgroundColor: '#DD331D', borderColor: '#DD331D' },
+  textoChipPrecio: { fontSize: 12, fontWeight: '600', color: Tema.textoSecundario },
+  textoChipPrecioActivo: { color: '#fff', fontWeight: '700' },
 
   // Tarjetas
   contenidoLista: { paddingHorizontal: 14, paddingBottom: 20, flexGrow: 1 },

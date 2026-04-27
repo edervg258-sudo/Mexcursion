@@ -33,16 +33,23 @@ import {
 import { useTemaContext } from '../../lib/TemaContext';
 
 // ── Imágenes de rutas ──────────────────────────────────────────────────────
+import guanajuatoImg from '../../assets/images/guanajuato.png';
+import chiapasImg from '../../assets/images/chiapas.png';
+import sinaloaImg from '../../assets/images/sinaloa.png';
+import jaliscoImg from '../../assets/images/jalisco.png';
+import chihuahuaImg from '../../assets/images/chihuahua.png';
+
 const RUTA_IMG: Record<string, number> = {
-  colonial: require('../../assets/images/guanajuato.png') as number,
-  maya:     require('../../assets/images/chiapas.png') as number,
-  pacifico: require('../../assets/images/sinaloa.png') as number,
-  sabor:    require('../../assets/images/jalisco.png') as number,
-  aventura: require('../../assets/images/chihuahua.png') as number,
+  colonial: guanajuatoImg,
+  maya:     chiapasImg,
+  pacifico: sinaloaImg,
+  sabor:    jaliscoImg,
+  aventura: chihuahuaImg,
 };
 
 // ── Colores de estado de reserva ───────────────────────────────────────────
-const C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
   confirmada: { fondo: '#E8F5F2', texto: '#3AB7A5', label: 'Confirmada'  },
   completada: { fondo: '#F0F0F0', texto: '#666',    label: 'Completada'  },
   cancelada:  { fondo: '#FEF0EE', texto: '#DD331D', label: 'Cancelada'   },
@@ -60,7 +67,7 @@ const TRANSICIONES: Record<string, { label: string; estado: string; color: strin
 export default function AdminScreen() {
   const { width }               = useWindowDimensions();
   const esPC                    = width >= 768;
-  const { bottom: bottomInset } = useSafeAreaInsets();
+  useSafeAreaInsets();
   const { tema, isDark }        = useTemaContext();
 
   const [seccion, setSeccion]   = useState<Seccion>('dashboard');
@@ -145,8 +152,8 @@ export default function AdminScreen() {
   };
   const guardarDestino = async () => {
     const errores: Record<string, string> = {};
-    if (!formNombre.trim())     errores.nombre    = 'El nombre es requerido';
-    if (!formCategoria.trim())  errores.categoria = 'La categoría es requerida';
+    if (!formNombre.trim())     {errores.nombre    = 'El nombre es requerido';}
+    if (!formCategoria.trim())  {errores.categoria = 'La categoría es requerida';}
     const precioNum = Number(formPrecio);
     if (!formPrecio.trim() || isNaN(precioNum) || precioNum <= 0) {
       errores.precio = 'Ingresa un precio mayor a $0';
@@ -284,12 +291,12 @@ export default function AdminScreen() {
     const base = reservas
       .filter(r => filtroReserva === 'todas' || r.estado === filtroReserva)
       .filter(r => {
-        if (filtroFecha === 'todas') return true;
+        if (filtroFecha === 'todas') {return true;}
         const f = r.creado_en ? new Date(r.creado_en) : null;
-        if (!f) return false;
-        if (filtroFecha === 'hoy')    return f.toDateString() === ahora2.toDateString();
-        if (filtroFecha === 'semana') return f >= hace7;
-        if (filtroFecha === 'mes')    return f >= hace30;
+        if (!f) {return false;}
+        if (filtroFecha === 'hoy')    {return f.toDateString() === ahora2.toDateString();}
+        if (filtroFecha === 'semana') {return f >= hace7;}
+        if (filtroFecha === 'mes')    {return f >= hace30;}
         return true;
       })
       .filter(r => !q || (
@@ -363,10 +370,10 @@ export default function AdminScreen() {
       onCancelarForm={() => setModoForm(null)}
       onGuardar={guardarDestino}
       onSetForm={(campo, val) => {
-        if (campo === 'nombre')    setFormNombre(val);
-        if (campo === 'categoria') setFormCategoria(val);
-        if (campo === 'precio')    setFormPrecio(val);
-        if (campo === 'desc')      setFormDesc(val);
+        if (campo === 'nombre')    {setFormNombre(val);}
+        if (campo === 'categoria') {setFormCategoria(val);}
+        if (campo === 'precio')    {setFormPrecio(val);}
+        if (campo === 'desc')      {setFormDesc(val);}
       }}
       onLimpiarError={campo => setFormErrores(e => ({ ...e, [campo]: undefined }))}
       onEliminar={handleEliminarDestino}
@@ -476,7 +483,7 @@ export default function AdminScreen() {
   };
 
   // No-admin: no renderizar nada (la navegación ya está en curso)
-  if (esAdmin === false) return null;
+  if (esAdmin === false) {return null;}
 
   if (!verificado) {
     return (

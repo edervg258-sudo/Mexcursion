@@ -33,7 +33,7 @@ export function normalizeError(error: unknown): NormalizedError {
     return { kind: 'validation', message: raw, retryable: false };
   }
   if (
-    message.includes('mercadopago') ||
+    message.includes('stripe') ||
     message.includes('checkout') ||
     message.includes('payment') ||
     message.includes('rejected')

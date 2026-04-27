@@ -4,6 +4,7 @@
 
 import { supabase } from './supabase';
 import {
+  cargarResumenResenas,
   obtenerTodosLosDestinos,
   registrarUsuario,
   iniciarSesion,
@@ -14,6 +15,7 @@ import {
   obtenerItinerarios,
   crearItinerario,
   obtenerRutasSugeridas,
+  solicitarRecuperacionContrasena,
   guardarReserva,
   cargarReservas,
   cargarResenas,
@@ -45,6 +47,7 @@ jest.mock('./supabase', () => ({
       update: jest.fn().mockReturnThis(),
       delete: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       range: jest.fn().mockReturnThis(),
@@ -114,7 +117,9 @@ describe('iniciarSesion', () => {
     });
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+        }),
       }),
     });
 
@@ -144,7 +149,9 @@ describe('obtenerUsuarioActivo', () => {
     });
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: { id: '123', email: 'email@test.com', nombre: 'Test' }, error: null }),
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({ data: { id: '123', email: 'email@test.com', nombre: 'Test' }, error: null }),
+        }),
       }),
     });
 
@@ -161,6 +168,23 @@ describe('obtenerUsuarioActivo', () => {
 
     const result = await obtenerUsuarioActivo();
     expect(result).toBeNull();
+  });
+});
+
+describe('solicitarRecuperacionContrasena', () => {
+  it('debe solicitar correo de recuperación', async () => {
+    (supabase.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue({
+      error: null,
+    });
+
+    const result = await solicitarRecuperacionContrasena('email@test.com');
+    expect(result).toEqual({ exito: true });
+    expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('email@test.com');
+  });
+
+  it('debe rechazar correos inválidos', async () => {
+    const result = await solicitarRecuperacionContrasena('correo-invalido');
+    expect(result.exito).toBe(false);
   });
 });
 
@@ -315,6 +339,25 @@ describe('cargarResenas', () => {
     const result = await cargarResenas('México');
     expect(result[0].calificacion).toBe(5);
     expect(result[0].nombre).toBe('Ana');
+  });
+});
+
+describe('cargarResumenResenas', () => {
+  it('debe agregar promedio y total por destino', async () => {
+    const mockData = [
+      { destino: 'México', calificacion: 5 },
+      { destino: 'México', calificacion: 3 },
+      { destino: 'Oaxaca', calificacion: 4 },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        in: jest.fn().mockResolvedValue({ data: mockData, error: null }),
+      }),
+    });
+
+    const result = await cargarResumenResenas(['México', 'Oaxaca']);
+    expect(result['México']).toMatchObject({ promedio: 4, total: 2 });
+    expect(result['Oaxaca']).toMatchObject({ promedio: 4, total: 1 });
   });
 });
 

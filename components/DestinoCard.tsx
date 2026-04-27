@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import {
   Animated, Image, Platform, StyleSheet,
-  Text, TouchableOpacity, View,
+  Text, TouchableOpacity, View, type ImageSourcePropType,
 } from 'react-native';
 
 interface Destino {
@@ -15,7 +15,7 @@ interface Destino {
   categoria: string;
   descripcion: string;
   precio: number;
-  imagen: ReturnType<typeof require>;
+  imagen: ImageSourcePropType;
   favorito: boolean;
 }
 
@@ -24,9 +24,13 @@ interface Props {
   fadeAnim: Animated.Value;
   animFav: Animated.Value;
   onToggleFavorito: (id: number) => void;
+  resumenResenas?: {
+    promedio: number;
+    total: number;
+  };
 }
 
-export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, animFav, onToggleFavorito }: Props) {
+export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, animFav, onToggleFavorito, resumenResenas }: Props) {
   return (
     <Animated.View style={{
       opacity: fadeAnim,
@@ -53,6 +57,13 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
           <View style={s.badgePrecio}>
             <Text style={s.textoPrecio}>Desde ${item.precio.toLocaleString()}</Text>
           </View>
+          {resumenResenas?.total ? (
+            <View style={s.badgeResenas}>
+              <Text style={s.textoBadgeResenas}>
+                {resumenResenas.promedio.toFixed(1)} ★ · {resumenResenas.total} reseñas
+              </Text>
+            </View>
+          ) : null}
           <Text style={s.nombreTarjeta}>{item.nombre}</Text>
           <Text style={s.descripcionTarjeta} numberOfLines={2}>{item.descripcion}</Text>
         </TouchableOpacity>
@@ -101,6 +112,8 @@ const s = StyleSheet.create({
   textoBadge:       { color: '#fff', fontSize: 11, fontWeight: '700' },
   badgePrecio:      { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 11, paddingVertical: 5, borderRadius: 14 },
   textoPrecio:      { color: '#fff', fontSize: 11, fontWeight: '600' },
+  badgeResenas:     { position: 'absolute', top: 12, left: 92, backgroundColor: 'rgba(0,0,0,0.42)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, maxWidth: '58%' },
+  textoBadgeResenas:{ color: '#fff', fontSize: 10, fontWeight: '700' },
   nombreTarjeta:    { position: 'absolute', bottom: 32, left: 14, fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.3, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   descripcionTarjeta:{ position: 'absolute', bottom: 12, left: 14, fontSize: 12, color: 'rgba(255,255,255,0.92)', width: '72%', lineHeight: 16 },
   botonFavorito:    {

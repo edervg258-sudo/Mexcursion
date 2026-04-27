@@ -1,0 +1,21 @@
+{
+  "ignore_dirs": [
+    "node_modules",
+    ".git",
+    ".metro",
+    ".gradle",
+    ".expo",
+    ".claude",
+    "build",
+    "dist",
+    "coverage",
+    "android/build",
+    "android/.gradle",
+    "android/.cxx",
+    "ios/build",
+    "ios/Pods",
+    "web/build",
+    "node_modules/expo-modules-core/expo-module-gradle-plugin/build",
+    "node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin/build"
+  ]
+}

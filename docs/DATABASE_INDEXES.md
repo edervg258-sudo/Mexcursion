@@ -35,7 +35,7 @@ This document describes all indexes in the MiPrimerApp database and their purpos
 - **Table:** `reservas`
 - **Column:** `folio` (WHERE folio IS NOT NULL)
 - **Type:** UNIQUE
-- **Purpose:** Idempotency for Mercadopago payment processing. Prevents duplicate bookings with same folio, ensuring safe retry logic.
+- **Purpose:** Idempotency for payment processing. Prevents duplicate bookings with the same folio, ensuring safe retry logic.
 - **Cardinality:** Low (only non-null folios)
 - **Created:** Initial schema
 

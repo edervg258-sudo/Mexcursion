@@ -4,8 +4,9 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, FlatList, Platform, RefreshControl,
-    ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
+    ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
+import { DetalleReservaModal, ReservaDetalle } from '../../components/DetalleReservaModal';
 import { TabChrome } from '../../components/TabChrome';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
@@ -51,7 +52,7 @@ export default function MisReservasScreen() {
   const cardAnims = useRef<Map<string, Animated.Value>>(new Map()).current;
 
   const getChipAnim = (key: string) => {
-    if (!chipAnims.has(key)) chipAnims.set(key, new Animated.Value(1));
+    if (!chipAnims.has(key)) {chipAnims.set(key, new Animated.Value(1));}
     return chipAnims.get(key)!;
   };
   const chipPressIn  = (key: string) => Animated.spring(getChipAnim(key), { toValue: 0.93, useNativeDriver: ND, speed: 60, bounciness: 2 }).start();
@@ -89,6 +90,7 @@ export default function MisReservasScreen() {
   const [filtro, setFiltro]               = useState<Filtro>('todas');
   const [cancelando, setCancelando]       = useState<number | null>(null);
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null);
+  const [reservaDetalle, setReservaDetalle] = useState<ReservaDetalle | null>(null);
 
   useEffect(() => { configurarBarraAndroid(); }, []);
 
@@ -191,6 +193,22 @@ export default function MisReservasScreen() {
     }
   };
 
+  const compartirReserva = async (item: Reserva) => {
+    try {
+      await Share.share({
+        title: `Reserva ${item.folio} — Mexcursión`,
+        message:
+          `🌮 *Mi reserva en Mexcursión*\n\n` +
+          `📍 Destino: ${item.destino}\n` +
+          `📋 Folio: ${item.folio}\n` +
+          `📅 Fecha: ${item.fecha.split('T')[0]}\n` +
+          `👥 Personas: ${item.personas}\n` +
+          `💰 Total: $${item.total.toLocaleString()} MXN\n\n` +
+          `¡Descubre México con Mexcursión! 🇲🇽`,
+      });
+    } catch { /* silencioso */ }
+  };
+
   const volverAReservar = (item: Reserva) => {
     setTimeout(() => router.push({
       pathname: '/(tabs)/reserva' as never,
@@ -281,6 +299,23 @@ export default function MisReservasScreen() {
               <Text style={es.textoBtnDetalle}>{t('res_ver_destino')}</Text>
             </TouchableOpacity>
 
+            {/* Botón detalle/share */}
+            <TouchableOpacity
+              style={[es.btnIcono, { borderColor: tema.borde }]}
+              onPress={() => setReservaDetalle(item as ReservaDetalle)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="document-text-outline" size={16} color={tema.textoSecundario} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[es.btnIcono, { borderColor: tema.borde }]}
+              onPress={() => compartirReserva(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="share-social-outline" size={16} color={tema.textoSecundario} />
+            </TouchableOpacity>
+
             {cancelable && (
               <TouchableOpacity
                 style={[es.btnCancelar, (esCancelando || pidioConf) && { opacity: 0.5 }]}
@@ -355,7 +390,22 @@ export default function MisReservasScreen() {
     <SkeletonFilas cantidad={5} />
   ) : reservasFiltradas.length === 0 ? (
     <Animated.View style={[es.vacio, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>{t('res_vacio')}</Text>
+      <Text style={es.vacioEmoji}>{filtro === 'todas' ? '🗺️' : '🔍'}</Text>
+      <Text style={[es.tituloVacio, { color: tema.texto }]}>
+        {filtro === 'todas' ? t('res_vacias') : t('res_sin_resultado')}
+      </Text>
+      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>
+        {filtro === 'todas' ? t('res_vacias2') : t('res_sin_resultado2')}
+      </Text>
+      {filtro === 'todas' && (
+        <TouchableOpacity
+          style={es.btnExplorar}
+          onPress={() => router.replace('/(tabs)/menu' as never)}
+          activeOpacity={0.85}
+        >
+          <Text style={es.txtExplorar}>Explorar destinos →</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   ) : (
     <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
@@ -394,6 +444,12 @@ export default function MisReservasScreen() {
       </View>
       {chipsRow}
       {contenido}
+
+      <DetalleReservaModal
+        reserva={reservaDetalle}
+        visible={!!reservaDetalle}
+        onClose={() => setReservaDetalle(null)}
+      />
     </TabChrome>
   );
 }
@@ -445,7 +501,11 @@ const es = StyleSheet.create({
   notaTexto:            { fontSize: 13, color: '#555', lineHeight: 18 },
   btnCargarMas:         { marginHorizontal: 16, marginTop: 4, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtCargarMas:         { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },
-  vacio:                { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  tituloVacio:          { fontSize: 18, fontWeight: '700', color: '#333' },
-  subtituloVacio:       { fontSize: 13, color: '#888' },
+  vacio:                { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, paddingHorizontal: 32 },
+  vacioEmoji:           { fontSize: 52, marginBottom: 4 },
+  tituloVacio:          { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  subtituloVacio:       { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },
+  txtExplorar:          { color: '#fff', fontWeight: '700', fontSize: 15 },
+  btnIcono:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
 });
