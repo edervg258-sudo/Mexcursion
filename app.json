@@ -5,14 +5,14 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "mercursion",
+    "scheme": "mexcursion",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mercursion.app",
+      "bundleIdentifier": "com.mexcursion.app",
       "buildNumber": "1.0.0",
       "infoPlist": {
-        "CFBundleDisplayName": "Mercursión",
+        "CFBundleDisplayName": "Mexcursión",
         "LSRequiresIPhoneOS": true,
         "UIStatusBarStyle": "UIStatusBarStyleDefault",
         "UIViewControllerBasedStatusBarAppearance": false,
@@ -40,7 +40,7 @@
       }
     },
     "android": {
-      "package": "com.mercursion.app",
+      "package": "com.mexcursion.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
