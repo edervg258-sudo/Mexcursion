@@ -11,6 +11,7 @@ import {
 import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { Tema } from '../../lib/tema';
 
 // ─── Calendario funcional (web + nativo sin dependencias externas) ────────────
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -38,7 +39,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   });
 
   const seleccionado = parseFechaDDMMAAAA(fecha);
-  const ac = color ?? '#3AB7A5';
+  const ac = color ?? Tema.primario;
 
   const primerDia = (() => {
     const d = mesBase.getDay(); // 0=dom
@@ -178,6 +179,60 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   );
 };
 
+// ─── Validación de campos (fuera del componente para estabilidad) ─────────────
+function validarCampo(campo: string, valor: string, t: (k: string) => string): string {
+  switch (campo) {
+    case 'nombre':
+      return valor.trim().length < 3 ? t('rsv_err_nombre') : '';
+    case 'email':
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim()) ? '' : t('rsv_err_correo');
+    case 'tel':
+      return valor.replace(/\D/g, '').length >= 10 ? '' : t('rsv_err_telefono');
+    case 'fecha': {
+      const partes = valor.split('/');
+      if (partes.length !== 3) { return t('rsv_err_fecha'); }
+      const d = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      return !isNaN(d.getTime()) && d >= hoy ? '' : t('rsv_err_fecha');
+    }
+    default:
+      return '';
+  }
+}
+
+// ─── Campo de formulario reutilizable (fuera del componente para evitar remounts) ──
+function Campo({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID, campoKey, t }: {
+  label: string; valor: string; onChange: (v: string) => void;
+  error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean;
+  testID?: string; campoKey?: string;
+  t: (k: string) => string;
+}) {
+  const valido = campoKey && valor.length > 0 && !error && !validarCampo(campoKey, valor, t);
+  return (
+    <View style={es.grupoCampo}>
+      <Text style={es.label}>{label}</Text>
+      <View style={[es.cajaInput, !!error && es.cajaInputError, !!valido && es.cajaInputValido]}>
+        <TextInput
+          testID={testID}
+          accessibilityLabel={label}
+          accessibilityHint="Campo del formulario de reserva"
+          style={es.input}
+          value={valor}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor="#bbb"
+          keyboardType={teclado}
+          secureTextEntry={seguro}
+          autoCapitalize="none"
+          underlineColorAndroid="transparent"
+        />
+        {valido ? <Text style={es.iconoValido}>✓</Text> : null}
+      </View>
+      {error ? <Text style={es.textoError}>{error}</Text> : null}
+    </View>
+  );
+}
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function ReservaScreen() {
   const { nombre, paquete, precio } =
@@ -190,8 +245,16 @@ export default function ReservaScreen() {
   const [telefono, setTelefono]           = useState('');
   const [personas, setPersonas]           = useState(1);
   const [fecha, setFecha]                 = useState('');
+  const [fecha_fin, setFechaFin]          = useState('');
   const [notas, setNotas]                 = useState('');
   const [errores, setErrores]             = useState<Record<string, string>>({});
+
+  const calcularNoches = (): number => {
+    const inicio = parseFechaDDMMAAAA(fecha);
+    const fin    = parseFechaDDMMAAAA(fecha_fin);
+    if (!inicio || !fin || fin <= inicio) { return 0; }
+    return Math.round((fin.getTime() - inicio.getTime()) / 86_400_000);
+  };
 
   const precioUnitario = parseInt(precio ?? '0');
   const total          = precioUnitario * personas;
@@ -205,34 +268,23 @@ export default function ReservaScreen() {
     });
   };
 
-  const validarCampo = (campo: string, valor: string): string => {
-    switch (campo) {
-      case 'nombre':
-        return valor.trim().length < 3 ? t('rsv_err_nombre') : '';
-      case 'email':
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim()) ? '' : t('rsv_err_correo');
-      case 'tel':
-        return valor.replace(/\D/g, '').length >= 10 ? '' : t('rsv_err_telefono');
-      case 'fecha': {
-        const fechaObj = parseFechaDDMMAAAA(valor);
-        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-        return fechaObj && fechaObj >= hoy ? '' : t('rsv_err_fecha');
-      }
-      default:
-        return '';
-    }
-  };
-
   const validar = () => {
     const e: Record<string, string> = {};
-    const errNombre = validarCampo('nombre', nombre_viajero);
-    const errEmail  = validarCampo('email',  email);
-    const errTel    = validarCampo('tel',    telefono);
-    const errFecha  = validarCampo('fecha',  fecha);
+    const errNombre = validarCampo('nombre', nombre_viajero, t);
+    const errEmail  = validarCampo('email',  email,          t);
+    const errTel    = validarCampo('tel',    telefono,       t);
+    const errFecha  = validarCampo('fecha',  fecha,          t);
     if (errNombre) { e.nombre = errNombre; }
     if (errEmail)  { e.email  = errEmail;  }
     if (errTel)    { e.tel    = errTel;    }
     if (errFecha)  { e.fecha  = errFecha;  }
+    if (fecha_fin) {
+      const inicio = parseFechaDDMMAAAA(fecha);
+      const fin    = parseFechaDDMMAAAA(fecha_fin);
+      if (!fin || (inicio && fin <= inicio)) {
+        e.fecha_fin = t('rsv_err_fecha_fin');
+      }
+    }
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -241,45 +293,8 @@ export default function ReservaScreen() {
     if (!validar()) { return; }
     router.push({
       pathname: '/(tabs)/pago',
-      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
+      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, fecha_fin, nombre_viajero, email, telefono, notas },
     } as never);
-  };
-
-  const Campo = ({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID, campoKey }: {
-    label: string; valor: string; onChange: (v: string) => void;
-    error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean; testID?: string; campoKey?: string;
-  }) => {
-    const valido = campoKey && valor.length > 0 && !error && !validarCampo(campoKey, valor);
-    return (
-      <View style={es.grupoCampo}>
-        <Text style={es.label}>{label}</Text>
-        <View style={[
-          es.cajaInput,
-          !!error  && es.cajaInputError,
-          !!valido && es.cajaInputValido,
-        ]}>
-          <TextInput
-            testID={testID}
-            accessibilityLabel={label}
-            accessibilityHint="Campo del formulario de reserva"
-            style={es.input}
-            value={valor}
-            onChangeText={(v: string) => {
-              onChange(v);
-              if (campoKey) { limpiarError(campoKey); }
-            }}
-            placeholder={placeholder}
-            placeholderTextColor="#bbb"
-            keyboardType={teclado}
-            secureTextEntry={seguro}
-            autoCapitalize="none"
-            underlineColorAndroid="transparent"
-          />
-          {valido ? <Text style={es.iconoValido}>✓</Text> : null}
-        </View>
-        {error ? <Text style={es.textoError}>{error}</Text> : null}
-      </View>
-    );
   };
 
   return (
@@ -327,16 +342,32 @@ export default function ReservaScreen() {
           </View>
         </View>
 
-        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" />
-        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" />
-        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" />
+        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={v => { setNombreViajero(v); limpiarError('nombre'); }} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" t={t} />
+        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={v => { setEmail(v);          limpiarError('email');  }} error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" t={t} />
+        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={v => { setTelefono(v);       limpiarError('tel');    }} error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" t={t} />
 
-        {/* Fecha con calendario */}
+        {/* Fecha de inicio */}
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_fecha')}</Text>
-          <CalendarioPicker fecha={fecha} onSelect={setFecha} color="#3AB7A5" />
+          <CalendarioPicker fecha={fecha} onSelect={v => { setFecha(v); limpiarError('fecha'); }} color={Tema.primario} />
           {errores.fecha ? <Text style={es.textoError}>{errores.fecha}</Text> : null}
         </View>
+
+        {/* Fecha de regreso */}
+        <View style={es.grupoCampo}>
+          <Text style={es.label}>{t('rsv_fecha_fin')}</Text>
+          <CalendarioPicker fecha={fecha_fin} onSelect={v => { setFechaFin(v); limpiarError('fecha_fin'); }} color={Tema.primario} />
+          {errores.fecha_fin ? <Text style={es.textoError}>{errores.fecha_fin}</Text> : null}
+        </View>
+
+        {/* Contador de noches */}
+        {calcularNoches() > 0 && (
+          <View style={es.cajaNochesBanner}>
+            <Text style={es.textNochesBanner}>
+              {calcularNoches() === 1 ? t('rsv_noches').replace('{n}', '1') : t('rsv_noches_plural').replace('{n}', String(calcularNoches()))}
+            </Text>
+          </View>
+        )}
 
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_notas')}</Text>
@@ -373,7 +404,7 @@ const es = StyleSheet.create({
   scroll:            { padding: 16, maxWidth: 700, alignSelf: 'center', width: '100%' },
 
   tarjetaResumen:    { backgroundColor: '#fff', borderRadius: 18, marginBottom: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#eee', ...sombra({ opacity: 0.1, radius: 6, offsetY: 2, elevation: 3 }) },
-  resumenHeader:     { backgroundColor: '#3AB7A5', paddingHorizontal: 18, paddingVertical: 12 },
+  resumenHeader:     { backgroundColor: Tema.primario, paddingHorizontal: 18, paddingVertical: 12 },
   resumenHeaderTexto:{ color: '#fff', fontWeight: '700', fontSize: 14 },
   resumenCuerpo:     { paddingHorizontal: 18, paddingVertical: 8 },
   filaResumen:       { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
@@ -382,22 +413,24 @@ const es = StyleSheet.create({
 
   grupoCampo:        { marginBottom: 14 },
   label:             { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6, marginLeft: 4 },
-  cajaInput:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5', paddingHorizontal: 16, minHeight: 48, ...sombra({ opacity: 0.05, radius: 4, offsetY: 1, elevation: 1 }) },
-  cajaInputError:    { borderColor: '#DD331D' },
-  cajaInputValido:   { borderColor: '#1A9B8A' },
+  cajaInput:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 25, borderWidth: 1.5, borderColor: Tema.primario, paddingHorizontal: 16, minHeight: 48, ...sombra({ opacity: 0.05, radius: 4, offsetY: 1, elevation: 1 }) },
+  cajaInputError:    { borderColor: Tema.acento },
+  cajaInputValido:   { borderColor: Tema.primarioOscuro },
   input:             { flex: 1, fontSize: 14, color: '#333', paddingVertical: 0, outlineWidth: 0 },
-  iconoValido:       { fontSize: 14, color: '#1A9B8A', fontWeight: '700', marginLeft: 6 },
-  textoError:        { fontSize: 11, color: '#DD331D', marginTop: 4, marginLeft: 14 },
+  iconoValido:       { fontSize: 14, color: Tema.primarioOscuro, fontWeight: '700', marginLeft: 6 },
+  textoError:        { fontSize: 11, color: Tema.acento, marginTop: 4, marginLeft: 14 },
 
   filaPersonas:      { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  btnPersona:        { width: 44, height: 44, borderRadius: 22, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', ...sombra({ opacity: 0.2, radius: 4, offsetY: 2, elevation: 3 }) },
+  btnPersona:        { width: 44, height: 44, borderRadius: 22, backgroundColor: Tema.primario, alignItems: 'center', justifyContent: 'center', ...sombra({ opacity: 0.2, radius: 4, offsetY: 2, elevation: 3 }) },
   textoPersona:      { color: '#fff', fontSize: 24, fontWeight: '700', lineHeight: 28 },
   numPersonas:       { fontSize: 26, fontWeight: '800', color: '#333', minWidth: 34, textAlign: 'center' },
   cajaTotalPersonas: { flex: 1, backgroundColor: '#f0faf9', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'flex-end' },
-  totalLabel:        { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
-  totalMonto:        { fontSize: 17, fontWeight: '800', color: '#3AB7A5' },
+  totalLabel:        { fontSize: 11, color: Tema.primario, fontWeight: '600' },
+  totalMonto:        { fontSize: 17, fontWeight: '800', color: Tema.primario },
 
-  btnContinuar:      { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginTop: 8, ...sombra({ color: '#DD331D', opacity: 0.3, radius: 8, offsetY: 4, elevation: 5 }) },
+  cajaNochesBanner:  { backgroundColor: '#e8f5f2', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginBottom: 14, alignItems: 'center', borderWidth: 1, borderColor: Tema.primario },
+  textNochesBanner:  { color: Tema.primario, fontWeight: '700', fontSize: 14 },
+  btnContinuar:      { backgroundColor: Tema.acento, borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginTop: 8, ...sombra({ color: Tema.acento, opacity: 0.3, radius: 8, offsetY: 4, elevation: 5 }) },
   textoContinuar:    { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Calendario ──────────────────────────────────────────────────────────────

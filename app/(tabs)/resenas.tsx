@@ -24,7 +24,7 @@ function formatearMes(iso: string): string {
 }
 
 export default function ResenasScreen() {
-  const { nombre }        = useLocalSearchParams<{ nombre?: string }>();
+  const { nombre, from }  = useLocalSearchParams<{ nombre?: string; from?: string }>();
   const { width }         = useWindowDimensions();
   const esPC              = width >= 768;
   const { t } = useIdioma();
@@ -143,7 +143,7 @@ export default function ResenasScreen() {
     <TabChrome
       esPC={esPC}
       title={t('rsn_titulo')}
-      onBack={() => router.replace('/(tabs)/perfil' as never)}
+      onBack={() => router.replace((from === 'mis_reservas' ? '/(tabs)/mis_reservas' : '/(tabs)/perfil') as never)}
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >

@@ -9,6 +9,7 @@ import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { PagoTarjeta } from '../../components/PagoTarjeta';
 import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
+import { Tema } from '../../lib/tema';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
@@ -17,7 +18,7 @@ import { useTemaContext } from '../../lib/TemaContext';
 type MetodoPago = 'tarjeta' | 'spei' | 'oxxo';
 
 export default function PagoScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
+  const { nombre, paquete, precio, personas, fecha, fecha_fin, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
     useLocalSearchParams<Record<string, string>>();
   const { t } = useIdioma();
   const { tema, isDark } = useTemaContext();
@@ -122,7 +123,7 @@ export default function PagoScreen() {
         data: { metodo, folio },
       });
       const estadoConfirmacion = (metodo === 'spei' || metodo === 'oxxo') ? 'pendiente' : 'confirmada';
-      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo, estado: estadoConfirmacion } });
+      router.push({ pathname: '/(tabs)/confirmacion', params: { folio, metodo, estado: estadoConfirmacion, nombre, paquete, precio, personas, fecha, fecha_fin, nombre_viajero: _nombre_viajero, telefono: _telefono, notas } });
     } catch (err) {
       procesandoRef.current = false;
       setProcesando(false);
@@ -193,7 +194,7 @@ export default function PagoScreen() {
           <View style={es.filasMonto}>
             <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_destino')}</Text><Text style={es.datoPagoValor}>{nombre}</Text></View>
             <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_personas')}</Text><Text style={es.datoPagoValor}>{personas}</Text></View>
-            <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_fecha')}</Text><Text style={es.datoPagoValor}>{fecha}</Text></View>
+            <View style={es.datoPago}><Text style={es.datoPagoLabel}>{t('pago_fecha')}</Text><Text style={es.datoPagoValor}>{fecha_fin ? `${fecha} — ${fecha_fin}` : fecha}</Text></View>
           </View>
         </View>
 
@@ -210,14 +211,14 @@ export default function PagoScreen() {
               style={[
                 es.btnMetodo,
                 { backgroundColor: tema.superficieBlanca, borderColor: tema.borde },
-                metodo === m.id && { borderColor: '#3AB7A5', backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' },
+                metodo === m.id && { borderColor: Tema.primario, backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' },
               ]}
               onPress={() => { setMetodo(m.id as MetodoPago); setErrorPago(null); }}
               activeOpacity={0.8}
             >
               <Text style={es.emojiMetodo}>{m.emoji}</Text>
               <Text style={[es.labelMetodo, { color: tema.textoMuted }, metodo === m.id && es.labelMetodoActivo]}>{m.label}</Text>
-              <Text style={[es.subMetodo, { color: tema.textoMuted }, metodo === m.id && { color: '#3AB7A5' }]}>{m.sub}</Text>
+              <Text style={[es.subMetodo, { color: tema.textoMuted }, metodo === m.id && { color: Tema.primario }]}>{m.sub}</Text>
               {metodo === m.id && <View style={es.checkMetodo}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text></View>}
             </TouchableOpacity>
           ))}
@@ -306,7 +307,7 @@ export default function PagoScreen() {
 const es = StyleSheet.create({
   scroll:             { padding: 16, maxWidth: 700, alignSelf: 'center', width: '100%' },
 
-  tarjetaMonto:       { backgroundColor: '#3AB7A5', borderRadius: 20, padding: 20, marginBottom: 20, ...sombra({ color: '#3AB7A5', opacity: 0.35, radius: 10, offsetY: 4, elevation: 5 }) },
+  tarjetaMonto:       { backgroundColor: Tema.primario, borderRadius: 20, padding: 20, marginBottom: 20, ...sombra({ color: Tema.primario, opacity: 0.35, radius: 10, offsetY: 4, elevation: 5 }) },
   montoLabel:         { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 4 },
   monto:              { color: '#fff', fontSize: 40, fontWeight: '800', lineHeight: 46 },
   montoMXN:           { fontSize: 20, fontWeight: '600' },
@@ -321,27 +322,27 @@ const es = StyleSheet.create({
   btnMetodo:          { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1.5, gap: 3, ...sombra({ opacity: 0.05, radius: 4, offsetY: 2, elevation: 1 }) },
   emojiMetodo:        { fontSize: 24 },
   labelMetodo:        { fontSize: 12, fontWeight: '600' },
-  labelMetodoActivo:  { color: '#3AB7A5', fontWeight: '700' },
+  labelMetodoActivo:  { color: Tema.primario, fontWeight: '700' },
   subMetodo:          { fontSize: 9 },
-  checkMetodo:        { position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: 8, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  checkMetodo:        { position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: 8, backgroundColor: Tema.primario, alignItems: 'center', justifyContent: 'center' },
 
   formulario:         { borderRadius: 18, marginBottom: 20, overflow: 'hidden', borderWidth: 1, ...sombra({ opacity: 0.08, radius: 6, offsetY: 2, elevation: 2 }) },
   formularioHeader:   { paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1 },
   formularioTitulo:   { fontSize: 14, fontWeight: '700' },
   formularioCuerpo:   { padding: 16, gap: 12 },
   filaInstruccion:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  numerito:           { width: 22, height: 22, borderRadius: 11, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
+  numerito:           { width: 22, height: 22, borderRadius: 11, backgroundColor: Tema.primario, alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
   numeritoTexto:      { color: '#fff', fontSize: 11, fontWeight: '700' },
   instruccionTexto:   { fontSize: 13, lineHeight: 20, flex: 1 },
-  cajaClabe:          { borderRadius: 14, padding: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3AB7A5' },
-  clabeLabel:         { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
+  cajaClabe:          { borderRadius: 14, padding: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: Tema.primario },
+  clabeLabel:         { fontSize: 11, color: Tema.primario, fontWeight: '600' },
   clabe:              { fontSize: 18, fontWeight: '800', letterSpacing: 2 },
 
-  bannerError:        { borderRadius: 14, padding: 14, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#DD331D33' },
-  bannerErrorTxt:     { flex: 1, fontSize: 13, color: '#DD331D', fontWeight: '600', lineHeight: 18 },
-  btnReintentar:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#DD331D', flexShrink: 0 },
+  bannerError:        { borderRadius: 14, padding: 14, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: Tema.acento + '33' },
+  bannerErrorTxt:     { flex: 1, fontSize: 13, color: Tema.acento, fontWeight: '600', lineHeight: 18 },
+  btnReintentar:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Tema.acento, flexShrink: 0 },
   btnReintentarTxt:   { color: '#fff', fontSize: 13, fontWeight: '700' },
 
-  btnPagar:           { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }) },
+  btnPagar:           { backgroundColor: Tema.acento, borderRadius: 25, paddingVertical: 16, alignItems: 'center', ...sombra({ color: Tema.acento, opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }) },
   textoPagar:         { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 });
