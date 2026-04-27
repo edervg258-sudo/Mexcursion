@@ -724,6 +724,107 @@ export async function actualizarEstadoReserva(id: number, estado: string): Promi
   } catch (err) { console.error('actualizarEstadoReserva error:', err); }
 }
 
+export async function modificarReserva(
+  id: number,
+  usuario_id: string,
+  cambios: { fecha?: string; personas?: number }
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    if (!cambios.fecha && !cambios.personas) {
+      return { exito: false, error: 'Sin cambios para aplicar.' };
+    }
+    if (cambios.personas !== undefined && (cambios.personas < 1 || cambios.personas > 20)) {
+      return { exito: false, error: 'Número de personas inválido (1-20).' };
+    }
+
+    const update: Record<string, unknown> = {};
+
+    if (cambios.fecha) {
+      const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(cambios.fecha)
+        ? cambios.fecha.split('/').reverse().join('-')
+        : cambios.fecha;
+
+      const fechaObj = new Date(fechaISO);
+      if (isNaN(fechaObj.getTime()) || fechaObj <= new Date()) {
+        return { exito: false, error: 'La fecha debe ser futura.' };
+      }
+      update.fecha = fechaISO;
+    }
+
+    if (cambios.personas !== undefined) {
+      update.personas = cambios.personas;
+    }
+
+    const { error } = await supabase
+      .from('reservas')
+      .update(update)
+      .eq('id', id)
+      .eq('usuario_id', usuario_id)
+      .in('estado', ['confirmada', 'pendiente']);
+
+    if (error) return { exito: false, error: 'No se pudo modificar la reserva.' };
+    return { exito: true };
+  } catch (err) {
+    console.error('modificarReserva error:', err);
+    return { exito: false, error: 'Error al modificar reserva.' };
+  }
+}
+
+export async function verificarDisponibilidad(
+  usuario_id: string,
+  destino: string,
+  fecha: string,
+  paquete: string
+): Promise<{ disponible: boolean; razon?: string }> {
+  try {
+    const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)
+      ? fecha.split('/').reverse().join('-')
+      : fecha;
+
+    // Prevent double-booking: same user + same destino + same fecha + same paquete
+    const { data } = await supabase
+      .from('reservas')
+      .select('id, estado')
+      .eq('usuario_id', usuario_id)
+      .eq('destino', destino.trim())
+      .eq('fecha', fechaISO)
+      .eq('paquete', paquete.trim())
+      .neq('estado', 'cancelada')
+      .maybeSingle();
+
+    if (data?.id) {
+      return { disponible: false, razon: 'Ya tienes una reserva activa para este destino, paquete y fecha.' };
+    }
+
+    // Check travel date is not in the past
+    const fechaObj = new Date(fechaISO);
+    if (fechaObj <= new Date()) {
+      return { disponible: false, razon: 'La fecha seleccionada ya pasó.' };
+    }
+
+    return { disponible: true };
+  } catch (err) {
+    console.error('verificarDisponibilidad error:', err);
+    return { disponible: true }; // fail open — guardarReserva handles DB-level constraint
+  }
+}
+
+export async function guardarStripePaymentIntentId(
+  folio: string,
+  usuario_id: string,
+  stripe_payment_intent_id: string
+): Promise<void> {
+  try {
+    await supabase
+      .from('reservas')
+      .update({ stripe_payment_intent_id })
+      .eq('folio', folio)
+      .eq('usuario_id', usuario_id);
+  } catch (err) {
+    console.error('guardarStripePaymentIntentId error:', err);
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 //  RESEÑAS
 // ══════════════════════════════════════════════════════════════════════════

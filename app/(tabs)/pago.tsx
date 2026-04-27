@@ -11,7 +11,8 @@ import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
-import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { AnalyticsEvents, logEvent } from '../../lib/analytics';
+import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo, verificarDisponibilidad } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { estadoReservaPorMetodo, folioDesdeStripe, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
 
@@ -45,6 +46,10 @@ export default function PagoScreen() {
   );
 
   const pagar = async () => {
+    void logEvent(AnalyticsEvents.BEGIN_CHECKOUT, {
+      destino: nombre, paquete, monto: totalReserva, personas: totalPersonas, metodo,
+    });
+
     // Card payments go through Stripe (PCI-DSS compliant)
     if (metodo === 'tarjeta') {
       setMostrarTarjeta(true);
@@ -81,6 +86,14 @@ export default function PagoScreen() {
             throw new Error('no_session');
           }
 
+          // Double-booking prevention before saving
+          const disponibilidad = await verificarDisponibilidad(
+            usuario.id, nombre ?? '', fecha ?? '', paquete ?? ''
+          );
+          if (!disponibilidad.disponible) {
+            throw new Error(`double_booking:${disponibilidad.razon ?? 'Reserva duplicada'}`);
+          }
+
           const estadoReserva = estadoReservaPorMetodo(metodo);
           const payload = [
             usuario.id,
@@ -100,6 +113,7 @@ export default function PagoScreen() {
           if (!ok) {
             await new Promise(resolve => setTimeout(resolve, 800));
             ok = await guardarReserva(...payload);
+            if (!ok) void logEvent(AnalyticsEvents.PURCHASE_RETRY, { metodo, folio });
           }
           if (!ok) {
             throw new Error('save_failed');
@@ -107,6 +121,10 @@ export default function PagoScreen() {
 
           await crearNotificacion(usuario.id, 'pago_exitoso', `Pago confirmado - Folio: ${folio}`, JSON.stringify({ folio, metodo }));
           await agregarHistorial(usuario.id, 'pago', `Pago realizado con ${metodo} - Folio: ${folio}`, JSON.stringify({ folio, metodo, monto: totalReserva }));
+
+          void logEvent(AnalyticsEvents.PURCHASE, {
+            folio, metodo, monto: totalReserva, destino: nombre, paquete, personas: totalPersonas,
+          });
         })(),
         timeoutPromise,
       ]);
@@ -150,7 +168,10 @@ export default function PagoScreen() {
         setErrorPago({ mensaje: 'La conexión tardó demasiado. Verifica tu internet e intenta de nuevo.' });
       } else if (err instanceof Error && err.message === 'save_failed') {
         setErrorPago({ mensaje: 'No se pudo guardar la reserva. Intenta de nuevo.' });
+      } else if (err instanceof Error && err.message.startsWith('double_booking:')) {
+        setErrorPago({ mensaje: err.message.replace('double_booking:', '') });
       } else {
+        void logEvent(AnalyticsEvents.PURCHASE_FAILED, { metodo, nombre, paquete });
         const normalized = normalizeError(err);
         setErrorPago({ mensaje: userMessageForError(normalized) });
       }
@@ -159,7 +180,6 @@ export default function PagoScreen() {
 
   const handlePagoTarjetaSuccess = async (paymentId: string) => {
     setMostrarTarjeta(false);
-    // Use the Stripe payment ID as folio so retries are idempotent
     await procesarPago(folioDesdeStripe(paymentId));
   };
   const handlePagoTarjetaError = (error: string) => {

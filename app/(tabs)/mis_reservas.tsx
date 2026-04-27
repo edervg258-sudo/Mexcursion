@@ -3,15 +3,16 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, FlatList, Platform, RefreshControl,
-    ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
+    ActivityIndicator, Alert, Animated, FlatList, Modal, Platform, RefreshControl,
+    ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { DetalleReservaModal, ReservaDetalle } from '../../components/DetalleReservaModal';
 import { TabChrome } from '../../components/TabChrome';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { CancellationPolicy, cancelarReservaConRefund } from '../../lib/stripe';
+import { actualizarEstadoReserva, cargarReservas, modificarReserva, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
@@ -90,7 +91,14 @@ export default function MisReservasScreen() {
   const [filtro, setFiltro]               = useState<Filtro>('todas');
   const [cancelando, setCancelando]       = useState<number | null>(null);
   const [confirmandoId, setConfirmandoId] = useState<number | null>(null);
+  const [politicaCancelacion, setPoliticaCancelacion] = useState<CancellationPolicy>('moderada');
   const [reservaDetalle, setReservaDetalle] = useState<ReservaDetalle | null>(null);
+
+  // Modificar reserva
+  const [modificandoReserva, setModificandoReserva] = useState<Reserva | null>(null);
+  const [nuevaFecha, setNuevaFecha]     = useState('');
+  const [nuevasPersonas, setNuevasPersonas] = useState('');
+  const [guardandoModif, setGuardandoModif] = useState(false);
 
   useEffect(() => { configurarBarraAndroid(); }, []);
 
@@ -187,9 +195,62 @@ export default function MisReservasScreen() {
     setCancelando(item.id);
     setConfirmandoId(null);
     try {
+      // If card payment — use Edge Function for real Stripe refund
+      if (item.metodo === 'tarjeta') {
+        const result = await cancelarReservaConRefund({
+          reservation_id: item.id,
+          cancellation_policy: politicaCancelacion,
+        });
+        if (result.refund_amount > 0) {
+          Alert.alert(
+            'Reserva cancelada',
+            `Reembolso de $${result.refund_amount.toLocaleString()} MXN en camino (5-10 días hábiles).`,
+          );
+        }
+        queryClient.invalidateQueries({ queryKey: ['reservas-usuario'] });
+      } else {
+        // SPEI/OXXO — just update state, no Stripe refund
+        await actualizarEstadoMutation.mutateAsync({ id: item.id, estado: 'cancelada' });
+      }
+    } catch {
+      // Fallback: direct DB update if Edge Function unavailable
       await actualizarEstadoMutation.mutateAsync({ id: item.id, estado: 'cancelada' });
     } finally {
       setCancelando(null);
+      setPoliticaCancelacion('moderada');
+    }
+  };
+
+  const abrirModalModificar = (item: Reserva) => {
+    setModificandoReserva(item);
+    const fechaISO = item.fecha?.split('T')[0] ?? '';
+    // Convert YYYY-MM-DD → DD/MM/YYYY for display
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) {
+      setNuevaFecha(fechaISO.split('-').reverse().join('/'));
+    } else {
+      setNuevaFecha('');
+    }
+    setNuevasPersonas(String(item.personas));
+  };
+
+  const guardarModificacion = async () => {
+    if (!modificandoReserva || !usuario) return;
+    setGuardandoModif(true);
+    try {
+      const personas = parseInt(nuevasPersonas, 10);
+      const cambios: { fecha?: string; personas?: number } = {};
+      if (nuevaFecha) cambios.fecha = nuevaFecha;
+      if (!isNaN(personas)) cambios.personas = personas;
+
+      const resultado = await modificarReserva(modificandoReserva.id, usuario.id, cambios);
+      if (resultado.exito) {
+        queryClient.invalidateQueries({ queryKey: ['reservas-usuario'] });
+        setModificandoReserva(null);
+      } else {
+        Alert.alert('Error', resultado.error ?? 'No se pudo modificar la reserva.');
+      }
+    } finally {
+      setGuardandoModif(false);
     }
   };
 
@@ -282,6 +343,29 @@ export default function MisReservasScreen() {
           {pidioConf && (
             <View style={es.cajaConfirmar}>
               <Text style={es.textoConfirmar}>{t('res_cancelar_msg', { folio: item.folio })}</Text>
+              {item.metodo === 'tarjeta' && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>Política de cancelación:</Text>
+                  {(['flexible', 'moderada', 'estricta'] as CancellationPolicy[]).map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      onPress={() => setPoliticaCancelacion(p)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}
+                    >
+                      <View style={{
+                        width: 16, height: 16, borderRadius: 8, borderWidth: 2,
+                        borderColor: politicaCancelacion === p ? '#3AB7A5' : '#ccc',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {politicaCancelacion === p && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3AB7A5' }} />}
+                      </View>
+                      <Text style={{ fontSize: 12, color: '#444', textTransform: 'capitalize' }}>
+                        {p}{p === 'flexible' ? ' — >24h: 100%, <24h: 50%' : p === 'moderada' ? ' — >72h: 100%, >24h: 50%' : ' — >7 días: 100%'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               <View style={es.filaConfirmar}>
                 <TouchableOpacity style={es.btnMantener} onPress={() => setConfirmandoId(null)} activeOpacity={0.8}>
                   <Text style={es.textoBtnMantener}>{t('res_cancelar_no')}</Text>
@@ -315,6 +399,16 @@ export default function MisReservasScreen() {
             >
               <Ionicons name="share-social-outline" size={16} color={tema.textoSecundario} />
             </TouchableOpacity>
+
+            {cancelable && (
+              <TouchableOpacity
+                style={[es.btnModificar, { borderColor: tema.borde }]}
+                onPress={() => abrirModalModificar(item)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={15} color="#3AB7A5" />
+              </TouchableOpacity>
+            )}
 
             {cancelable && (
               <TouchableOpacity
@@ -450,6 +544,68 @@ export default function MisReservasScreen() {
         visible={!!reservaDetalle}
         onClose={() => setReservaDetalle(null)}
       />
+
+      {/* Modal: Modificar reserva */}
+      <Modal
+        visible={!!modificandoReserva}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModificandoReserva(null)}
+      >
+        <View style={es.modalOverlay}>
+          <View style={[es.modalContenido, { backgroundColor: tema.superficieBlanca }]}>
+            <Text style={[es.modalTitulo, { color: tema.texto }]}>Modificar reserva</Text>
+            {modificandoReserva && (
+              <Text style={[es.modalSubtitulo, { color: tema.textoMuted }]}>
+                {modificandoReserva.destino} — Folio {modificandoReserva.folio}
+              </Text>
+            )}
+
+            <Text style={[es.modalLabel, { color: tema.textoSecundario }]}>Nueva fecha (DD/MM/AAAA)</Text>
+            <TextInput
+              style={[es.modalInput, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]}
+              value={nuevaFecha}
+              onChangeText={setNuevaFecha}
+              placeholder="DD/MM/AAAA"
+              placeholderTextColor={tema.textoMuted}
+              keyboardType="numeric"
+              maxLength={10}
+            />
+
+            <Text style={[es.modalLabel, { color: tema.textoSecundario }]}>Número de personas</Text>
+            <TextInput
+              style={[es.modalInput, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]}
+              value={nuevasPersonas}
+              onChangeText={setNuevasPersonas}
+              placeholder="1-20"
+              placeholderTextColor={tema.textoMuted}
+              keyboardType="number-pad"
+              maxLength={2}
+            />
+
+            <View style={es.modalBotones}>
+              <TouchableOpacity
+                style={es.modalBtnCancelar}
+                onPress={() => setModificandoReserva(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={es.modalBtnCancelarTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[es.modalBtnGuardar, guardandoModif && { opacity: 0.6 }]}
+                onPress={guardarModificacion}
+                activeOpacity={0.8}
+                disabled={guardandoModif}
+              >
+                {guardandoModif
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={es.modalBtnGuardarTxt}>Guardar cambios</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </TabChrome>
   );
 }
@@ -508,4 +664,18 @@ const es = StyleSheet.create({
   btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },
   txtExplorar:          { color: '#fff', fontWeight: '700', fontSize: 15 },
   btnIcono:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  btnModificar:         { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+
+  // Modal modificar
+  modalOverlay:         { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalContenido:       { borderRadius: 20, padding: 24, margin: 12, gap: 4 },
+  modalTitulo:          { fontSize: 18, fontWeight: '800', marginBottom: 2 },
+  modalSubtitulo:       { fontSize: 13, marginBottom: 16 },
+  modalLabel:           { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 6 },
+  modalInput:           { borderWidth: 1.5, borderRadius: 12, padding: 12, fontSize: 15 },
+  modalBotones:         { flexDirection: 'row', gap: 10, marginTop: 20 },
+  modalBtnCancelar:     { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: '#ccc' },
+  modalBtnCancelarTxt:  { color: '#666', fontWeight: '600', fontSize: 14 },
+  modalBtnGuardar:      { flex: 2, paddingVertical: 13, alignItems: 'center', borderRadius: 20, backgroundColor: '#3AB7A5' },
+  modalBtnGuardarTxt:   { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

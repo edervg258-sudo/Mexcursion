@@ -24,6 +24,19 @@ type ConfirmPaymentOutput = {
   error?: string;
 };
 
+export type CancellationPolicy = 'flexible' | 'moderada' | 'estricta';
+
+type CancelReservationInput = {
+  reservation_id: number;
+  cancellation_policy?: CancellationPolicy;
+};
+
+type CancelReservationOutput = {
+  success: boolean;
+  refund_amount: number;
+  stripe_refund_id: string | null;
+};
+
 export async function crearIntentoPago(
   input: CreatePaymentIntentInput
 ): Promise<CreatePaymentIntentOutput> {
@@ -68,4 +81,33 @@ export async function confirmarPago(
     paymentId,
     status: data?.status,
   };
+}
+
+export async function cancelarReservaConRefund(
+  input: CancelReservationInput
+): Promise<CancelReservationOutput> {
+  const { data, error } = await supabase.functions.invoke('cancel-reservation', {
+    body: input,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'No se pudo cancelar la reserva.');
+  }
+
+  return {
+    success:          Boolean(data?.success),
+    refund_amount:    Number(data?.refund_amount ?? 0),
+    stripe_refund_id: data?.stripe_refund_id ?? null,
+  };
+}
+
+export async function enviarEmail(
+  to: string,
+  template: string,
+  templateData: Record<string, string | number>
+): Promise<void> {
+  // Fire-and-forget — email failures must not block UX
+  supabase.functions
+    .invoke('send-email', { body: { to, template, data: templateData } })
+    .catch((err) => console.warn('send-email error (non-fatal):', err));
 }
