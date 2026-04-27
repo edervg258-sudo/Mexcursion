@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
+  roots: ['<rootDir>'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
@@ -7,6 +8,8 @@ module.exports = {
     '<rootDir>/.claude/',
     '<rootDir>/.claire/',
     '<rootDir>/.kilo/',
+    '/\\.claire[/\\\\]',
+    '/\\.kilo[/\\\\]',
   ],
   modulePathIgnorePatterns: [
     '<rootDir>/dist/',

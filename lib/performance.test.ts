@@ -1,3 +1,4 @@
+import React from 'react';
 import { Platform } from 'react-native';
 import * as Performance from './performance';
 import { logEvent } from './analytics';
@@ -47,15 +48,9 @@ describe('Performance Module', () => {
 
   describe('preloadCriticalResources', () => {
     it('should preload critical images without throwing', () => {
-      // Mock require to avoid actual image loading
-      const originalRequire = require;
-      jest.spyOn(global, 'require' as any).mockImplementation(() => ({}));
-
       expect(() => {
         Performance.preloadCriticalResources();
       }).not.toThrow();
-
-      (global.require as jest.Mock).mockRestore();
     });
   });
 
@@ -141,10 +136,10 @@ describe('Performance Module', () => {
   describe('PerformanceErrorBoundary', () => {
     it('should render children without errors', () => {
       const { PerformanceErrorBoundary } = Performance;
-      const TestComponent = () => <div>Test Content</div>;
+      const TestComponent = () => React.createElement('div', null, 'Test Content');
 
       const boundary = new PerformanceErrorBoundary(
-        { children: <TestComponent /> },
+        { children: React.createElement(TestComponent, null) },
         {}
       );
 
@@ -191,7 +186,7 @@ describe('Performance Module', () => {
   describe('perfNow fallback', () => {
     it('should handle missing performance.now gracefully', async () => {
       const originalPerformance = global.performance;
-      (global as any).performance = undefined;
+      (global as unknown as Record<string, unknown>).performance = undefined;
 
       const operation = jest.fn().mockResolvedValue('success');
       const result = await Performance.trackAsyncOperation('fallback-test', operation, 100);

@@ -17,7 +17,7 @@ describe('useNetworkStatus', () => {
     mockListener = jest.fn();
     const { addEventListener } = require('@react-native-community/netinfo');
     (addEventListener as jest.Mock).mockImplementation((callback: (state: { isConnected: boolean; isInternetReachable: boolean | null }) => void) => {
-      mockListener = callback;
+      mockListener = callback as unknown as jest.Mock;
       return jest.fn();
     });
   });

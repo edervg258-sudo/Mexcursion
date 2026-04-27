@@ -212,8 +212,8 @@ export default function RutasScreen() {
   }, []);
 
   const obtenerEtiquetaNivel = useCallback((nivel: string) => {
-    if (nivel === 'economico') return t('rut_economico');
-    if (nivel === 'premium') return t('rut_premium');
+    if (nivel === 'economico') {return t('rut_economico');}
+    if (nivel === 'premium') {return t('rut_premium');}
     return t('rut_medio');
   }, [t]);
 

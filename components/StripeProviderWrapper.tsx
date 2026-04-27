@@ -7,5 +7,5 @@ interface Props {
 }
 
 export function StripeProviderWrapper({ publishableKey, children }: Props) {
-  return <StripeProvider publishableKey={publishableKey}>{children}</StripeProvider>;
+  return <StripeProvider publishableKey={publishableKey}>{children as React.ReactElement}</StripeProvider>;
 }
