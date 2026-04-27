@@ -78,22 +78,36 @@ function analyzeBundle() {
     jsFiles.sort((a, b) => b.size - a.size);
     cssFiles.sort((a, b) => b.size - a.size);
 
+    const jsTotal = jsFiles.reduce((sum, f) => sum + f.size, 0);
+    const cssTotal = cssFiles.reduce((sum, f) => sum + f.size, 0);
+
+    // Per-chunk limit: no single JS file should exceed 500 KB (gzip ~150 KB)
+    const MAX_CHUNK_SIZE = 500 * 1024;
+    const oversizedChunks = jsFiles.filter(f => f.size > MAX_CHUNK_SIZE);
+
     const report = {
       timestamp: new Date().toISOString(),
       totalSize,
       formattedSize,
-      jsTotal: jsFiles.reduce((sum, f) => sum + f.size, 0),
-      cssTotal: cssFiles.reduce((sum, f) => sum + f.size, 0),
+      jsTotal,
+      cssTotal,
       jsCount: jsFiles.length,
       cssCount: cssFiles.length,
       topJsFiles: jsFiles.slice(0, 5).map(f => ({
         path: f.path,
-        size: formatBytes(f.size)
+        size: formatBytes(f.size),
+        bytes: f.size,
       })),
       topCssFiles: cssFiles.slice(0, 5).map(f => ({
         path: f.path,
-        size: formatBytes(f.size)
-      }))
+        size: formatBytes(f.size),
+        bytes: f.size,
+      })),
+      oversizedChunks: oversizedChunks.map(f => ({
+        path: f.path,
+        size: formatBytes(f.size),
+        bytes: f.size,
+      })),
     };
 
     // Write report
@@ -103,13 +117,14 @@ function analyzeBundle() {
     console.log('\n📦 Bundle Analysis Report');
     console.log('═'.repeat(50));
     console.log(`📊 Total Bundle Size: ${report.formattedSize}`);
-    console.log(`   JS Files: ${formatBytes(report.jsTotal)} (${report.jsCount} files)`);
-    console.log(`   CSS Files: ${formatBytes(report.cssTotal)} (${report.cssCount} files)`);
+    console.log(`   JS Files: ${formatBytes(jsTotal)} (${report.jsCount} files)`);
+    console.log(`   CSS Files: ${formatBytes(cssTotal)} (${report.cssCount} files)`);
 
     if (report.topJsFiles.length > 0) {
       console.log('\n🔝 Top 5 JavaScript Files:');
       report.topJsFiles.forEach((f, i) => {
-        console.log(`   ${i + 1}. ${f.path} (${f.size})`);
+        const flag = f.bytes > MAX_CHUNK_SIZE ? ' ⚠️  EXCEEDS CHUNK LIMIT' : '';
+        console.log(`   ${i + 1}. ${f.path} (${f.size})${flag}`);
       });
     }
 
@@ -123,12 +138,23 @@ function analyzeBundle() {
     console.log('\n✅ Bundle report saved to: ' + REPORT_FILE);
     console.log('═'.repeat(50) + '\n');
 
-    // Warn if bundle too large
-    const MAX_BUNDLE_SIZE = 5 * 1024 * 1024; // 5 MB
+    let exitCode = 0;
+
+    // Total bundle limit: 8 MB (accounts for Expo + Stripe + Supabase baseline)
+    const MAX_BUNDLE_SIZE = 8 * 1024 * 1024;
     if (totalSize > MAX_BUNDLE_SIZE) {
-      console.warn(`⚠️  Bundle size exceeded ${formatBytes(MAX_BUNDLE_SIZE)} threshold!`);
-      process.exit(1);
+      console.error(`❌ Total bundle size (${formatBytes(totalSize)}) exceeds ${formatBytes(MAX_BUNDLE_SIZE)} limit`);
+      exitCode = 1;
     }
+
+    // Per-chunk limit: flag JS files over 500 KB
+    if (oversizedChunks.length > 0) {
+      console.error(`❌ ${oversizedChunks.length} JS chunk(s) exceed ${formatBytes(MAX_CHUNK_SIZE)} limit:`);
+      oversizedChunks.forEach(f => console.error(`   • ${f.path} (${f.size})`));
+      exitCode = 1;
+    }
+
+    if (exitCode !== 0) process.exit(exitCode);
   } catch (error) {
     console.error('❌ Bundle analysis failed:', error.message);
     process.exit(1);

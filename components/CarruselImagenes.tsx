@@ -64,6 +64,9 @@ export const CarruselImagenes = React.memo(function CarruselImagenes({ imagenes,
               source={{ uri }}
               style={{ width: ancho, height: CAROUSEL_H, borderRadius: 14 }}
               contentFit="cover"
+              cachePolicy="memory-disk"
+              priority={i === 0 ? 'high' : 'low'}
+              placeholder={{ color: '#d0ece9' }}
               transition={250}
             />
           ))}

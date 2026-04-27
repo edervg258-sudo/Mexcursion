@@ -61,7 +61,6 @@ jobs:
 
       - name: Analyze bundle size
         run: node scripts/analyze-bundle.js
-        continue-on-error: true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
