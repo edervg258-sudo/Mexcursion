@@ -66,6 +66,90 @@ const Sidebar = React.memo(({ estaActiva, navegarPestana }: {
 });
 Sidebar.displayName = 'Sidebar';
 
+// ─── Utilidades clima ─────────────────────────────────────────────────────────
+const CLIMA_EMOJI: Record<number, string> = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌦️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  71: '🌨️', 73: '🌨️', 75: '❄️',
+  80: '🌦️', 81: '🌦️', 82: '⛈️',
+  95: '⛈️',
+};
+const climaEmoji = (code: number) =>
+  CLIMA_EMOJI[code] ?? CLIMA_EMOJI[Math.round(code / 10) * 10] ?? '🌡️';
+
+const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+type ClimaData = {
+  temp: number;
+  code: number;
+  viento: number;
+  dias: { nombre: string; min: number; max: number; code: number }[];
+};
+
+const ClimaWidget = React.memo(({ latitude, longitude }: { latitude: number; longitude: number }) => {
+  const [clima, setClima] = React.useState<ClimaData | null>(null);
+  const { tema } = useTemaContext();
+
+  React.useEffect(() => {
+    if (!latitude || !longitude) { return; }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=America%2FMexico_City&forecast_days=3`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        const cur = d.current;
+        const dai = d.daily;
+        if (!cur || !dai) { return; }
+        const dias = (dai.time as string[]).map((iso: string, i: number) => {
+          const nombre = DIAS_CORTO[new Date(iso + 'T12:00:00').getDay()];
+          return { nombre, min: Math.round(dai.temperature_2m_min[i]), max: Math.round(dai.temperature_2m_max[i]), code: dai.weathercode[i] };
+        });
+        setClima({ temp: Math.round(cur.temperature_2m), code: cur.weathercode, viento: Math.round(cur.windspeed_10m), dias });
+      })
+      .catch(() => {});
+  }, [latitude, longitude]);
+
+  if (!clima) { return null; }
+
+  return (
+    <View style={[esClima.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+      <View style={esClima.filaActual}>
+        <Text style={esClima.emoji}>{climaEmoji(clima.code)}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[esClima.temp, { color: tema.texto }]}>{clima.temp}°C</Text>
+          <Text style={[esClima.viento, { color: tema.textoMuted }]}>Viento {clima.viento} km/h</Text>
+        </View>
+        <View style={esClima.diasRow}>
+          {clima.dias.map((d, i) => (
+            <View key={i} style={esClima.diaCol}>
+              <Text style={[esClima.diaNombre, { color: tema.textoMuted }]}>{d.nombre}</Text>
+              <Text style={esClima.diaEmoji}>{climaEmoji(d.code)}</Text>
+              <Text style={[esClima.diaTemp, { color: tema.texto }]}>{d.max}°</Text>
+              <Text style={[esClima.diaTempMin, { color: tema.textoMuted }]}>{d.min}°</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+});
+ClimaWidget.displayName = 'ClimaWidget';
+
+const esClima = StyleSheet.create({
+  tarjeta:    { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  filaActual: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emoji:      { fontSize: 36 },
+  temp:       { fontSize: 26, fontWeight: '800' },
+  viento:     { fontSize: 11, marginTop: 2 },
+  diasRow:    { flexDirection: 'row', gap: 8 },
+  diaCol:     { alignItems: 'center', minWidth: 36 },
+  diaNombre:  { fontSize: 10, fontWeight: '600', marginBottom: 2 },
+  diaEmoji:   { fontSize: 16 },
+  diaTemp:    { fontSize: 12, fontWeight: '700' },
+  diaTempMin: { fontSize: 10 },
+});
+
 export default function DetalleScreen() {
   const { nombre, categoria } = useLocalSearchParams<{ nombre:string; categoria:string }>();
   const rutaActual = usePathname();
@@ -221,6 +305,8 @@ export default function DetalleScreen() {
           </View>
 
           <Text style={[estilos.subtitulo, { color: tema.texto }]}>{t('det_elige_paquete')}</Text>
+
+          {estado && <ClimaWidget latitude={estado.latitude} longitude={estado.longitude} />}
 
           {paquetes.map((paquete, idx) => {
             const expandido = paqueteExpandido === paquete.nivel;

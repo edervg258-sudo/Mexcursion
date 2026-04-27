@@ -295,6 +295,16 @@ export default function MisReservasScreen() {
               </TouchableOpacity>
             )}
 
+            {item.estado === 'completada' && (
+              <TouchableOpacity
+                style={es.btnResena}
+                onPress={() => setTimeout(() => router.push({ pathname: '/(tabs)/resenas' as never, params: { nombre: item.destino, from: 'mis_reservas' } }), 0)}
+                activeOpacity={0.8}
+              >
+                <Text style={es.textoBtnResena}>{t('feedback_dejar_resena')}</Text>
+              </TouchableOpacity>
+            )}
+
             {item.estado === 'cancelada' && (
               <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8}>
                 <Text style={es.textoBtnReservarOtra}>{t('res_btn_reservar')}</Text>
@@ -439,6 +449,8 @@ const es = StyleSheet.create({
   textoBtnCancelar:     { color: '#DD331D', fontWeight: '700', fontSize: 13 },
   btnReservarOtra:      { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#3AB7A5' },
   textoBtnReservarOtra: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  btnResena:            { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#f5a623' },
+  textoBtnResena:       { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   cajaNota:             { backgroundColor: '#f9f9f9', borderRadius: 10, padding: 10, marginTop: 10, borderLeftWidth: 3, borderLeftColor: '#3AB7A5' },
   notaLabel:            { fontSize: 11, fontWeight: '700', color: '#3AB7A5' },

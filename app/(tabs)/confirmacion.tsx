@@ -12,7 +12,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 
 export default function ConfirmacionScreen() {
-  const { nombre, paquete, precio, personas, fecha, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo, estado } =
+  const { nombre, paquete, precio, personas, fecha, fecha_fin, nombre_viajero, telefono, notas, folio, metodo, ref_oxxo, estado } =
     useLocalSearchParams<Record<string, string>>();
   const esPendiente = estado === 'pendiente' || estado === 'pendiente_pago';
   const { t } = useIdioma();
@@ -47,7 +47,7 @@ export default function ConfirmacionScreen() {
     { label: t('conf_telefono'), valor: telefono,                                    icono: '📱' },
     { label: t('conf_destino'),  valor: nombre,                                      icono: '📍' },
     { label: t('conf_paquete'),  valor: paquete,                                     icono: '🎒' },
-    { label: t('conf_fecha'),    valor: fecha,                                       icono: '📅' },
+    { label: t('conf_fecha'),    valor: fecha_fin ? `${fecha} → ${fecha_fin}` : fecha, icono: '📅' },
     { label: t('conf_personas'), valor: personas,                                    icono: '👥' },
     { label: t('conf_metodo'),   valor: etiquetaMetodo[metodo ?? ''] ?? metodo,      icono: '💰' },
     { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: '✅' },
