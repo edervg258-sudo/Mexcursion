@@ -2,10 +2,11 @@
 //  components/DestinoCard.tsx
 // ============================================================
 
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  Animated, Image, Platform, StyleSheet,
+  Animated, Platform, StyleSheet,
   Text, TouchableOpacity, View, type ImageSourcePropType,
 } from 'react-native';
 
@@ -49,7 +50,15 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
             params: { nombre: item.nombre, categoria: item.categoria },
           } as never)}
         >
-          <Image source={item.imagen} style={s.imagenTarjeta} resizeMode="cover" />
+          <Image
+            source={item.imagen}
+            style={s.imagenTarjeta}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            priority="high"
+            placeholder={{ color: '#d0ece9' }}
+            transition={200}
+          />
           <View style={s.sombra} />
           <View style={s.badgeCategoria}>
             <Text style={s.textoBadge}>{item.categoria}</Text>
@@ -81,7 +90,8 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
                 ? require('../assets/images/favoritos_rojo.png')
                 : require('../assets/images/favoritos_gris.png')}
               style={{ width: 20, height: 20 }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
           </Animated.View>
         </TouchableOpacity>
