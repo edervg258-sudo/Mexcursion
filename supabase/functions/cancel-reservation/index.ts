@@ -12,7 +12,7 @@ type CancellationPolicy = 'flexible' | 'moderada' | 'estricta';
 const REFUND_RATIO: Record<CancellationPolicy, (hours: number) => number> = {
   flexible: (h) => (h >= 24 ? 1.0 : 0.5),
   moderada: (h) => (h >= 72 ? 1.0 : h >= 24 ? 0.5 : 0.0),
-  estricta:  (h) => (h >= 168 ? 1.0 : 0.0), // 7 days
+  estricta:  (h) => (h >= 168 ? 1.0 : 0.0),
 };
 
 serve(async (req: Request) => {
@@ -23,12 +23,11 @@ serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
 
-  const stripeSecretKey    = Deno.env.get('STRIPE_SECRET_KEY');
   const supabaseUrl        = Deno.env.get('SUPABASE_URL');
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabaseAnonKey    = Deno.env.get('SUPABASE_ANON_KEY');
 
-  if (!stripeSecretKey || !supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
     return new Response(JSON.stringify({ error: 'Configuration error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,48 +86,22 @@ serve(async (req: Request) => {
     });
   }
 
-  // Calculate refund
+  // Calculate refund amount (informational — no real payment processor)
   const travelDate = new Date(reserva.fecha);
   const hoursUntilTravel = (travelDate.getTime() - Date.now()) / (1000 * 60 * 60);
   const policy = REFUND_RATIO[cancellation_policy] ?? REFUND_RATIO.moderada;
   const refundRatio = policy(hoursUntilTravel);
-  const refundAmount = Math.round(reserva.total * refundRatio * 100) / 100; // preserve cents
-
-  // Process Stripe refund for card payments
-  let stripeRefundId: string | null = null;
-  if (reserva.metodo === 'tarjeta' && reserva.stripe_payment_intent_id && refundAmount > 0) {
-    const refundResp = await fetch('https://api.stripe.com/v1/refunds', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${stripeSecretKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        payment_intent: reserva.stripe_payment_intent_id,
-        amount: String(Math.round(refundAmount * 100)), // Stripe expects centavos
-        reason: 'requested_by_customer',
-      }).toString(),
-    });
-
-    if (refundResp.ok) {
-      const refundData = await refundResp.json() as { id: string };
-      stripeRefundId = refundData.id;
-    } else {
-      const errText = await refundResp.text();
-      console.error('Stripe refund error:', errText);
-      // Continue with cancellation even if refund fails — admin can reconcile
-    }
-  }
+  const refundAmount = Math.round(reserva.total * refundRatio * 100) / 100;
 
   // Update reservation to cancelled
   await supabase
     .from('reservas')
-    .update({ estado: 'cancelada', stripe_refund_id: stripeRefundId })
+    .update({ estado: 'cancelada' })
     .eq('id', reservation_id);
 
   // Create in-app notification
   const notifMsg = refundAmount > 0
-    ? `Reserva cancelada. Reembolso de $${refundAmount.toLocaleString()} MXN en camino (5-10 días hábiles).`
+    ? `Reserva cancelada. Reembolso estimado: $${refundAmount.toLocaleString()} MXN (contacta soporte para tramitarlo).`
     : 'Reserva cancelada. No aplica reembolso según la política seleccionada.';
 
   await supabase.from('notificaciones').insert({
@@ -140,7 +113,7 @@ serve(async (req: Request) => {
     creado_en: new Date().toISOString(),
   });
 
-  // Send confirmation email via send-email function
+  // Send confirmation email
   const { data: userData } = await supabase
     .from('usuarios')
     .select('email, nombre')
@@ -163,7 +136,7 @@ serve(async (req: Request) => {
   }
 
   return new Response(
-    JSON.stringify({ success: true, refund_amount: refundAmount, stripe_refund_id: stripeRefundId }),
+    JSON.stringify({ success: true, refund_amount: refundAmount, stripe_refund_id: null }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 });

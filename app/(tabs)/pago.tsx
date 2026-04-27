@@ -12,7 +12,7 @@ import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { AnalyticsEvents, logEvent } from '../../lib/analytics';
-import { agregarHistorial, crearNotificacion, guardarReserva, guardarStripePaymentIntentId, obtenerUsuarioActivo, verificarDisponibilidad } from '../../lib/supabase-db';
+import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo, verificarDisponibilidad } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { estadoReservaPorMetodo, folioDesdeStripe, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
 
@@ -180,16 +180,7 @@ export default function PagoScreen() {
 
   const handlePagoTarjetaSuccess = async (paymentId: string) => {
     setMostrarTarjeta(false);
-    // externalReference matches the payment_intent metadata.external_reference
-    // so the stripe-webhook can find the reservation by folio = externalReference
-    const folio = folioDesdeStripe(externalReference);
-    await procesarPago(folio);
-
-    // Persist stripe payment intent / charge ID for refunds
-    const usuario = await obtenerUsuarioActivo();
-    if (usuario) {
-      void guardarStripePaymentIntentId(folio, usuario.id, paymentId);
-    }
+    await procesarPago(folioDesdeStripe(paymentId));
   };
   const handlePagoTarjetaError = (error: string) => {
     setMostrarTarjeta(false);
