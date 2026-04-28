@@ -939,3 +939,71 @@ export async function cambiarTipoUsuario(usuario_id: string, tipo: string): Prom
 }
 
 export const toggleActivoUsuarioAdmin  = (usuario_id: string) => toggleActivo('usuarios', 'id', usuario_id);
+
+// ══════════════════════════════════════════════════════════════════════════
+//  GDPR — DERECHO AL OLVIDO
+// ══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Solicita la eliminación permanente de la cuenta y todos los datos del usuario.
+ *
+ * IMPORTANTE: Esta operación es IRREVERSIBLE.
+ *
+ * - Anonimiza PII (nombre, teléfono, foto, push_token, etc.)
+ * - Elimina favoritos, notificaciones, historial, analytics, itinerarios
+ * - Conserva reservas anonimizadas (obligación fiscal SAT México, 5 años)
+ * - Elimina la cuenta de Supabase Auth
+ * - Llama a la Edge Function delete-account con el JWT del usuario
+ *
+ * @param confirmEmail  El usuario debe escribir su propio email para confirmar
+ */
+export async function eliminarCuenta(
+  confirmEmail: string
+): Promise<{ exito: boolean; error?: string; deletedAt?: string }> {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      return { exito: false, error: 'Debes iniciar sesión para eliminar tu cuenta.' };
+    }
+
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      return { exito: false, error: 'Configuración incorrecta.' };
+    }
+
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/delete-account`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ confirm_email: confirmEmail.trim().toLowerCase() }),
+      },
+    );
+
+    const data = await response.json() as {
+      success?: boolean;
+      error?: string;
+      deleted_at?: string;
+    };
+
+    if (!response.ok || !data.success) {
+      return {
+        exito: false,
+        error: data.error ?? 'No se pudo eliminar la cuenta. Intenta de nuevo.',
+      };
+    }
+
+    // Cerrar sesión local tras eliminación exitosa
+    invalidarSesionCache();
+    await supabase.auth.signOut().catch(() => {});
+
+    return { exito: true, deletedAt: data.deleted_at };
+  } catch (err) {
+    console.error('eliminarCuenta error:', err);
+    return { exito: false, error: 'Error al procesar la solicitud.' };
+  }
+}
