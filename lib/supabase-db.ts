@@ -939,3 +939,74 @@ export async function cambiarTipoUsuario(usuario_id: string, tipo: string): Prom
 }
 
 export const toggleActivoUsuarioAdmin  = (usuario_id: string) => toggleActivo('usuarios', 'id', usuario_id);
+
+// ══════════════════════════════════════════════════════════════════════════
+//  ADMIN — PAQUETES
+// ══════════════════════════════════════════════════════════════════════════
+
+export async function obtenerPaquetes(estado_id?: number): Promise<any[]> {
+  try {
+    let q = supabase.from('paquetes').select('*').order('estado_id').order('orden');
+    if (estado_id) q = (q as any).eq('estado_id', estado_id);
+    const { data, error } = await q;
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('obtenerPaquetes error:', err);
+    return [];
+  }
+}
+
+export async function crearPaquete(p: {
+  estado_id: number;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  orden?: number;
+}): Promise<void> {
+  try {
+    await supabase.from('paquetes').insert({ ...p, disponible: true, orden: p.orden ?? 0 });
+  } catch (err) { console.error('crearPaquete error:', err); }
+}
+
+export async function actualizarPaquete(
+  id: number,
+  p: { nombre?: string; descripcion?: string; precio?: number; orden?: number }
+): Promise<void> {
+  try {
+    await supabase.from('paquetes').update(p).eq('id', id);
+  } catch (err) { console.error('actualizarPaquete error:', err); }
+}
+
+export async function eliminarPaquete(id: number): Promise<void> {
+  try {
+    await supabase.from('paquetes').delete().eq('id', id);
+  } catch (err) { console.error('eliminarPaquete error:', err); }
+}
+
+export async function toggleDisponiblePaquete(id: number): Promise<void> {
+  try {
+    const { data } = await supabase.from('paquetes').select('disponible').eq('id', id).maybeSingle();
+    await supabase.from('paquetes').update({ disponible: !data?.disponible }).eq('id', id);
+  } catch (err) { console.error('toggleDisponiblePaquete error:', err); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  ADMIN — AUDITORÍA
+// ══════════════════════════════════════════════════════════════════════════
+
+export async function registrarAuditAdmin(
+  admin_id: string,
+  accion: string,
+  detalle: string
+): Promise<void> {
+  try {
+    await supabase.from('historial').insert({
+      usuario_id: admin_id,
+      tipo: 'admin',
+      titulo: accion,
+      detalle,
+      creado_en: new Date().toISOString(),
+    });
+  } catch { /* audit failures never crash the app */ }
+}
