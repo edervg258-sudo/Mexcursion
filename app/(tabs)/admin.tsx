@@ -15,6 +15,7 @@ import { AdminDashboard } from '../../components/AdminDashboard';
 import { AdminNavBar } from '../../components/Admin/AdminNavBar';
 import { SeccionDestinos } from '../../components/Admin/SeccionDestinos';
 import { SeccionReservas } from '../../components/Admin/SeccionReservas';
+import { SeccionSalud } from '../../components/Admin/SeccionSalud';
 import { SeccionUsuarios } from '../../components/Admin/SeccionUsuarios';
 import { Destino, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
 import { RUTAS_TEMATICAS } from '../../lib/datos/rutas-tematicas';
@@ -480,6 +481,7 @@ export default function AdminScreen() {
     rutas:     <RutasView />,
     reservas:  <Reservas  />,
     usuarios:  <Usuarios  />,
+    salud:     <SeccionSalud />,
   };
 
   // No-admin: no renderizar nada (la navegación ya está en curso)

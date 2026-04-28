@@ -32,6 +32,7 @@ import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
 import { initSentry, setUser } from '../lib/sentry';
+import { initObservability, flushLogsNow } from '../lib/observability';
 
 type NotificationSubscription = { remove: () => void };
 
@@ -123,6 +124,7 @@ export default function RootLayout() {
   useEffect(() => { configurarBarraAndroid(); }, []);
   useEffect(() => { configurarNotificaciones(); }, []);
   useEffect(() => { initSentry(); }, []);
+  useEffect(() => { initObservability('1.0.0'); }, []);
 
   useEffect(() => {
     const initRuntime = async () => {
@@ -132,6 +134,8 @@ export default function RootLayout() {
       if (flags.enableRealtimeAnalytics) { await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' }); }
     };
     initRuntime();
+    // Flush logs pendientes al salir de la app (AppState background)
+    return () => { flushLogsNow(); };
   }, []);
 
   useEffect(() => {

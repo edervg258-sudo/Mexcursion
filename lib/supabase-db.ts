@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
 import { addBreadcrumb, captureApiError } from './sentry';
+import { withTrace, recordMetric } from './observability';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -596,93 +597,78 @@ export async function guardarReserva(
   const METODOS_PERMITIDOS = new Set(['tarjeta', 'spei', 'oxxo']);
   const ESTADOS_PERMITIDOS = new Set(['confirmada', 'pendiente', 'cancelada']);
 
-  try {
-    const folioNormalizado = (folio ?? '').trim().toUpperCase().slice(0, 40);
-    if (!folioNormalizado || folioNormalizado.length < 4) {
-      return false;
-    }
-    if (!METODOS_PERMITIDOS.has((metodo ?? '').toLowerCase())) {
-      return false;
-    }
-    if (!ESTADOS_PERMITIDOS.has((estado ?? '').toLowerCase())) {
-      return false;
-    }
-    if (!usuario_id || !destino?.trim() || !paquete?.trim()) {
-      return false;
-    }
-    if (!Number.isFinite(personas) || personas < 1 || personas > 20) {
-      return false;
-    }
-    if (!Number.isFinite(total) || total < 0) {
-      return false;
-    }
+  return withTrace('booking.guardarReserva', 'booking', async (startSpan) => {
+    // ── Validación ─────────────────────────────────────────
+    const spanVal = startSpan('input_validation', 'validation');
+    try {
+      const folioNormalizado = (folio ?? '').trim().toUpperCase().slice(0, 40);
+      if (!folioNormalizado || folioNormalizado.length < 4)           { spanVal.fail(); return false; }
+      if (!METODOS_PERMITIDOS.has((metodo ?? '').toLowerCase()))      { spanVal.fail(); return false; }
+      if (!ESTADOS_PERMITIDOS.has((estado ?? '').toLowerCase()))      { spanVal.fail(); return false; }
+      if (!usuario_id || !destino?.trim() || !paquete?.trim())        { spanVal.fail(); return false; }
+      if (!Number.isFinite(personas) || personas < 1 || personas > 20){ spanVal.fail(); return false; }
+      if (!Number.isFinite(total) || total < 0)                       { spanVal.fail(); return false; }
+      spanVal.ok();
 
-    // Convierte DD/MM/AAAA → YYYY-MM-DD si viene en formato mexicano
-    const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)
-      ? fecha.split('/').reverse().join('-')
-      : fecha;
+      const folioN = folioNormalizado;
+      const fechaISO = /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)
+        ? fecha.split('/').reverse().join('-')
+        : fecha;
 
-    // Idempotencia: si el folio ya existe para este usuario, consideramos éxito.
-    const { data: existente } = await supabase
-      .from('reservas')
-      .select('id')
-      .eq('usuario_id', usuario_id)
-      .eq('folio', folioNormalizado)
-      .maybeSingle();
-    if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
+      // ── Chequeo idempotencia ─────────────────────────────
+      const spanIdem = startSpan('idempotency_check', 'db.select');
+      const { data: existente } = await supabase
+        .from('reservas')
+        .select('id')
+        .eq('usuario_id', usuario_id)
+        .eq('folio', folioN)
+        .maybeSingle();
+      spanIdem.ok();
+
+      if (existente?.id) {
+        addBreadcrumb({ category: 'booking', message: 'guardarReserva idempotent hit', data: { usuario_id, folio: folioN } });
+        return true;
+      }
+
+      const fila: Record<string, any> = {
+        usuario_id,
+        folio:   folioN,
+        destino: destino.trim(),
+        paquete: paquete.trim(),
+        fecha:   fechaISO,
+        personas,
+        total,
+        metodo:  metodo.toLowerCase(),
+        estado:  estado.toLowerCase(),
+      };
+      if (notas?.trim()) fila.notas = notas.trim();
+
+      // ── INSERT ───────────────────────────────────────────
+      const spanInsert = startSpan('reservas_insert', 'db.insert');
+      const { error } = await supabase.from('reservas').insert(fila);
+
+      if (error) {
+        spanInsert.fail();
+        if ((error as { code?: string }).code === '23505') { return true; }
+        if (isNetworkLikeError(error)) {
+          await enqueueOfflineOperation({ type: 'CREAR_RESERVA', payload: fila });
+          return true;
+        }
+        captureApiError({ feature: 'reservas', action: 'insert', error, metadata: { usuario_id, folio: folioN } });
+        void recordMetric('booking.failed', 1, { metodo, destino });
+        return false;
+      }
+
+      spanInsert.ok();
       return true;
-    }
-
-    const fila: Record<string, any> = {
-      usuario_id,
-      folio: folioNormalizado,
-      destino: destino.trim(),
-      paquete: paquete.trim(),
-      fecha: fechaISO,
-      personas,
-      total,
-      metodo: metodo.toLowerCase(),
-      estado: estado.toLowerCase(),
-    };
-    if (notas?.trim()) fila.notas = notas.trim();
-
-    const { error } = await supabase.from('reservas').insert(fila);
-    if (error) {
-      // 23505: unique_violation (folio duplicado). Es un caso idempotente.
-      if ((error as { code?: string }).code === '23505') {
-        return true;
-      }
-      if (isNetworkLikeError(error)) {
-        await enqueueOfflineOperation({
-          type: 'CREAR_RESERVA',
-          payload: fila,
-        });
-        return true;
-      }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+    } catch (err) {
+      spanVal.fail();
+      console.error('guardarReserva error:', err);
+      captureApiError({ feature: 'reservas', action: 'insert', error: err, metadata: { usuario_id, folio } });
+      void recordMetric('booking.failed', 1);
       return false;
     }
-    return !error;
-  } catch (err) {
-    console.error('guardarReserva error:', err);
-    captureApiError({
-      feature: 'reservas',
-      action: 'insert',
-      error: err,
-      metadata: { usuario_id, folio },
-    });
-    return false;
-  }
+  });
 }
 
 export async function cargarReservas(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {

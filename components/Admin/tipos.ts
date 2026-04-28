@@ -2,7 +2,7 @@
 //  components/Admin/tipos.ts  —  Tipos compartidos del panel
 // ============================================================
 
-export type Seccion = 'dashboard' | 'destinos' | 'rutas' | 'reservas' | 'usuarios';
+export type Seccion = 'dashboard' | 'destinos' | 'rutas' | 'reservas' | 'usuarios' | 'salud';
 
 export type Destino = {
   id: number;
