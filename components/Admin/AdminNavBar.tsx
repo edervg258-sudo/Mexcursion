@@ -14,6 +14,7 @@ const NAV: { id: Seccion; label: string; abrev: string }[] = [
   { id: 'rutas',     label: 'Rutas',    abrev: 'RTS' },
   { id: 'reservas',  label: 'Reservas', abrev: 'RSV' },
   { id: 'usuarios',  label: 'Usuarios', abrev: 'USR' },
+  { id: 'salud',     label: 'Salud',    abrev: 'SLD' },
 ];
 
 interface Props {
