@@ -11,7 +11,7 @@ import { Seccion } from './tipos';
 const NAV: { id: Seccion; label: string; abrev: string }[] = [
   { id: 'dashboard', label: 'Panel',    abrev: 'PNL' },
   { id: 'destinos',  label: 'Destinos', abrev: 'DST' },
-  { id: 'rutas',     label: 'Rutas',    abrev: 'RTS' },
+  { id: 'reportes',  label: 'Reportes', abrev: 'RPT' },
   { id: 'reservas',  label: 'Reservas', abrev: 'RSV' },
   { id: 'usuarios',  label: 'Usuarios', abrev: 'USR' },
 ];

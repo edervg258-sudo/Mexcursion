@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator, Alert,
-    Image,
     ScrollView,
     StyleSheet, Text,
     TouchableOpacity,
@@ -14,47 +13,31 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AdminDashboard } from '../../components/AdminDashboard';
 import { AdminNavBar } from '../../components/Admin/AdminNavBar';
 import { SeccionDestinos } from '../../components/Admin/SeccionDestinos';
+import { SeccionPaquetes } from '../../components/Admin/SeccionPaquetes';
+import { SeccionReportes } from '../../components/Admin/SeccionReportes';
 import { SeccionReservas } from '../../components/Admin/SeccionReservas';
 import { SeccionUsuarios } from '../../components/Admin/SeccionUsuarios';
-import { Destino, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
-import { RUTAS_TEMATICAS } from '../../lib/datos/rutas-tematicas';
+import { Destino, Paquete, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
 import {
     actualizarDestino,
     actualizarEstadoReserva,
-    cambiarTipoUsuario, cargarTodasLasReservas,
+    actualizarPaquete,
+    cambiarTipoUsuario,
+    cargarTodasLasReservas,
     cargarTodosLosUsuarios,
     crearDestino,
+    crearPaquete,
     eliminarDestino,
+    eliminarPaquete,
+    obtenerPaquetes,
     obtenerTodosLosDestinos,
     obtenerUsuarioActivo,
+    registrarAuditAdmin,
     toggleActivoDestinoAdmin,
-    toggleActivoUsuarioAdmin
+    toggleActivoUsuarioAdmin,
+    toggleDisponiblePaquete,
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
-
-// ── Imágenes de rutas ──────────────────────────────────────────────────────
-import guanajuatoImg from '../../assets/images/guanajuato.png';
-import chiapasImg from '../../assets/images/chiapas.png';
-import sinaloaImg from '../../assets/images/sinaloa.png';
-import jaliscoImg from '../../assets/images/jalisco.png';
-import chihuahuaImg from '../../assets/images/chihuahua.png';
-
-const RUTA_IMG: Record<string, number> = {
-  colonial: guanajuatoImg,
-  maya:     chiapasImg,
-  pacifico: sinaloaImg,
-  sabor:    jaliscoImg,
-  aventura: chihuahuaImg,
-};
-
-// ── Colores de estado de reserva ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
-  confirmada: { fondo: '#E8F5F2', texto: '#3AB7A5', label: 'Confirmada'  },
-  completada: { fondo: '#F0F0F0', texto: '#666',    label: 'Completada'  },
-  cancelada:  { fondo: '#FEF0EE', texto: '#DD331D', label: 'Cancelada'   },
-  pendiente:  { fondo: '#FEF8E8', texto: '#9A7118', label: 'Pendiente'   },
-};
 
 const TRANSICIONES: Record<string, { label: string; estado: string; color: string }[]> = {
   pendiente:  [{ label: 'Confirmar', estado: 'confirmada', color: '#3AB7A5' }, { label: 'Cancelar', estado: 'cancelada', color: '#DD331D' }],
@@ -65,21 +48,26 @@ const TRANSICIONES: Record<string, { label: string; estado: string; color: strin
 
 // ── Componente principal ───────────────────────────────────────────────────
 export default function AdminScreen() {
-  const { width }               = useWindowDimensions();
-  const esPC                    = width >= 768;
+  const { width }            = useWindowDimensions();
+  const esPC                 = width >= 768;
   useSafeAreaInsets();
-  const { tema, isDark }        = useTemaContext();
+  const { tema, isDark }     = useTemaContext();
 
   const [seccion, setSeccion]   = useState<Seccion>('dashboard');
   const [destinos, setDestinos] = useState<Destino[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [paquetes, setPaquetes] = useState<Paquete[]>([]);
   const [cargando, setCargando] = useState(true);
   const [verificado, setVerificado] = useState(false);
   const [esAdmin, setEsAdmin]       = useState<boolean | null>(null);
+  const [adminId, setAdminId]       = useState<string>('');
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
-  // CRUD destinos
+  // ── Vista sub-sección destinos ─────────────────────────────────────────
+  const [vistaDestinos, setVistaDestinos] = useState<'destinos' | 'paquetes'>('destinos');
+
+  // ── CRUD destinos ──────────────────────────────────────────────────────
   const [modoForm, setModoForm]           = useState<'nuevo' | 'editar' | null>(null);
   const [destinoEdit, setDestinoEdit]     = useState<Destino | null>(null);
   const [formNombre, setFormNombre]       = useState('');
@@ -88,23 +76,35 @@ export default function AdminScreen() {
   const [formDesc, setFormDesc]           = useState('');
   const [formErrores, setFormErrores]     = useState<Record<string, string | undefined>>({});
 
-  // Filtros y búsqueda — destinos
+  // ── CRUD paquetes ──────────────────────────────────────────────────────
+  const [modoPaqForm, setModoPaqForm]         = useState<'nuevo' | 'editar' | null>(null);
+  const [paqueteEdit, setPaqueteEdit]         = useState<Paquete | null>(null);
+  const [formPaqEstadoId, setFormPaqEstadoId] = useState('');
+  const [formPaqNombre, setFormPaqNombre]     = useState('');
+  const [formPaqDesc, setFormPaqDesc]         = useState('');
+  const [formPaqPrecio, setFormPaqPrecio]     = useState('');
+  const [formPaqErrores, setFormPaqErrores]   = useState<Record<string, string | undefined>>({});
+
+  // ── Filtros destinos ───────────────────────────────────────────────────
   const [busquedaDestino, setBusquedaDestino] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [ordenDestinos, setOrdenDestinos]     = useState('nombre');
 
-  // Filtros y búsqueda — reservas
+  // ── Filtros reservas ───────────────────────────────────────────────────
   const [filtroReserva, setFiltroReserva]     = useState('todas');
   const [filtroFecha, setFiltroFecha]         = useState('todas');
   const [busquedaReserva, setBusquedaReserva] = useState('');
   const [ordenReservas, setOrdenReservas]     = useState('reciente');
 
-  // Filtros y búsqueda — usuarios
+  // ── Filtros usuarios ───────────────────────────────────────────────────
   const [filtroUsuario, setFiltroUsuario]     = useState('todos');
   const [busquedaUsuario, setBusquedaUsuario] = useState('');
   const [ordenUsuarios, setOrdenUsuarios]     = useState('nombre');
 
-  // ── Carga de datos (extraída para poder llamar desde "Reintentar") ────
+  // ── Filtros paquetes ───────────────────────────────────────────────────
+  const [filtroPaqDestino, setFiltroPaqDestino] = useState('todos');
+
+  // ── Carga de datos ────────────────────────────────────────────────────
   const recargar = useCallback(async () => {
     setErrorCarga(null);
     setCargando(true);
@@ -112,19 +112,21 @@ export default function AdminScreen() {
       const sesion = await obtenerUsuarioActivo();
       if (!sesion || sesion.tipo !== 'admin') {
         setEsAdmin(false);
-        // replace en vez de back: impide que el usuario vuelva a esta pantalla
         router.replace('/(tabs)/menu' as never);
         return;
       }
       setEsAdmin(true);
-      const [r, u, d] = await Promise.all([
+      setAdminId(sesion.id);
+      const [r, u, d, p] = await Promise.all([
         cargarTodasLasReservas(),
         cargarTodosLosUsuarios(),
         obtenerTodosLosDestinos(),
+        obtenerPaquetes(),
       ]);
       setReservas(r as Reserva[]);
       setUsuarios(u as Usuario[]);
       setDestinos(d as Destino[]);
+      setPaquetes(p as Paquete[]);
     } catch {
       setErrorCarga('No se pudieron cargar los datos. Verifica tu conexión.');
     } finally {
@@ -152,18 +154,19 @@ export default function AdminScreen() {
   };
   const guardarDestino = async () => {
     const errores: Record<string, string> = {};
-    if (!formNombre.trim())     {errores.nombre    = 'El nombre es requerido';}
-    if (!formCategoria.trim())  {errores.categoria = 'La categoría es requerida';}
+    if (!formNombre.trim())    errores.nombre    = 'El nombre es requerido';
+    if (!formCategoria.trim()) errores.categoria = 'La categoría es requerida';
     const precioNum = Number(formPrecio);
-    if (!formPrecio.trim() || isNaN(precioNum) || precioNum <= 0) {
+    if (!formPrecio.trim() || isNaN(precioNum) || precioNum <= 0)
       errores.precio = 'Ingresa un precio mayor a $0';
-    }
     if (Object.keys(errores).length > 0) { setFormErrores(errores); return; }
     setFormErrores({});
     if (modoForm === 'nuevo') {
       await crearDestino({ nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
+      await registrarAuditAdmin(adminId, 'Crear destino', formNombre.trim());
     } else if (destinoEdit) {
       await actualizarDestino(destinoEdit.id, { nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
+      await registrarAuditAdmin(adminId, 'Editar destino', `ID ${destinoEdit.id}: ${formNombre.trim()}`);
     }
     setModoForm(null);
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
@@ -173,8 +176,9 @@ export default function AdminScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
           await eliminarDestino(id);
+          await registrarAuditAdmin(adminId, 'Eliminar destino', `ID ${id}`);
           setDestinos(await obtenerTodosLosDestinos() as Destino[]);
-      } },
+      }},
     ]);
   };
   const handleToggleActivoDestino = async (id: number) => {
@@ -182,22 +186,80 @@ export default function AdminScreen() {
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
   };
 
-  // ── Usuarios ──────────────────────────────────────────────────────────────
+  // ── CRUD paquetes ─────────────────────────────────────────────────────
+  const abrirFormNuevoPaq = () => {
+    setModoPaqForm('nuevo'); setPaqueteEdit(null);
+    setFormPaqEstadoId(destinos[0] ? String(destinos[0].id) : '');
+    setFormPaqNombre(''); setFormPaqDesc(''); setFormPaqPrecio('');
+    setFormPaqErrores({});
+  };
+  const abrirFormEditarPaq = (p: Paquete) => {
+    setModoPaqForm('editar'); setPaqueteEdit(p);
+    setFormPaqEstadoId(String(p.estado_id));
+    setFormPaqNombre(p.nombre); setFormPaqDesc(p.descripcion);
+    setFormPaqPrecio(String(p.precio));
+    setFormPaqErrores({});
+  };
+  const guardarPaquete = async () => {
+    const errores: Record<string, string> = {};
+    if (!formPaqEstadoId) errores.estadoId = 'Selecciona un destino';
+    if (!formPaqNombre.trim()) errores.nombre = 'El nombre es requerido';
+    const precioNum = Number(formPaqPrecio);
+    if (!formPaqPrecio.trim() || isNaN(precioNum) || precioNum < 0)
+      errores.precio = 'Ingresa un precio válido';
+    if (Object.keys(errores).length > 0) { setFormPaqErrores(errores); return; }
+    const payload = {
+      estado_id: Number(formPaqEstadoId),
+      nombre: formPaqNombre.trim(),
+      descripcion: formPaqDesc.trim(),
+      precio: precioNum,
+    };
+    if (modoPaqForm === 'nuevo') {
+      await crearPaquete(payload);
+      await registrarAuditAdmin(adminId, 'Crear paquete', `${formPaqNombre.trim()} — destino ID ${formPaqEstadoId}`);
+    } else if (paqueteEdit) {
+      await actualizarPaquete(paqueteEdit.id, payload);
+      await registrarAuditAdmin(adminId, 'Editar paquete', `ID ${paqueteEdit.id}: ${formPaqNombre.trim()}`);
+    }
+    setModoPaqForm(null);
+    setPaquetes(await obtenerPaquetes() as Paquete[]);
+  };
+  const handleEliminarPaquete = (id: number) => {
+    Alert.alert('Eliminar paquete', '¿Eliminar este paquete?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+          await eliminarPaquete(id);
+          await registrarAuditAdmin(adminId, 'Eliminar paquete', `ID ${id}`);
+          setPaquetes(await obtenerPaquetes() as Paquete[]);
+      }},
+    ]);
+  };
+  const handleToggleDisponiblePaquete = async (id: number) => {
+    await toggleDisponiblePaquete(id);
+    setPaquetes(await obtenerPaquetes() as Paquete[]);
+  };
+
+  // ── Usuarios ──────────────────────────────────────────────────────────
   const handleCambiarTipo = async (id: string, tipoActual: string) => {
     const nuevoTipo = tipoActual === 'admin' ? 'normal' : 'admin';
     setUsuarios(u => u.map(x => x.id === id ? { ...x, tipo: nuevoTipo } : x));
     await cambiarTipoUsuario(id, nuevoTipo);
+    await registrarAuditAdmin(adminId, 'Cambiar tipo usuario', `${id}: ${tipoActual} → ${nuevoTipo}`);
   };
   const handleToggleActivo = async (id: string) => {
     setUsuarios(u => u.map(x => x.id === id ? { ...x, activo: x.activo ? 0 : 1 } : x));
     await toggleActivoUsuarioAdmin(id);
   };
+
+  // ── Reservas ──────────────────────────────────────────────────────────
   const handleCambiarEstado = (reserva: Reserva, nuevo_estado: string) => {
     const tr = TRANSICIONES[reserva.estado]?.find(t => t.estado === nuevo_estado);
     const esCancelacion = nuevo_estado === 'cancelada';
     Alert.alert(
       tr?.label ?? 'Cambiar estado',
-      `¿${tr?.label ?? 'Cambiar'} la reserva ${reserva.folio}?\n\n${esCancelacion ? 'Esta acción notificará al usuario y no se puede deshacer fácilmente.' : `Pasará de "${reserva.estado}" a "${nuevo_estado}".`}`,
+      `¿${tr?.label ?? 'Cambiar'} la reserva ${reserva.folio}?\n\n${esCancelacion
+        ? 'Esta acción notificará al usuario y no se puede deshacer fácilmente.'
+        : `Pasará de "${reserva.estado}" a "${nuevo_estado}".`}`,
       [
         { text: 'No, volver', style: 'cancel' },
         {
@@ -206,13 +268,14 @@ export default function AdminScreen() {
           onPress: async () => {
             setReservas(r => r.map(x => x.id === reserva.id ? { ...x, estado: nuevo_estado } : x));
             await actualizarEstadoReserva(reserva.id, nuevo_estado);
+            await registrarAuditAdmin(adminId, 'Cambio estado reserva', `${reserva.folio}: ${reserva.estado} → ${nuevo_estado}`);
           },
         },
       ]
     );
   };
 
-  // ── Estadísticas reales ────────────────────────────────────────────────
+  // ── Estadísticas ──────────────────────────────────────────────────────
   const ahora         = new Date();
   const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
   const inicioMesPas  = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
@@ -221,15 +284,15 @@ export default function AdminScreen() {
   const trend     = (a: number, b: number) => b === 0 ? (a > 0 ? 100 : 0) : Math.round(((a - b) / b) * 100);
   const formatTiempo = (fecha: string) => {
     const seg = Math.floor((ahora.getTime() - new Date(fecha).getTime()) / 1000);
-    if (seg < 60)    { return 'Hace un momento'; }
-    if (seg < 3600)  { return `Hace ${Math.floor(seg / 60)} min`; }
-    if (seg < 86400) { return `Hace ${Math.floor(seg / 3600)}h`; }
+    if (seg < 60)    return 'Hace un momento';
+    if (seg < 3600)  return `Hace ${Math.floor(seg / 60)} min`;
+    if (seg < 86400) return `Hace ${Math.floor(seg / 3600)}h`;
     return `Hace ${Math.floor(seg / 86400)}d`;
   };
 
   const topDestinos = Object.entries(
     reservas.reduce<Record<string, number>>((acc, r) => {
-      if (r.destino) { acc[r.destino] = (acc[r.destino] ?? 0) + 1; }
+      if (r.destino) acc[r.destino] = (acc[r.destino] ?? 0) + 1;
       return acc;
     }, {})
   ).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nombre, count]) => ({ nombre, reservas: count }));
@@ -262,7 +325,7 @@ export default function AdminScreen() {
     actividadReciente,
   };
 
-  // ── Datos filtrados y ordenados ────────────────────────────────────────
+  // ── Datos filtrados ───────────────────────────────────────────────────
   const categoriasDestino = [
     'todas',
     ...Array.from(new Set(destinos.map(d => d.categoria).filter(Boolean).map(c => c.trim()))).sort(),
@@ -291,12 +354,12 @@ export default function AdminScreen() {
     const base = reservas
       .filter(r => filtroReserva === 'todas' || r.estado === filtroReserva)
       .filter(r => {
-        if (filtroFecha === 'todas') {return true;}
+        if (filtroFecha === 'todas') return true;
         const f = r.creado_en ? new Date(r.creado_en) : null;
-        if (!f) {return false;}
-        if (filtroFecha === 'hoy')    {return f.toDateString() === ahora2.toDateString();}
-        if (filtroFecha === 'semana') {return f >= hace7;}
-        if (filtroFecha === 'mes')    {return f >= hace30;}
+        if (!f) return false;
+        if (filtroFecha === 'hoy')    return f.toDateString() === ahora2.toDateString();
+        if (filtroFecha === 'semana') return f >= hace7;
+        if (filtroFecha === 'mes')    return f >= hace30;
         return true;
       })
       .filter(r => !q || (
@@ -317,9 +380,9 @@ export default function AdminScreen() {
   const usuariosFiltradosOrdenados = (() => {
     const q = busquedaUsuario.toLowerCase().trim();
     const base = usuarios
-      .filter(u => filtroUsuario === 'todos'    ? true
-                 : filtroUsuario === 'admin'    ? u.tipo === 'admin'
-                 : filtroUsuario === 'activos'  ? !!u.activo
+      .filter(u => filtroUsuario === 'todos'   ? true
+                 : filtroUsuario === 'admin'   ? u.tipo === 'admin'
+                 : filtroUsuario === 'activos' ? !!u.activo
                  : !u.activo)
       .filter(u => !q || (
         u.nombre?.toLowerCase().includes(q) ||
@@ -335,9 +398,11 @@ export default function AdminScreen() {
     });
   })();
 
-  // NavBar delegado a AdminNavBar
+  const paquetesFiltrados = filtroPaqDestino === 'todos'
+    ? paquetes
+    : paquetes.filter(p => String(p.estado_id) === filtroPaqDestino);
 
-  // ── Banner de error global (con botón Reintentar) ─────────────────────
+  // ── Error banner ──────────────────────────────────────────────────────
   const ErrorBanner = () => errorCarga ? (
     <View style={{
       backgroundColor: isDark ? '#2A1210' : '#FEF0EE',
@@ -351,94 +416,93 @@ export default function AdminScreen() {
     </View>
   ) : null;
 
-  // ── Secciones delegadas a componentes externos ────────────────────────
+  // ── Sub-tab para Destinos / Paquetes ──────────────────────────────────
+  const TabDestinosPaquetes = () => (
+    <View style={[s.subTab, { backgroundColor: tema.fondo, borderBottomColor: tema.borde, borderBottomWidth: 1 }]}>
+      {(['destinos', 'paquetes'] as const).map(v => (
+        <TouchableOpacity
+          key={v}
+          style={[s.subTabItem, vistaDestinos === v && { borderBottomColor: tema.primario, borderBottomWidth: 2 }]}
+          onPress={() => { setVistaDestinos(v); setModoForm(null); setModoPaqForm(null); }}
+        >
+          <Text style={[s.subTabTxt, { color: vistaDestinos === v ? tema.primario : tema.textoMuted }, vistaDestinos === v && { fontWeight: '700' }]}>
+            {v === 'destinos' ? `Destinos (${destinos.length})` : `Paquetes (${paquetes.length})`}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  // ── Secciones ─────────────────────────────────────────────────────────
   const Dashboard = () => (
     <AdminDashboard stats={stats} cargando={cargando} esPC={esPC} />
   );
 
   const Destinos = () => (
-    <SeccionDestinos
-      destinos={destinos}
-      destinosFiltrados={destinosFiltrados}
-      modoForm={modoForm}
-      form={{ nombre: formNombre, categoria: formCategoria, precio: formPrecio, desc: formDesc, errores: formErrores }}
-      busqueda={busquedaDestino}
-      filtroCategoria={filtroCategoria}
-      ordenDestinos={ordenDestinos}
-      categoriasDestino={categoriasDestino}
-      onAbrirFormNuevo={abrirFormNuevo}
-      onCancelarForm={() => setModoForm(null)}
-      onGuardar={guardarDestino}
-      onSetForm={(campo, val) => {
-        if (campo === 'nombre')    {setFormNombre(val);}
-        if (campo === 'categoria') {setFormCategoria(val);}
-        if (campo === 'precio')    {setFormPrecio(val);}
-        if (campo === 'desc')      {setFormDesc(val);}
-      }}
-      onLimpiarError={campo => setFormErrores(e => ({ ...e, [campo]: undefined }))}
-      onEliminar={handleEliminarDestino}
-      onToggleActivo={handleToggleActivoDestino}
-      onEditar={abrirFormEditar}
-      onBusqueda={setBusquedaDestino}
-      onFiltroCategoria={setFiltroCategoria}
-      onOrden={setOrdenDestinos}
-    />
+    <View style={{ flex: 1 }}>
+      {!modoForm && !modoPaqForm && <TabDestinosPaquetes />}
+      {vistaDestinos === 'destinos' ? (
+        <SeccionDestinos
+          destinos={destinos}
+          destinosFiltrados={destinosFiltrados}
+          modoForm={modoForm}
+          form={{ nombre: formNombre, categoria: formCategoria, precio: formPrecio, desc: formDesc, errores: formErrores }}
+          busqueda={busquedaDestino}
+          filtroCategoria={filtroCategoria}
+          ordenDestinos={ordenDestinos}
+          categoriasDestino={categoriasDestino}
+          onAbrirFormNuevo={abrirFormNuevo}
+          onCancelarForm={() => setModoForm(null)}
+          onGuardar={guardarDestino}
+          onSetForm={(campo, val) => {
+            if (campo === 'nombre')    setFormNombre(val);
+            if (campo === 'categoria') setFormCategoria(val);
+            if (campo === 'precio')    setFormPrecio(val);
+            if (campo === 'desc')      setFormDesc(val);
+          }}
+          onLimpiarError={campo => setFormErrores(e => ({ ...e, [campo]: undefined }))}
+          onEliminar={handleEliminarDestino}
+          onToggleActivo={handleToggleActivoDestino}
+          onEditar={abrirFormEditar}
+          onBusqueda={setBusquedaDestino}
+          onFiltroCategoria={setFiltroCategoria}
+          onOrden={setOrdenDestinos}
+        />
+      ) : (
+        <SeccionPaquetes
+          paquetes={paquetes}
+          paquetesFiltrados={paquetesFiltrados}
+          destinos={destinos}
+          modoForm={modoPaqForm}
+          form={{
+            estadoId: formPaqEstadoId,
+            nombre: formPaqNombre,
+            descripcion: formPaqDesc,
+            precio: formPaqPrecio,
+            errores: formPaqErrores,
+          }}
+          filtroPaqDestino={filtroPaqDestino}
+          onAbrirFormNuevo={abrirFormNuevoPaq}
+          onCancelarForm={() => setModoPaqForm(null)}
+          onGuardar={guardarPaquete}
+          onSetForm={(campo, val) => {
+            if (campo === 'estadoId')    setFormPaqEstadoId(val);
+            if (campo === 'nombre')      setFormPaqNombre(val);
+            if (campo === 'descripcion') setFormPaqDesc(val);
+            if (campo === 'precio')      setFormPaqPrecio(val);
+          }}
+          onLimpiarError={campo => setFormPaqErrores(e => ({ ...e, [campo]: undefined }))}
+          onEliminar={handleEliminarPaquete}
+          onToggleDisponible={handleToggleDisponiblePaquete}
+          onEditar={abrirFormEditarPaq}
+          onFiltroDestino={setFiltroPaqDestino}
+        />
+      )}
+    </View>
   );
 
-  // ── Rutas temáticas (datos locales — RUTAS_TEMATICAS) ─────────────────
-  const RutasView = () => (
-    <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-      <Text style={[s.seccionTitulo, { color: tema.texto }]}>Rutas temáticas ({RUTAS_TEMATICAS.length})</Text>
-      <Text style={[s.subTitulo, { color: tema.textoMuted, marginBottom: 16, fontSize: 13 }]}>
-        Rutas curadas de la app. Para editar el contenido, modifica{' '}
-        <Text style={{ fontFamily: 'monospace', color: tema.primario }}>lib/datos/rutas-tematicas.ts</Text>
-      </Text>
-      {RUTAS_TEMATICAS.map(r => {
-        const img = RUTA_IMG[r.id];
-        const difColor = r.dificultad === 'Fácil' ? '#3AB7A5' : r.dificultad === 'Moderada' ? '#e9c46a' : '#DD331D';
-        return (
-          <View key={r.id} style={[s.rutaCard, { backgroundColor: tema.superficieBlanca, borderColor: r.color + '55', borderLeftColor: r.color }]}>
-            <View style={s.rutaCardTop}>
-              {img && <Image source={img} style={s.rutaCardImg} resizeMode="cover" />}
-              <View style={{ flex: 1 }}>
-                <View style={[s.itemCardRow, { marginBottom: 4 }]}>
-                  <Text style={[s.itemNombre, { color: tema.texto }]}>{r.nombre}</Text>
-                  <View style={[s.badge, { backgroundColor: difColor + '22', borderWidth: 1, borderColor: difColor }]}>
-                    <Text style={[s.badgeTxt, { color: difColor }]}>{r.dificultad}</Text>
-                  </View>
-                </View>
-                <Text style={[s.itemSub, { color: tema.textoMuted }]} numberOfLines={2}>{r.descripcion}</Text>
-              </View>
-            </View>
-            <View style={[s.rutaCardInfo, { borderTopColor: tema.borde }]}>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Destinos</Text>
-                <Text style={[s.rutaInfoVal, { color: r.color }]}>{r.estadoIds.length}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Días total</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.estadoIds.length * r.diasPorEstado}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Presupuesto</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.presupuestoDiario}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Época</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.mejorEpoca}</Text>
-              </View>
-            </View>
-            <View style={s.rutaTags}>
-              {r.tags.map(tag => (
-                <View key={tag} style={[s.rutaTag, { backgroundColor: r.color + '18', borderColor: r.color + '44' }]}>
-                  <Text style={[s.rutaTagTxt, { color: r.color }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        );
-      })}
-    </ScrollView>
+  const Reportes = () => (
+    <SeccionReportes reservas={reservas} destinos={destinos} usuarios={usuarios} />
   );
 
   const Reservas = () => (
@@ -477,13 +541,12 @@ export default function AdminScreen() {
   const SECCIONES: Record<Seccion, React.ReactNode> = {
     dashboard: <Dashboard />,
     destinos:  <Destinos  />,
-    rutas:     <RutasView />,
+    reportes:  <Reportes  />,
     reservas:  <Reservas  />,
     usuarios:  <Usuarios  />,
   };
 
-  // No-admin: no renderizar nada (la navegación ya está en curso)
-  if (esAdmin === false) {return null;}
+  if (esAdmin === false) return null;
 
   if (!verificado) {
     return (
@@ -492,6 +555,9 @@ export default function AdminScreen() {
       </View>
     );
   }
+
+  const mostrarFabDestinos = seccion === 'destinos' && vistaDestinos === 'destinos' && !modoForm;
+  const mostrarFabPaquetes = seccion === 'destinos' && vistaDestinos === 'paquetes' && !modoPaqForm;
 
   return (
     <View style={[s.contenedor, { backgroundColor: tema.fondo }]}>
@@ -523,8 +589,13 @@ export default function AdminScreen() {
             <ErrorBanner />
             <View style={{ flex: 1 }}>
               {SECCIONES[seccion]}
-              {seccion === 'destinos' && !modoForm && (
+              {mostrarFabDestinos && (
                 <TouchableOpacity style={[s.fab, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo} activeOpacity={0.85}>
+                  <Text style={s.fabTxt}>+</Text>
+                </TouchableOpacity>
+              )}
+              {mostrarFabPaquetes && (
+                <TouchableOpacity style={[s.fab, { backgroundColor: tema.primario }]} onPress={abrirFormNuevoPaq} activeOpacity={0.85}>
                   <Text style={s.fabTxt}>+</Text>
                 </TouchableOpacity>
               )}
@@ -534,6 +605,19 @@ export default function AdminScreen() {
         )}
       </SafeAreaView>
     </View>
+  );
+}
+
+// ── Audit log viewer inline (sección dentro de reportes) ──────────────────
+export function AuditViewer({ reservas }: { reservas: Reserva[] }) {
+  return (
+    <ScrollView>
+      {reservas.slice(0, 20).map((r, i) => (
+        <View key={i} style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}>
+          <Text>{r.folio} — {r.estado}</Text>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -553,30 +637,15 @@ const s = StyleSheet.create({
   contenidoPC: { flex: 1, padding: 20 },
   headerPC:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
 
+  // Sub-tab destinos/paquetes
+  subTab:     { flexDirection: 'row', paddingHorizontal: 16 },
+  subTabItem: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  subTabTxt:  { fontSize: 14 },
+
   // FAB
   fab:    { position: 'absolute', right: 20, bottom: 80, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', elevation: 6 },
   fabTxt: { color: '#fff', fontSize: 26, fontWeight: 'bold' },
 
   // Error banner
   errorBannerTxt: { fontSize: 13, fontWeight: '600' },
-
-  // Rutas temáticas (SeccionRutas inline)
-  rutaCard:     { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
-  rutaCardTop:  { flexDirection: 'row', gap: 12, padding: 14 },
-  rutaCardImg:  { width: 68, height: 68, borderRadius: 10 },
-  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
-  rutaInfoItem: { flex: 1, alignItems: 'center', gap: 2 },
-  rutaInfoLbl:  { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  rutaInfoVal:  { fontSize: 13, fontWeight: '800' },
-  rutaTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
-  rutaTag:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  rutaTagTxt:   { fontSize: 11, fontWeight: '600' },
-  itemCardRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  itemNombre:   { fontSize: 15, fontWeight: '700', flex: 1 },
-  itemSub:      { fontSize: 12, marginTop: 2 },
-  badge:        { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
-  badgeTxt:     { fontSize: 11, fontWeight: '700' },
-  subTitulo:    { fontSize: 14, fontWeight: '600' },
-  seccionScroll:{ padding: 16, gap: 14, paddingBottom: 120 },
-  seccionTitulo:{ fontSize: 22, fontWeight: '800' },
 });
