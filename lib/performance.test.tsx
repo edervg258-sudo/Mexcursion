@@ -1,3 +1,4 @@
+import React from 'react';
 import { Platform } from 'react-native';
 import * as Performance from './performance';
 import { logEvent } from './analytics';
@@ -47,15 +48,9 @@ describe('Performance Module', () => {
 
   describe('preloadCriticalResources', () => {
     it('should preload critical images without throwing', () => {
-      // Mock require to avoid actual image loading
-      const originalRequire = require;
-      jest.spyOn(global, 'require' as any).mockImplementation(() => ({}));
-
       expect(() => {
         Performance.preloadCriticalResources();
       }).not.toThrow();
-
-      (global.require as jest.Mock).mockRestore();
     });
   });
 
