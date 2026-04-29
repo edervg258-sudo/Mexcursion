@@ -94,18 +94,32 @@ export default function PagoScreen() {
             notas ?? '',
           ] as const;
 
-          let ok = await guardarReserva(...payload);
+          let saveResult = await guardarReserva(...payload);
           // Reintento único para fallos transitorios de red/proveedor.
-          if (!ok) {
+          if (saveResult === 'failed') {
             await new Promise(resolve => setTimeout(resolve, 800));
-            ok = await guardarReserva(...payload);
+            saveResult = await guardarReserva(...payload);
           }
-          if (!ok) {
+          if (saveResult === 'queued_offline') {
+            throw new Error('save_queued_offline');
+          }
+          if (saveResult === 'failed') {
             throw new Error('save_failed');
           }
 
-          await crearNotificacion(usuario.id, 'pago_exitoso', `Pago confirmado - Folio: ${folio}`, JSON.stringify({ folio, metodo }));
-          await agregarHistorial(usuario.id, 'pago', `Pago realizado con ${metodo} - Folio: ${folio}`, JSON.stringify({ folio, metodo, monto: totalReserva }));
+          const pagoPendiente = estadoReserva === 'pendiente';
+          await crearNotificacion(
+            usuario.id,
+            pagoPendiente ? 'pago_pendiente' : 'pago_exitoso',
+            pagoPendiente ? `Pago pendiente - Folio: ${folio}` : `Pago confirmado - Folio: ${folio}`,
+            JSON.stringify({ folio, metodo, estado: estadoReserva })
+          );
+          await agregarHistorial(
+            usuario.id,
+            'pago',
+            pagoPendiente ? `Pago pendiente con ${metodo} - Folio: ${folio}` : `Pago realizado con ${metodo} - Folio: ${folio}`,
+            JSON.stringify({ folio, metodo, monto: totalReserva, estado: estadoReserva })
+          );
         })(),
         timeoutPromise,
       ]);
@@ -149,6 +163,8 @@ export default function PagoScreen() {
         setErrorPago({ mensaje: 'La conexión tardó demasiado. Verifica tu internet e intenta de nuevo.' });
       } else if (err instanceof Error && err.message === 'save_failed') {
         setErrorPago({ mensaje: 'No se pudo guardar la reserva. Intenta de nuevo.' });
+      } else if (err instanceof Error && err.message === 'save_queued_offline') {
+        setErrorPago({ mensaje: 'No se pudo confirmar la reserva en este momento. Intenta nuevamente cuando tengas mejor conexion.' });
       } else {
         const normalized = normalizeError(err);
         setErrorPago({ mensaje: userMessageForError(normalized) });
@@ -161,7 +177,6 @@ export default function PagoScreen() {
     await procesarPago(paymentId.slice(0, 20).toUpperCase());
   };
   const handlePagoTarjetaError = (error: string) => {
-    setMostrarTarjeta(false);
     const normalized = normalizeError(error);
     captureApiError({
       feature: 'payments',

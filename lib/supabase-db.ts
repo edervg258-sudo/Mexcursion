@@ -27,6 +27,8 @@ export type Itinerario = {
   items?: string[];
 };
 
+export type GuardarReservaResultado = 'saved' | 'idempotent' | 'queued_offline' | 'failed';
+
 const isNetworkLikeError = (error: unknown) => {
   const msg = String((error as { message?: string })?.message ?? error ?? '').toLowerCase();
   return msg.includes('network') || msg.includes('fetch') || msg.includes('timeout') || msg.includes('offline');
@@ -592,29 +594,29 @@ export async function guardarReserva(
   metodo: string,
   estado: string = 'confirmada',
   notas?: string
-): Promise<boolean> {
+): Promise<GuardarReservaResultado> {
   const METODOS_PERMITIDOS = new Set(['tarjeta', 'spei', 'oxxo']);
   const ESTADOS_PERMITIDOS = new Set(['confirmada', 'pendiente', 'cancelada']);
 
   try {
     const folioNormalizado = (folio ?? '').trim().toUpperCase().slice(0, 40);
     if (!folioNormalizado || folioNormalizado.length < 4) {
-      return false;
+      return 'failed';
     }
     if (!METODOS_PERMITIDOS.has((metodo ?? '').toLowerCase())) {
-      return false;
+      return 'failed';
     }
     if (!ESTADOS_PERMITIDOS.has((estado ?? '').toLowerCase())) {
-      return false;
+      return 'failed';
     }
     if (!usuario_id || !destino?.trim() || !paquete?.trim()) {
-      return false;
+      return 'failed';
     }
     if (!Number.isFinite(personas) || personas < 1 || personas > 20) {
-      return false;
+      return 'failed';
     }
     if (!Number.isFinite(total) || total < 0) {
-      return false;
+      return 'failed';
     }
 
     // Convierte DD/MM/AAAA → YYYY-MM-DD si viene en formato mexicano
@@ -635,7 +637,7 @@ export async function guardarReserva(
         message: 'guardarReserva idempotent hit',
         data: { usuario_id, folio: folioNormalizado },
       });
-      return true;
+      return 'idempotent';
     }
 
     const fila: Record<string, any> = {
@@ -655,14 +657,14 @@ export async function guardarReserva(
     if (error) {
       // 23505: unique_violation (folio duplicado). Es un caso idempotente.
       if ((error as { code?: string }).code === '23505') {
-        return true;
+        return 'idempotent';
       }
       if (isNetworkLikeError(error)) {
         await enqueueOfflineOperation({
           type: 'CREAR_RESERVA',
           payload: fila,
         });
-        return true;
+        return 'queued_offline';
       }
       captureApiError({
         feature: 'reservas',
@@ -670,9 +672,9 @@ export async function guardarReserva(
         error,
         metadata: { usuario_id, folio: folioNormalizado },
       });
-      return false;
+      return 'failed';
     }
-    return !error;
+    return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
     captureApiError({
@@ -681,7 +683,7 @@ export async function guardarReserva(
       error: err,
       metadata: { usuario_id, folio },
     });
-    return false;
+    return 'failed';
   }
 }
 

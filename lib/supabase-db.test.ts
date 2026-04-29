@@ -302,7 +302,41 @@ describe('guardarReserva', () => {
       });
 
     const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
-    expect(result).toBe(true);
+    expect(result).toBe('saved');
+  });
+
+  it('debe tratar folio repetido como idempotente', async () => {
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            maybeSingle: jest.fn().mockResolvedValue({ data: { id: 99 }, error: null }),
+          }),
+        }),
+      }),
+    });
+
+    const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
+    expect(result).toBe('idempotent');
+  });
+
+  it('debe marcar queued_offline cuando falla por red', async () => {
+    (supabase.from as jest.Mock)
+      .mockReturnValueOnce({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        insert: jest.fn().mockResolvedValue({ error: { message: 'Network request failed' } }),
+      });
+
+    const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
+    expect(result).toBe('queued_offline');
   });
 });
 
