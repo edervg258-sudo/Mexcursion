@@ -125,7 +125,6 @@ npm run lint
   - [ ] `001-react-native-over-flutter.md`
   - [ ] `002-supabase-for-backend.md`
   - [ ] `003-expo-router-for-navigation.md`
-  - [ ] `004-mercadopago-integration.md`
 
 ### Contributing Guide
 - [ ] `docs/CONTRIBUTING.md` readable

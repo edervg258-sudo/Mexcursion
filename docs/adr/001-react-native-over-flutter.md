@@ -55,7 +55,7 @@ We chose **React Native with Expo** as our primary framework.
 4. **Community & Ecosystem**:
    - React Native has 100k+ GitHub stars
    - Massive community support and libraries
-   - Better integration with common services (Supabase, Firebase, MercadoPago)
+   - Better integration with common services (Supabase, Firebase)
 
 ### Alternative Approaches
 

@@ -21,7 +21,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 - **Estado**: TanStack Query + AsyncStorage
 - **Navegación**: Expo Router (file-based routing)
 - **UI**: React Native components + custom styling
-- **Pagos**: Stripe (tarjeta) + simulación SPEI/OXXO
+- **Pagos**: Simulación de tarjeta + simulación SPEI/OXXO
 - **Mapas**: expo-maps (nativo, requiere development build)
 - **Analytics**: stub/no-op (pendiente integración real)
 - **Crash Reporting**: Sentry
@@ -67,15 +67,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
      # o copia/pega cada archivo de supabase/migrations/ en el SQL Editor
      ```
    - Configura auth providers
-   - Despliega las Edge Functions de pagos (Stripe):
-     ```bash
-     supabase functions deploy create-payment-intent
-     supabase functions deploy confirm-payment
-     ```
-   - Define secretos en Supabase (no en el repo):
-     ```bash
-     supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...
-     ```
+  - Para pagos simulados no necesitas desplegar funciones externas de cobro.
 
 5. **Inicia la app**
    ```bash

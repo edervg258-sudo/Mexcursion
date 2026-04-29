@@ -185,8 +185,8 @@ npm audit fix --force
 ### Payment Security
 
 Test payment processing with:
-- **Test Cards** (from Stripe): 4242 4242 4242 4242
-- **Test Mode**: Set `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` to a `pk_test_...` key
+- **Test Cards** (simuladas): 4242 4242 4242 4242
+- **Test Mode**: usa el formulario local de pago simulado
 - **Idempotency**: Verify duplicate payments with same `folio` fail safely
 
 ```bash

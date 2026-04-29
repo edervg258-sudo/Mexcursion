@@ -133,7 +133,7 @@ CREATE TABLE public.bookings (
     CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded')),
   status text DEFAULT 'confirmed'
     CHECK (status IN ('confirmed', 'cancelled')),
-  mercadopago_preference_id text,
+  payment_reference_id text,
   notes text,
   created_at timestamptz DEFAULT NOW(),
   updated_at timestamptz DEFAULT NOW()

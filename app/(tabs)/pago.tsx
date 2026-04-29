@@ -13,7 +13,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
-import { estadoReservaPorMetodo, folioDesdeStripe, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
+import { estadoReservaPorMetodo, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
 
 export default function PagoScreen() {
   const { nombre, paquete, precio, personas, fecha, nombre_viajero: _nombre_viajero, email, telefono: _telefono, notas } =
@@ -22,7 +22,7 @@ export default function PagoScreen() {
   const { tema, isDark } = useTemaContext();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
   const METODOS = [
-    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Visa / Mastercard via Stripe' },
+    { id: 'tarjeta', emoji: '💳', label: t('pago_tarjeta'),   sub: 'Pago simulado con tarjeta' },
     { id: 'spei',    emoji: '🏦', label: t('pago_spei'),       sub: t('pago_transferencia')  },
     { id: 'oxxo',    emoji: '🏪', label: t('pago_oxxo'),       sub: t('pago_tienda')         },
   ];
@@ -45,7 +45,6 @@ export default function PagoScreen() {
   );
 
   const pagar = async () => {
-    // Card payments go through Stripe (PCI-DSS compliant)
     if (metodo === 'tarjeta') {
       setMostrarTarjeta(true);
       return;
@@ -54,7 +53,7 @@ export default function PagoScreen() {
   };
 
   const procesarPago = async (folioOverride?: string) => {
-    // Re-entrancy guard: reject if already processing (covers double-tap and MP callback races)
+    // Re-entrancy guard: reject if already processing
     if (procesandoRef.current) {
       return;
     }
@@ -159,15 +158,14 @@ export default function PagoScreen() {
 
   const handlePagoTarjetaSuccess = async (paymentId: string) => {
     setMostrarTarjeta(false);
-    // Use the Stripe payment ID as folio so retries are idempotent
-    await procesarPago(folioDesdeStripe(paymentId));
+    await procesarPago(paymentId.slice(0, 20).toUpperCase());
   };
   const handlePagoTarjetaError = (error: string) => {
     setMostrarTarjeta(false);
     const normalized = normalizeError(error);
     captureApiError({
       feature: 'payments',
-      action: 'stripe_payment',
+      action: 'simulated_card_payment',
       error,
       metadata: { nombre, paquete, precio, personas },
     });

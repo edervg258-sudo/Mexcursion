@@ -63,7 +63,6 @@ An ADR is a lightweight decision record that captures:
 | 001 | React Native over Flutter | Accepted | 2026-01-15 |
 | 002 | Supabase for Backend | Accepted | 2026-01-20 |
 | 003 | Expo Router for Navigation | Accepted | 2026-01-25 |
-| 004 | MercadoPago Integration | Accepted | 2026-02-01 |
 
 ## How to Use
 

@@ -1,17 +1,5 @@
-import { CardField, useStripe } from '@stripe/stripe-react-native';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { normalizeError, userMessageForError } from '../lib/error-handling';
-import { confirmarPago, crearIntentoPago } from '../lib/stripe';
-import { addBreadcrumb, captureApiError } from '../lib/sentry';
+import React, { useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { sombra } from '../lib/estilos';
 import { useTemaContext } from '../lib/TemaContext';
 
@@ -27,170 +15,54 @@ interface PagoTarjetaProps {
 
 export function PagoTarjeta({
   amount,
-  description,
-  payerEmail,
+  description: _description,
+  payerEmail: _payerEmail,
   externalReference,
   onSuccess,
   onError,
-  onBack: _onBack,
+  onBack,
 }: PagoTarjetaProps) {
   const { isDark } = useTemaContext();
-  const stripe = useStripe();
   const [loading, setLoading] = useState(false);
-  const [procesando, setProcesando] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [intentId, setIntentId] = useState<string | null>(null);
+  const [titular, setTitular] = useState('');
+  const [numero, setNumero] = useState('');
+  const [vencimiento, setVencimiento] = useState('');
+  const [cvv, setCvv] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const procesandoRef = useRef(false);
-  const cardFieldRef = useRef<any>(null);
+  const numeroNormalizado = numero.replace(/\s/g, '');
 
-  // Create payment intent on mount
-  useEffect(() => {
-    let mounted = true;
-
-    const crearIntent = async () => {
-      setLoading(true);
-      try {
-        const result = await crearIntentoPago({
-          amount,
-          description,
-          payerEmail,
-          externalReference,
-        });
-
-        if (!mounted) {return;}
-
-        setClientSecret(result.clientSecret);
-        setIntentId(result.intentId);
-
-        addBreadcrumb({
-          category: 'payments',
-          message: 'payment_intent_created',
-          data: { intentId: result.intentId, amount, description },
-        });
-      } catch (err) {
-        if (!mounted) {return;}
-
-        const normalized = normalizeError(err);
-        const userMessage = userMessageForError(normalized);
-
-        captureApiError({
-          feature: 'payments',
-          action: 'create_payment_intent',
-          error: err,
-          metadata: { amount, description, externalReference },
-        });
-
-        setError(userMessage);
-        onError(userMessage);
-        Alert.alert('Error', userMessage);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    crearIntent();
-
-    return () => {
-      mounted = false;
-    };
-  }, [amount, description, payerEmail, externalReference, onError]);
-
-  const handlePay = async () => {
-    if (!stripe || !clientSecret || !intentId || procesandoRef.current) {
+  const handleCheckout = () => {
+    if (!titular.trim()) {
+      const mensaje = 'Ingresa el nombre del titular.';
+      setError(mensaje);
+      onError(mensaje);
+      return;
+    }
+    if (!/^\d{16}$/.test(numeroNormalizado)) {
+      const mensaje = 'Ingresa un numero de tarjeta de 16 digitos.';
+      setError(mensaje);
+      onError(mensaje);
+      return;
+    }
+    if (!/^\d{2}\/\d{2}$/.test(vencimiento.trim())) {
+      const mensaje = 'Ingresa una fecha de vencimiento valida en formato MM/AA.';
+      setError(mensaje);
+      onError(mensaje);
+      return;
+    }
+    if (!/^\d{3,4}$/.test(cvv.trim())) {
+      const mensaje = 'Ingresa un CVV valido.';
+      setError(mensaje);
+      onError(mensaje);
       return;
     }
 
-    procesandoRef.current = true;
-    setProcesando(true);
     setError(null);
-
-    try {
-      // Get payment method ID from CardField
-      const cardFieldValue = await cardFieldRef.current?.getDetails?.();
-
-      if (!cardFieldValue) {
-        const msg = 'Por favor completa los datos de tu tarjeta.';
-        setError(msg);
-        onError(msg);
-        Alert.alert('Error', msg);
-        procesandoRef.current = false;
-        setProcesando(false);
-        return;
-      }
-
-      // Create payment method from card details
-      const { paymentMethod, error: paymentMethodError } = await stripe.createPaymentMethod({
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          billingDetails: {
-            email: payerEmail,
-          },
-        },
-      });
-
-      if (paymentMethodError) {
-        const userMessage = userMessageForError(normalizeError(paymentMethodError));
-        captureApiError({
-          feature: 'payments',
-          action: 'create_payment_method',
-          error: paymentMethodError,
-          metadata: { amount, description },
-        });
-        setError(userMessage);
-        onError(userMessage);
-        Alert.alert('Error', userMessage);
-        procesandoRef.current = false;
-        setProcesando(false);
-        return;
-      }
-
-      if (!paymentMethod) {
-        const msg = 'No se pudo procesar la tarjeta. Intenta de nuevo.';
-        setError(msg);
-        onError(msg);
-        Alert.alert('Error', msg);
-        procesandoRef.current = false;
-        setProcesando(false);
-        return;
-      }
-
-      // Confirm payment
-      const confirmResult = await confirmarPago({
-        intentId,
-        paymentMethodId: paymentMethod.id,
-      });
-
-      procesandoRef.current = false;
-      setProcesando(false);
-
-      addBreadcrumb({
-        category: 'payments',
-        message: 'payment_confirmed',
-        data: { paymentId: confirmResult.paymentId, status: confirmResult.status },
-      });
-
-      onSuccess(confirmResult.paymentId);
-    } catch (err) {
-      procesandoRef.current = false;
-      setProcesando(false);
-
-      const normalized = normalizeError(err);
-      const userMessage = userMessageForError(normalized);
-
-      captureApiError({
-        feature: 'payments',
-        action: 'confirm_payment',
-        error: err,
-        metadata: { amount, description, intentId },
-      });
-
-      setError(userMessage);
-      onError(userMessage);
-      Alert.alert('Error', userMessage);
-    }
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      onSuccess(`sim-card-${externalReference}`);
+    }, 900);
   };
 
   return (
@@ -200,90 +72,91 @@ export function PagoTarjeta({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Header */}
       <View style={estilos.header}>
         <Text style={[estilos.headerTitulo, { color: isDark ? '#fff' : '#333' }]}>
           Datos de la tarjeta
         </Text>
         <Text style={[estilos.headerSubtitulo, { color: isDark ? '#aaa' : '#666' }]}>
-          Pagos seguros con Stripe
+          Pago simulado para pruebas
         </Text>
       </View>
 
-      {/* Monto */}
-      <View style={[estilos.tarjetaMonto, { backgroundColor: '#3AB7A5' }]}>
+      <View style={estilos.tarjetaMonto}>
         <Text style={estilos.montoLabel}>Total a pagar</Text>
         <Text style={estilos.monto}>${amount.toLocaleString()}<Text style={estilos.montoMXN}> MXN</Text></Text>
       </View>
 
-      {/* Loading state */}
-      {loading && (
-        <View style={estilos.loadingContainer}>
-          <ActivityIndicator size="large" color="#3AB7A5" />
-          <Text style={[estilos.loadingText, { color: isDark ? '#fff' : '#333' }]}>
-            Preparando pago...
-          </Text>
+      <View style={[estilos.formulario, { backgroundColor: isDark ? '#222' : '#fff', borderColor: isDark ? '#444' : '#ddd' }]}>
+        <View style={[estilos.formularioHeader, { backgroundColor: isDark ? '#1a1a1a' : '#f7f7f7', borderBottomColor: isDark ? '#444' : '#e6e6e6' }]}>
+          <Text style={[estilos.formularioTitulo, { color: isDark ? '#fff' : '#333' }]}>Captura de tarjeta</Text>
+        </View>
+        <View style={estilos.formularioCuerpo}>
+          <TextInput
+            style={[estilos.input, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
+            placeholder="Nombre del titular"
+            placeholderTextColor={isDark ? '#888' : '#999'}
+            value={titular}
+            onChangeText={(value) => { setTitular(value); if (error) { setError(null); } }}
+          />
+          <TextInput
+            style={[estilos.input, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
+            placeholder="Numero de tarjeta"
+            placeholderTextColor={isDark ? '#888' : '#999'}
+            value={numero}
+            onChangeText={(value) => { setNumero(value.replace(/\D/g, '')); if (error) { setError(null); } }}
+            keyboardType="number-pad"
+            maxLength={16}
+          />
+          <View style={estilos.fila}>
+            <TextInput
+              style={[estilos.input, estilos.inputMitad, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
+              placeholder="MM/AA"
+              placeholderTextColor={isDark ? '#888' : '#999'}
+              value={vencimiento}
+              onChangeText={(value) => { setVencimiento(value); if (error) { setError(null); } }}
+              maxLength={5}
+            />
+            <TextInput
+              style={[estilos.input, estilos.inputMitad, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
+              placeholder="CVV"
+              placeholderTextColor={isDark ? '#888' : '#999'}
+              value={cvv}
+              onChangeText={(value) => { setCvv(value.replace(/\D/g, '')); if (error) { setError(null); } }}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+          <View style={[estilos.infoBox, { backgroundColor: isDark ? '#2a3f3f' : '#f0faf9', borderColor: isDark ? '#3a5f5f' : '#d1e8e5' }]}>
+            <Text style={[estilos.infoLabel, { color: isDark ? '#aaa' : '#666' }]}>
+              Pago de tarjeta simulado. No se realiza ningun cobro real.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {error && (
+        <View style={[estilos.errorBanner, { backgroundColor: isDark ? '#2A1210' : '#FEF0EE' }]}>
+          <Text style={estilos.errorText}>{error}</Text>
         </View>
       )}
 
-      {/* Card Field */}
-      {!loading && clientSecret && (
-        <>
-          <View style={[estilos.cardContainer, { borderColor: isDark ? '#444' : '#ddd' }]}>
-            <CardField
-              ref={cardFieldRef}
-              postalCodeEnabled={false}
-              placeholders={{
-                number: '4242 4242 4242 4242',
-                expiration: 'MM/YY',
-                cvc: 'CVC',
-              }}
-              onCardChange={() => {
-                // Card details changed
-              }}
-              style={estilos.cardField}
-            />
-          </View>
+      <TouchableOpacity
+        testID="pay-card-button"
+        style={[estilos.btnPagar, loading && { opacity: 0.7 }]}
+        onPress={handleCheckout}
+        disabled={loading}
+        activeOpacity={0.85}
+      >
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={estilos.btnPagarText}>Pagar ahora</Text>}
+      </TouchableOpacity>
 
-          {/* Error message */}
-          {error && (
-            <View style={[estilos.errorBanner, { backgroundColor: isDark ? '#2A1210' : '#FEF0EE' }]}>
-              <Text style={estilos.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Info box */}
-          <View style={[estilos.infoBox, { backgroundColor: isDark ? '#2a3f3f' : '#f0faf9', borderColor: isDark ? '#3a5f5f' : '#d1e8e5' }]}>
-            <Text style={[estilos.infoLabel, { color: isDark ? '#aaa' : '#666' }]}>
-              💳 Datos de prueba (test mode):
-            </Text>
-            <Text style={[estilos.infoText, { color: isDark ? '#fff' : '#333' }]}>
-              Tarjeta: 4242 4242 4242 4242
-            </Text>
-            <Text style={[estilos.infoText, { color: isDark ? '#fff' : '#333' }]}>
-              Vencimiento: 12/25
-            </Text>
-            <Text style={[estilos.infoText, { color: isDark ? '#fff' : '#333' }]}>
-              CVC: 242
-            </Text>
-          </View>
-
-          {/* Pay button */}
-          <TouchableOpacity
-            testID="pay-card-button"
-            style={[estilos.btnPagar, procesando && { opacity: 0.6 }]}
-            onPress={handlePay}
-            disabled={procesando}
-            activeOpacity={0.85}
-          >
-            {procesando ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={estilos.btnText}>Pagar ahora</Text>
-            )}
-          </TouchableOpacity>
-        </>
-      )}
+      <TouchableOpacity
+        style={estilos.btnVolver}
+        onPress={onBack}
+        activeOpacity={0.85}
+      >
+        <Text style={estilos.btnVolverText}>Volver a metodos de pago</Text>
+      </TouchableOpacity>
 
       <View style={{ height: 30 }} />
     </ScrollView>
@@ -314,6 +187,7 @@ const estilos = StyleSheet.create({
     fontWeight: '500',
   },
   tarjetaMonto: {
+    backgroundColor: '#3AB7A5',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -334,28 +208,48 @@ const estilos = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
+  formulario: {
+    borderWidth: 1,
+    borderRadius: 18,
+    marginBottom: 20,
+    overflow: 'hidden',
+    ...sombra({ opacity: 0.08, radius: 6, offsetY: 2, elevation: 2 }),
+  },
+  formularioHeader: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  formularioTitulo: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  formularioCuerpo: {
+    padding: 16,
     gap: 12,
   },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 12,
-  },
-  cardContainer: {
+  input: {
     borderWidth: 1,
     borderRadius: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 16,
-    height: 80,
-    justifyContent: 'center',
+    fontSize: 14,
   },
-  cardField: {
-    height: 56,
+  fila: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputMitad: {
+    flex: 1,
+  },
+  infoBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   errorBanner: {
     borderRadius: 12,
@@ -370,34 +264,30 @@ const estilos = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 18,
   },
-  infoBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 20,
-    gap: 6,
-  },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 12,
-    fontWeight: '500',
-    fontFamily: 'monospace',
-  },
   btnPagar: {
     backgroundColor: '#DD331D',
     borderRadius: 25,
     paddingVertical: 16,
     alignItems: 'center',
+    marginBottom: 12,
     ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }),
   },
-  btnText: {
+  btnPagarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.3,
+  },
+  btnVolver: {
+    borderRadius: 25,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#3AB7A5',
+    backgroundColor: 'transparent',
+  },
+  btnVolverText: {
+    color: '#3AB7A5',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

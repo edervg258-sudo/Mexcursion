@@ -47,7 +47,7 @@ We chose **Supabase** (open-source Firebase alternative) as our Backend-as-a-Ser
    - Built-in broadcast for cross-client communication
 
 4. **Edge Functions**
-   - Serverless functions for complex operations (MercadoPago payments)
+   - Serverless functions for complex operations (notifications, business rules)
    - Can be written in TypeScript/JavaScript
    - No infrastructure management needed
 

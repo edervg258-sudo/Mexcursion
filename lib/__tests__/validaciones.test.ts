@@ -83,7 +83,7 @@ describe('validarTarjeta (Luhn)', () => {
   test('acepta Visa de prueba', () => {
     expect(validarTarjeta('4111 1111 1111 1111')).toBe(true);
   });
-  test('acepta Stripe test card', () => {
+  test('acepta tarjeta de prueba conocida', () => {
     expect(validarTarjeta('4242424242424242')).toBe(true);
   });
   test('rechaza checksum inválido', () => {

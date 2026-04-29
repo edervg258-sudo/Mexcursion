@@ -27,7 +27,3 @@ export function generarReferenciaOxxo(seed: string): string {
   return '85700000' + (h % 100_000_000).toString().padStart(8, '0');
 }
 
-// Folio Stripe truncado a 20 chars para encajar en columnas con límite.
-export function folioDesdeStripe(paymentId: string): string {
-  return `STRIPE${paymentId}`.slice(0, 20);
-}

@@ -161,7 +161,7 @@ footer
 ```
 feat(booking): add payment method selection screen
 
-- Add MercadoPago payment method options
+- Add simulated payment method options
 - Implement OXXO cash payment flow
 - Add payment method validation
 

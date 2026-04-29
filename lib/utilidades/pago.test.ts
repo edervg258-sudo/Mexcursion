@@ -1,12 +1,11 @@
 import {
   estadoReservaPorMetodo,
   fnv1a32,
-  folioDesdeStripe,
   generarReferenciaOxxo,
 } from './pago';
 
 describe('estadoReservaPorMetodo', () => {
-  test('tarjeta queda confirmada (cobro inmediato Stripe)', () => {
+  test('tarjeta queda confirmada (simulacion inmediata)', () => {
     expect(estadoReservaPorMetodo('tarjeta')).toBe('confirmada');
   });
   test('spei queda pendiente hasta verificación bancaria', () => {
@@ -53,14 +52,3 @@ describe('generarReferenciaOxxo', () => {
   });
 });
 
-describe('folioDesdeStripe', () => {
-  test('máximo 20 chars', () => {
-    expect(folioDesdeStripe('pi_3OabcDEFghijKLMNopqrSTUV').length).toBeLessThanOrEqual(20);
-  });
-  test('lleva prefijo STRIPE', () => {
-    expect(folioDesdeStripe('pi_123')).toBe('STRIPEpi_123');
-  });
-  test('determinista para el mismo paymentId (idempotencia de reintentos)', () => {
-    expect(folioDesdeStripe('pi_xyz')).toBe(folioDesdeStripe('pi_xyz'));
-  });
-});

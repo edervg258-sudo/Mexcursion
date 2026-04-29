@@ -12,7 +12,6 @@ import { useEffect, useRef, useState } from 'react';
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PermisoOnboarding } from '../components/PermisoOnboarding';
-import { StripeProviderWrapper } from '../components/StripeProviderWrapper';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -194,8 +193,7 @@ export default function RootLayout() {
         <ErrorBoundary>
           <IdiomaProvider>
             <TemaProvider>
-              <StripeProviderWrapper publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
                   <OfflineBanner />
                   <Stack screenOptions={{ headerShown: false }}>
@@ -217,7 +215,6 @@ export default function RootLayout() {
                   />
                 </BottomSheetModalProvider>
               </ThemeProvider>
-              </StripeProviderWrapper>
             </TemaProvider>
           </IdiomaProvider>
         </ErrorBoundary>
