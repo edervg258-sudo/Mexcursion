@@ -2,10 +2,9 @@
 //  lib/utilidades/ayudantes.ts  —  Funciones auxiliares
 // ============================================================
 
-import type { Estado, Nivel, Sugerencia } from '../tipos';
 import { TODOS_LOS_ESTADOS } from '../datos/estados';
-import { SUGERENCIAS_RUTAS, PAQUETES_POR_ESTADO } from '../datos/sugerencias';
-import type { Paquete, CategoriaEstado, L, LA } from '../tipos';
+import { PAQUETES_POR_ESTADO, SUGERENCIAS_RUTAS } from '../datos/sugerencias';
+import type { CategoriaEstado, Estado, L, LA, Nivel, Sugerencia } from '../tipos';
 
 /**
  * Obtiene todos los estados de una categoría específica
