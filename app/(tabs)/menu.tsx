@@ -32,30 +32,18 @@ import {
 } from '../../lib/supabase-db';
 import { sombraBarraInferior, sombraBarraInferiorOscura, Tema } from '../../lib/tema';
 import { useTemaContext } from '../../lib/TemaContext';
+import { useIdioma } from '../../lib/IdiomaContext';
+import { TraduccionClave } from '../../lib/traducciones';
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
 type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
 
-const CATEGORIAS = ['Todos', 'Playa', 'Cultura', 'Aventura', 'Gastronomía', 'Ciudad'];
-
-const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
-  { clave: 'az', etiqueta: 'Orden A-Z' },
-  { clave: 'mas_barato', etiqueta: 'Menor precio' },
-  { clave: 'mas_caro', etiqueta: 'Mayor precio' },
-];
-
-const RANGOS_PRECIO: { clave: RangoPrecio; etiqueta: string }[] = [
-  { clave: 'todos', etiqueta: 'Todos' },
-  { clave: 'bajo',  etiqueta: '< $5,000' },
-  { clave: 'medio', etiqueta: '$5k – $10k' },
-  { clave: 'alto',  etiqueta: '> $10,000' },
-];
-
 export default function MenuScreen() {
   const { width } = useWindowDimensions();
   const esPC = width >= 768;
   const { tema, isDark } = useTemaContext();
+  const { t } = useIdioma();
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   // Ajusta este valor si tu header tiene otra altura real
@@ -67,6 +55,28 @@ export default function MenuScreen() {
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState<TipoOrden>('az');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const CATEGORIAS = [
+    { clave: 'Todos', label: t('menu_cat_todos') },
+    { clave: 'Playa', label: t('menu_cat_playa') },
+    { clave: 'Cultura', label: t('menu_cat_cultura') },
+    { clave: 'Aventura', label: t('menu_cat_aventura') },
+    { clave: 'Gastronomía', label: t('menu_cat_gastro') },
+    { clave: 'Ciudad', label: t('menu_cat_ciudad') },
+  ];
+
+  const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
+    { clave: 'az', etiqueta: t('menu_orden_az') },
+    { clave: 'mas_barato', etiqueta: t('menu_menor_precio') },
+    { clave: 'mas_caro', etiqueta: t('menu_mayor_precio') },
+  ];
+
+  const RANGOS_PRECIO: { clave: RangoPrecio; etiqueta: string }[] = [
+    { clave: 'todos', etiqueta: t('menu_cat_todos') },
+    { clave: 'bajo', etiqueta: '< $5,000' },
+    { clave: 'medio', etiqueta: '$5k - $10k' },
+    { clave: 'alto', etiqueta: '> $10,000' },
+  ];
+
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
@@ -161,7 +171,7 @@ export default function MenuScreen() {
     return rutaActual.endsWith(segmento);
   };
 
-  const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? 'Ordenar';
+  const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? t('menu_orden_az');
 
   const renderizarEstado = ({ item }: { item: Estado }) => (
     <DestinoCard
@@ -205,8 +215,8 @@ export default function MenuScreen() {
           <Image source={require('../../assets/images/logo.png')} style={estilos.logoFijo} resizeMode="contain" />
         )}
         <View style={{ flex: 1, paddingLeft: esPC ? 0 : 60 }}>
-          {nombreUsuario ? <Text style={[estilos.saludo, { color: tema.textoMuted }]}>¡Hola, {nombreUsuario}! 👋</Text> : null}
-          <Text style={[estilos.tituloEncabezado, { color: tema.texto }]}>Descubre México</Text>
+          {nombreUsuario ? <Text style={[estilos.saludo, { color: tema.textoMuted }]}>{t('menu_saludo', { nombre: nombreUsuario })} 👋</Text> : null}
+          <Text style={[estilos.tituloEncabezado, { color: tema.texto }]}>{t('menu_subtitulo')}</Text>
         </View>
 
         <View style={estilos.iconosEncabezado}>
@@ -233,7 +243,7 @@ export default function MenuScreen() {
             <TextInput
               testID="search-input"
               style={estilos.inputBusqueda}
-              placeholder="Buscar destino..."
+              placeholder={t('menu_buscar')}
               placeholderTextColor={Tema.textoMuted}
               value={busqueda}
               onChangeText={setBusqueda}
@@ -295,11 +305,11 @@ export default function MenuScreen() {
           >
             {CATEGORIAS.map((cat) => (
               <TouchableOpacity
-                key={cat}
-                style={[estilos.chipCategoria, categoriaActiva === cat && estilos.chipCategoriaActivo]}
-                onPress={() => setCategoriaActiva(cat)}
+                key={cat.clave}
+                style={[estilos.chipCategoria, categoriaActiva === cat.clave && estilos.chipCategoriaActivo]}
+                onPress={() => setCategoriaActiva(cat.clave)}
               >
-                <Text style={[estilos.textoChip, categoriaActiva === cat && estilos.textoChipActivo]}>{cat}</Text>
+                <Text style={[estilos.textoChip, categoriaActiva === cat.clave && estilos.textoChipActivo]}>{cat.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -328,8 +338,7 @@ export default function MenuScreen() {
         </View>
 
         <Text style={estilos.contadorResultados}>
-          {estadosFiltrados.length} destino{estadosFiltrados.length !== 1 ? 's' : ''} encontrado
-          {estadosFiltrados.length !== 1 ? 's' : ''}
+          {estadosFiltrados.length} {t(estadosFiltrados.length === 1 ? 'menu_destino_singular' : 'menu_destino_plural')}
         </Text>
 
         {/* Overlay para cerrar dropdown: zIndex menor que filaBusqueda (20) para no tapar el dropdown */}
@@ -353,10 +362,10 @@ export default function MenuScreen() {
         ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>
             <Text style={estilos.textoVacio}>🗺️</Text>
-            <Text style={estilos.tituloVacio}>Sin resultados</Text>
-            <Text style={estilos.subtituloVacio}>Intenta con otra búsqueda o categoría</Text>
+            <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
+            <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
             <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); setRangoPrecio('todos'); }}>
-              <Text style={estilos.limpiarFiltros}>Limpiar filtros</Text>
+              <Text style={estilos.limpiarFiltros}>{t('menu_limpiar')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -410,7 +419,9 @@ export default function MenuScreen() {
                   return (
                     <TouchableOpacity key={p.ruta} testID={p.ruta.replace('/(tabs)/', '') + '-tab'} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
                       <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                      <Text style={[estilos.etiquetaPestana, { color: tema.textoMuted }, activa && estilos.etiquetaPestanaActiva]}>{p.etiqueta}</Text>
+                      <Text style={[estilos.etiquetaPestana, { color: tema.textoMuted }, activa && estilos.etiquetaPestanaActiva]}>
+                        {t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
