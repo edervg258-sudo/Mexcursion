@@ -1,10 +1,10 @@
 // MapaRutas.native.tsx — expo-maps 0.12.x (AppleMaps/GoogleMaps)
+// Muestra los destinos del itinerario personalizado y traza una polilínea
+// (línea recta) que conecta sus coordenadas en orden de visita.
 import { Image as ExpoImage } from 'expo-image';
 import React, { useMemo, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { TODOS_LOS_ESTADOS } from '../lib/constantes';
-import { RutaTematica } from '../lib/datos/rutas-tematicas';
 import { Estado } from '../lib/tipos';
 
 // Lazy-load expo-maps. En Expo Go el módulo nativo no está disponible.
@@ -21,21 +21,14 @@ try {
   MAPS_DISPONIBLE = false;
 }
 
-const CATEGORIA_COLORES: Record<string, string> = {
-  Aventura: '#4B7BEC',
-  Playa: '#3AB7A5',
-  Cultura: '#e9c46a',
-  Gastronomía: '#DD331D',
-  Ciudad: '#8A2BE2',
-};
-
 const MEXICO_REGION = {
   latitude: 23.6345,
   longitude: -102.5528,
 };
 
 interface Props {
-  rutaActiva: RutaTematica;
+  rutaColor: string;
+  rutaNombre: string;
   estadosRuta: Estado[];
   polylineCoords: { latitude: number; longitude: number }[];
   favoritos: number[];
@@ -46,8 +39,8 @@ interface Props {
 }
 
 export default function MapaRutas({
-  rutaActiva,
-  estadosRuta: _estadosRuta,
+  rutaColor,
+  estadosRuta,
   polylineCoords,
   favoritos,
   isDark,
@@ -57,64 +50,72 @@ export default function MapaRutas({
 }: Props) {
   const [estadoSel, setEstadoSel] = useState<Estado | null>(null);
 
-  const estadosFiltrados = useMemo(
-    () => TODOS_LOS_ESTADOS.filter(e => e.latitude && e.longitude),
-    [],
-  );
-
-  // Markers para ambas plataformas — estructura común
+  // Markers solo de los destinos del itinerario, numerados por orden de visita
   const markers = useMemo(
     () =>
-      estadosFiltrados.map(estado => {
-        const enRuta = rutaActiva.estadoIds.includes(estado.id);
-        const color = enRuta
-          ? rutaActiva.color
-          : CATEGORIA_COLORES[estado.categoria] ?? '#888';
-        const orden = enRuta ? rutaActiva.estadoIds.indexOf(estado.id) + 1 : null;
+      estadosRuta
+        .filter(e => e.latitude && e.longitude)
+        .map((estado, i) => {
+          const orden = i + 1;
+          const base = {
+            id: String(estado.id),
+            coordinates: { latitude: estado.latitude!, longitude: estado.longitude! },
+            title: estado.nombre,
+            tintColor: rutaColor,
+          };
 
-        const base = {
-          id: String(estado.id),
-          coordinates: { latitude: estado.latitude!, longitude: estado.longitude! },
-          title: estado.nombre,
-          tintColor: color,
-        };
-
-        // iOS: monogram soporta 1-2 chars (iOS 17+). Usamos el orden si está en ruta.
-        if (Platform.OS === 'ios' && orden !== null) {
-          return { ...base, monogram: String(orden) };
-        }
-        // Android: sin monogram — título revela el orden vía callout.
-        if (Platform.OS === 'android' && orden !== null) {
+          if (Platform.OS === 'ios') {
+            return { ...base, monogram: String(orden) };
+          }
           return { ...base, snippet: `Parada ${orden}` };
-        }
-        return base;
-      }),
-    [estadosFiltrados, rutaActiva],
+        }),
+    [estadosRuta, rutaColor],
   );
 
-  // Polyline para la ruta activa (si se pasa)
+  // Polyline para la ruta personalizada
   const polylines = useMemo(() => {
-    if (!polylineCoords?.length) {return [];}
+    if (polylineCoords.length < 2) { return []; }
     return [
       {
-        id: 'ruta-activa',
+        id: 'ruta-itinerario',
         coordinates: polylineCoords,
-        color: rutaActiva.color,
+        color: rutaColor,
         width: 4,
       },
     ];
-  }, [polylineCoords, rutaActiva.color]);
+  }, [polylineCoords, rutaColor]);
 
   const handleMarkerClick = (event: { id?: string }) => {
-    if (!event?.id) {return;}
-    const estado = TODOS_LOS_ESTADOS.find(e => String(e.id) === event.id);
-    if (estado) {setEstadoSel(estado);}
+    if (!event?.id) { return; }
+    const estado = estadosRuta.find(e => String(e.id) === event.id);
+    if (estado) { setEstadoSel(estado); }
   };
 
-  const cameraPosition = {
-    coordinates: MEXICO_REGION,
-    zoom: 4.5,
-  };
+  // Calcular un zoom razonable según la dispersión de las coordenadas
+  const cameraPosition = useMemo(() => {
+    if (polylineCoords.length === 0) {
+      return { coordinates: MEXICO_REGION, zoom: 4.5 };
+    }
+    const lats = polylineCoords.map(c => c.latitude);
+    const lons = polylineCoords.map(c => c.longitude);
+    const centerLat = (Math.max(...lats) + Math.min(...lats)) / 2;
+    const centerLon = (Math.max(...lons) + Math.min(...lons)) / 2;
+    const span = Math.max(
+      Math.max(...lats) - Math.min(...lats),
+      Math.max(...lons) - Math.min(...lons)
+    );
+    // zoom heurístico
+    let zoom = 5.5;
+    if (span < 1) { zoom = 7; }
+    else if (span < 3) { zoom = 6; }
+    else if (span < 6) { zoom = 5.5; }
+    else if (span < 12) { zoom = 5; }
+    else { zoom = 4.5; }
+    return {
+      coordinates: { latitude: centerLat, longitude: centerLon },
+      zoom,
+    };
+  }, [polylineCoords]);
 
   if (!MAPS_DISPONIBLE) {
     return (
@@ -180,7 +181,7 @@ export default function MapaRutas({
             >
               {estadoSel.descripcion}
             </Text>
-            <Text style={[s.cardPrecio, { color: rutaActiva.color }]}>
+            <Text style={[s.cardPrecio, { color: rutaColor }]}>
               Desde ${estadoSel.precio.toLocaleString()} MXN
             </Text>
           </View>
@@ -200,7 +201,7 @@ export default function MapaRutas({
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.btnVer, { backgroundColor: rutaActiva.color }]}
+              style={[s.btnVer, { backgroundColor: rutaColor }]}
               onPress={() => onIrADetalle(estadoSel)}
               activeOpacity={0.85}
             >

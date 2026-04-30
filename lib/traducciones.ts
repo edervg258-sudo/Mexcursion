@@ -450,6 +450,13 @@ const T: Record<string, Traducible> = {
   rut_comp_footer:          { es: '¡Planeado con Mexcursion!',                               en: 'Planned with Mexcursion!'                          },
   rut_sin_itis_aun:         { es: 'Sin itinerarios aún',                                     en: 'No itineraries yet'                                },
   rut_sin_itis_msg:         { es: 'Crea tu primer viaje y empieza a agregar destinos desde el catálogo.', en: 'Create your first trip and start adding destinations from the catalog.' },
+  rut_destinos_tab:         { es: 'Destinos',                                                en: 'Destinations'                                      },
+  rut_mapa_tab:             { es: 'Mapa',                                                    en: 'Map'                                               },
+  rut_agregar_destino:      { es: 'Agregar destino',                                         en: 'Add destination'                                   },
+  rut_agregar_destino_titulo: { es: 'Agregar destino al viaje',                              en: 'Add destination to trip'                           },
+  rut_agregar_destino_sub:  { es: 'Elige un estado y un nivel de paquete.',                  en: 'Choose a state and a package level.'               },
+  rut_mapa_vacio_titulo:    { es: 'Sin destinos',                                            en: 'No destinations'                                   },
+  rut_mapa_vacio_msg:       { es: 'Agrega destinos para ver tu ruta en el mapa.',            en: 'Add destinations to see your route on the map.'    },
 } as const;
 
 export type TraduccionClave = keyof typeof T;

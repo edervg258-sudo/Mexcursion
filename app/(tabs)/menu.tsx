@@ -70,19 +70,12 @@ export default function MenuScreen() {
     { clave: 'mas_caro', etiqueta: t('menu_mayor_precio') },
   ];
 
-  const RANGOS_PRECIO: { clave: RangoPrecio; etiqueta: string }[] = [
-    { clave: 'todos', etiqueta: t('menu_cat_todos') },
-    { clave: 'bajo', etiqueta: '< $5,000' },
-    { clave: 'medio', etiqueta: '$5k - $10k' },
-    { clave: 'alto', etiqueta: '> $10,000' },
-  ];
 
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [rangoPrecio, setRangoPrecio] = useState<RangoPrecio>('todos');
   const rutaActual = usePathname();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const animsFav = useRef<Map<number, Animated.Value>>(new Map()).current;
@@ -146,12 +139,6 @@ export default function MenuScreen() {
   const estadosFiltrados = estados
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
-    .filter((e) => {
-      if (rangoPrecio === 'bajo')  return e.precio < 5000;
-      if (rangoPrecio === 'medio') return e.precio >= 5000 && e.precio <= 10000;
-      if (rangoPrecio === 'alto')  return e.precio > 10000;
-      return true;
-    })
     .sort((a, b) => {
       if (orden === 'mas_caro') {return b.precio - a.precio;}
       if (orden === 'mas_barato') {return a.precio - b.precio;}
@@ -315,27 +302,6 @@ export default function MenuScreen() {
           </ScrollView>
         </View>
 
-        {/* Rango de precio */}
-        <View style={estilos.listaCategoriasContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[estilos.listaCategorias, { paddingTop: 0 }]}
-            bounces={false}
-          >
-            {RANGOS_PRECIO.map((rp) => (
-              <TouchableOpacity
-                key={rp.clave}
-                style={[estilos.chipPrecio, rangoPrecio === rp.clave && estilos.chipPrecioActivo]}
-                onPress={() => setRangoPrecio(rp.clave)}
-              >
-                <Text style={[estilos.textoChipPrecio, rangoPrecio === rp.clave && estilos.textoChipPrecioActivo]}>
-                  {rp.etiqueta}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
 
         <Text style={estilos.contadorResultados}>
           {estadosFiltrados.length} {t(estadosFiltrados.length === 1 ? 'menu_destino_singular' : 'menu_destino_plural')}
@@ -364,7 +330,7 @@ export default function MenuScreen() {
             <Text style={estilos.textoVacio}>🗺️</Text>
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
-            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); setRangoPrecio('todos'); }}>
+            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
               <Text style={estilos.limpiarFiltros}>{t('menu_limpiar')}</Text>
             </TouchableOpacity>
           </View>
@@ -602,20 +568,6 @@ const estilos = StyleSheet.create({
   textoChip: { fontSize: 14, fontWeight: '600', color: Tema.textoSecundario, lineHeight: 18 },
   textoChipActivo: { color: '#fff', fontWeight: '700' },
   contadorResultados: { fontSize: 13, color: Tema.textoMuted, marginHorizontal: 16, marginBottom: 8, marginTop: 4, fontWeight: '500' },
-  chipPrecio: {
-    paddingHorizontal: 14,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Tema.superficieBlanca,
-    borderWidth: 1,
-    borderColor: Tema.borde,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chipPrecioActivo: { backgroundColor: '#DD331D', borderColor: '#DD331D' },
-  textoChipPrecio: { fontSize: 12, fontWeight: '600', color: Tema.textoSecundario },
-  textoChipPrecioActivo: { color: '#fff', fontWeight: '700' },
 
   // Tarjetas
   contenidoLista: { paddingHorizontal: 14, paddingBottom: 20, flexGrow: 1 },
