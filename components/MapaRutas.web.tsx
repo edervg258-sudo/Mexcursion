@@ -1,26 +1,14 @@
-// MapaRutas.web.tsx — visualización de ruta para web (sin react-native-maps)
+// MapaRutas.web.tsx — visualización de itinerario personalizado para web
+// Dibuja el trayecto como una polilínea SVG conectando las coordenadas
+// de los destinos del itinerario sobre un mapa estático de México.
 import { Image as ExpoImage } from 'expo-image';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { RutaTematica } from '../lib/datos/rutas-tematicas';
 import { Estado } from '../lib/tipos';
 
-import guanajuatoImg from '../assets/images/guanajuato.png';
-import chiapasImg from '../assets/images/chiapas.png';
-import sinaloaImg from '../assets/images/sinaloa.png';
-import jaliscoImg from '../assets/images/jalisco.png';
-import chihuahuaImg from '../assets/images/chihuahua.png';
-
-const RUTA_IMG_WEB: Record<string, number> = {
-  colonial: guanajuatoImg,
-  maya:     chiapasImg,
-  pacifico: sinaloaImg,
-  sabor:    jaliscoImg,
-  aventura: chihuahuaImg,
-};
-
 interface Props {
-  rutaActiva: RutaTematica;
+  rutaColor: string;
+  rutaNombre: string;
   estadosRuta: Estado[];
   polylineCoords: { latitude: number; longitude: number }[];
   favoritos: number[];
@@ -30,27 +18,86 @@ interface Props {
   onIrADetalle: (estado: Estado) => void;
 }
 
+// Bounding box aproximado de México para proyectar lat/lon → coordenadas SVG.
+const MX_BOUNDS = {
+  minLat: 14.5, maxLat: 32.7,
+  minLon: -118.4, maxLon: -86.7,
+};
+const MAP_W = 360;
+const MAP_H = 220;
+
+const proyectar = (lat: number, lon: number) => {
+  const x = ((lon - MX_BOUNDS.minLon) / (MX_BOUNDS.maxLon - MX_BOUNDS.minLon)) * MAP_W;
+  const y = MAP_H - ((lat - MX_BOUNDS.minLat) / (MX_BOUNDS.maxLat - MX_BOUNDS.minLat)) * MAP_H;
+  return { x: Math.max(8, Math.min(MAP_W - 8, x)), y: Math.max(8, Math.min(MAP_H - 8, y)) };
+};
+
 export default function MapaRutas({
-  rutaActiva, estadosRuta, favoritos, tema, onToggleFav, onIrADetalle,
+  rutaColor, rutaNombre, estadosRuta, polylineCoords, favoritos, tema, onToggleFav, onIrADetalle,
 }: Props) {
+  // Convertir coordenadas a puntos SVG
+  const puntos = useMemo(
+    () => polylineCoords.map(c => proyectar(c.latitude, c.longitude)),
+    [polylineCoords]
+  );
+  const polylineStr = puntos.map(p => `${p.x},${p.y}`).join(' ');
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tema.fondo as string }}
       contentContainerStyle={s.scroll}
       showsVerticalScrollIndicator={false}
     >
-      {/* Encabezado visual de la ruta */}
-      <View style={[s.header, { backgroundColor: rutaActiva.color }]}>
-        {RUTA_IMG_WEB[rutaActiva.id] ? (
-          <Image source={RUTA_IMG_WEB[rutaActiva.id]} style={s.headerImg} resizeMode="cover" />
-        ) : null}
+      {/* Encabezado */}
+      <View style={[s.header, { backgroundColor: rutaColor }]}>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerNombre}>{rutaActiva.nombre}</Text>
+          <Text style={s.headerNombre}>{rutaNombre}</Text>
           <Text style={s.headerSub}>Recorrido visual · {estadosRuta.length} destinos</Text>
         </View>
       </View>
 
-      {/* Camino visual horizontal */}
+      {/* Mapa SVG simplificado de México con la ruta */}
+      {puntos.length > 0 && (
+        <View style={[s.mapaContainer, { backgroundColor: tema.superficie as string, borderColor: tema.borde as string }]}>
+          <svg
+            // @ts-expect-error svg props no tipados en RN-Web
+            xmlns="http://www.w3.org/2000/svg"
+            width={MAP_W}
+            height={MAP_H}
+            viewBox={`0 0 ${MAP_W} ${MAP_H}`}
+            style={{ display: 'block' }}
+          >
+            {/* Fondo decorativo */}
+            <rect x="0" y="0" width={MAP_W} height={MAP_H} fill={tema.superficie as string} />
+            {/* Línea del trayecto */}
+            {puntos.length >= 2 && (
+              <polyline
+                points={polylineStr}
+                fill="none"
+                stroke={rutaColor}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="6 4"
+              />
+            )}
+            {/* Marcadores numerados */}
+            {puntos.map((p, i) => (
+              <g key={i}>
+                <circle cx={p.x} cy={p.y} r="11" fill={rutaColor} stroke="#fff" strokeWidth="2.5" />
+                <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#fff">
+                  {i + 1}
+                </text>
+              </g>
+            ))}
+          </svg>
+          <Text style={[s.mapaLeyenda, { color: tema.textoMuted as string }]}>
+            Trayecto entre {puntos.length} {puntos.length === 1 ? 'destino' : 'destinos'} · línea recta
+          </Text>
+        </View>
+      )}
+
+      {/* Camino visual horizontal con tarjetas */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -58,9 +105,8 @@ export default function MapaRutas({
       >
         {estadosRuta.map((estado, i) => (
           <View key={estado.id} style={s.caminoItem}>
-            {/* Tarjeta destino */}
             <TouchableOpacity
-              style={[s.caminoCard, { borderColor: rutaActiva.color }]}
+              style={[s.caminoCard, { borderColor: rutaColor }]}
               onPress={() => onIrADetalle(estado)}
               activeOpacity={0.85}
             >
@@ -72,8 +118,8 @@ export default function MapaRutas({
                 cachePolicy="memory-disk"
                 recyclingKey={String(estado.id)}
               />
-              <View style={[s.caminoOverlay, { backgroundColor: rutaActiva.color + '99' }]} />
-              <View style={[s.caminoNum, { backgroundColor: rutaActiva.color }]}>
+              <View style={[s.caminoOverlay, { backgroundColor: rutaColor + '99' }]} />
+              <View style={[s.caminoNum, { backgroundColor: rutaColor }]}>
                 <Text style={s.caminoNumTxt}>{i + 1}</Text>
               </View>
               <TouchableOpacity
@@ -95,61 +141,17 @@ export default function MapaRutas({
               </View>
             </TouchableOpacity>
 
-            {/* Flecha conectora */}
             {i < estadosRuta.length - 1 && (
               <View style={s.flecha}>
-                <View style={[s.flechaLinea, { backgroundColor: rutaActiva.color }]} />
-                <Text style={[s.flechaPunta, { color: rutaActiva.color }]}>›</Text>
+                <View style={[s.flechaLinea, { backgroundColor: rutaColor }]} />
+                <Text style={[s.flechaPunta, { color: rutaColor }]}>›</Text>
               </View>
             )}
           </View>
         ))}
       </ScrollView>
 
-      {/* Detalle de cada destino */}
-      <Text style={[s.seccionTitulo, { color: tema.texto as string }]}>Destinos en detalle</Text>
-      {estadosRuta.map((estado, i) => (
-        <TouchableOpacity
-          key={estado.id}
-          style={[s.detalleCard, { backgroundColor: tema.superficieBlanca as string, borderColor: tema.borde as string }]}
-          onPress={() => onIrADetalle(estado)}
-          activeOpacity={0.85}
-        >
-          <View style={[s.detalleNum, { backgroundColor: rutaActiva.color }]}>
-            <Text style={s.detalleNumTxt}>{i + 1}</Text>
-          </View>
-          <ExpoImage
-            source={estado.imagen}
-            style={s.detalleImg}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
-          <View style={s.detalleInfo}>
-            <Text style={[s.detalleNombre, { color: tema.texto as string }]}>{estado.nombre}</Text>
-            <Text style={[s.detalleDesc, { color: tema.textoMuted as string }]} numberOfLines={2}>
-              {estado.descripcion}
-            </Text>
-            <Text style={[s.detallePrecio, { color: rutaActiva.color }]}>
-              Desde ${estado.precio.toLocaleString()} MXN · {rutaActiva.diasPorEstado} días
-            </Text>
-          </View>
-          <View style={s.detalleBtns}>
-            <TouchableOpacity onPress={() => onToggleFav(estado.id)} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-              <Image
-                source={favoritos.includes(estado.id)
-                  ? require('../assets/images/favoritos_rojo.png')
-                  : require('../assets/images/favoritos_gris.png')}
-                style={{ width: 20, height: 20 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-            <Text style={[s.detalleChevron, { color: rutaActiva.color }]}>›</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
-
-      <View style={{ height: 24 }} />
+      <View style={{ height: 16 }} />
     </ScrollView>
   );
 }
@@ -158,14 +160,16 @@ const CARD_W = 130;
 const CARD_H = 160;
 
 const s = StyleSheet.create({
-  scroll:         { paddingBottom: 20 },
+  scroll:         { paddingBottom: 16 },
 
-  header:         { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
-  headerImg:      { width: 38, height: 38, borderRadius: 8 },
-  headerNombre:   { fontSize: 17, fontWeight: '900', color: '#fff' },
+  header:         { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 14 },
+  headerNombre:   { fontSize: 16, fontWeight: '900', color: '#fff' },
   headerSub:      { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
-  caminoScroll:   { paddingHorizontal: 14, paddingVertical: 18, alignItems: 'center' },
+  mapaContainer:  { marginHorizontal: 14, marginTop: 12, borderRadius: 14, borderWidth: 1, padding: 10, alignItems: 'center' },
+  mapaLeyenda:    { fontSize: 11, fontWeight: '600', marginTop: 8 },
+
+  caminoScroll:   { paddingHorizontal: 14, paddingVertical: 14, alignItems: 'center' },
   caminoItem:     { flexDirection: 'row', alignItems: 'center' },
   caminoCard:     { width: CARD_W, height: CARD_H, borderRadius: 14, overflow: 'hidden', borderWidth: 2 },
   caminoImg:      { width: '100%', height: '100%', position: 'absolute' },
@@ -179,17 +183,4 @@ const s = StyleSheet.create({
   flecha:         { flexDirection: 'row', alignItems: 'center', marginHorizontal: 2 },
   flechaLinea:    { width: 16, height: 2 },
   flechaPunta:    { fontSize: 22, fontWeight: '800', lineHeight: 26, marginLeft: -4 },
-
-  seccionTitulo:  { fontSize: 16, fontWeight: '800', marginHorizontal: 14, marginTop: 4, marginBottom: 10 },
-
-  detalleCard:    { flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginBottom: 10, borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
-  detalleNum:     { width: 28, height: '100%', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, flexShrink: 0 },
-  detalleNumTxt:  { color: '#fff', fontSize: 12, fontWeight: '800' },
-  detalleImg:     { width: 68, height: 80 },
-  detalleInfo:    { flex: 1, padding: 10, gap: 3 },
-  detalleNombre:  { fontSize: 14, fontWeight: '800' },
-  detalleDesc:    { fontSize: 11, lineHeight: 15 },
-  detallePrecio:  { fontSize: 11, fontWeight: '700' },
-  detalleBtns:    { paddingHorizontal: 10, gap: 8, alignItems: 'center' },
-  detalleChevron: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
 });
