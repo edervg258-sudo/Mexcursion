@@ -27,6 +27,7 @@ import {
   eliminarItinerario,
   obtenerItinerarios,
   obtenerUsuarioActivo,
+  renombrarItinerario,
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { Estado } from '../../lib/tipos';
@@ -63,6 +64,8 @@ export default function RutasScreen() {
   const [modalAgregarDestino, setModalAgregarDestino] = useState<{ itinerarioId: number } | null>(null);
   const [creandoNuevo, setCreandoNuevo] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [nombreEditado, setNombreEditado] = useState('');
   const [cargando,   setCargando]   = useState(true);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -151,6 +154,24 @@ export default function RutasScreen() {
     setNuevoNombre('');
     setCreandoNuevo(false);
   }, [nuevoNombre, usuarioId]);
+
+  const iniciarEdicion = useCallback((itinerario: Itinerario) => {
+    setEditandoId(itinerario.id);
+    setNombreEditado(itinerario.nombre);
+  }, []);
+
+  const confirmarEdicion = useCallback(async (itinerarioId: number) => {
+    if (!usuarioId || !nombreEditado.trim()) { return; }
+    const actualizados = await renombrarItinerario(usuarioId, itinerarioId, nombreEditado.trim());
+    setItinerarios(actualizados);
+    setEditandoId(null);
+    setNombreEditado('');
+  }, [usuarioId, nombreEditado]);
+
+  const cancelarEdicion = useCallback(() => {
+    setEditandoId(null);
+    setNombreEditado('');
+  }, []);
 
   const borrarItinerario = useCallback((itinerario: Itinerario) => {
     if (!usuarioId) {
@@ -327,7 +348,42 @@ export default function RutasScreen() {
                   >
                     <View style={es.itinerarioHeader}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[es.itinerarioNombre, { color: tema.texto }]}>{itinerario.nombre}</Text>
+                        {editandoId === itinerario.id ? (
+                          <View style={es.edicionInline}>
+                            <TextInput
+                              value={nombreEditado}
+                              onChangeText={setNombreEditado}
+                              autoFocus
+                              style={[es.edicionInput, { backgroundColor: tema.superficie, borderColor: tema.primario, color: tema.texto }]}
+                              onSubmitEditing={() => confirmarEdicion(itinerario.id)}
+                              returnKeyType="done"
+                            />
+                            <View style={es.edicionBtns}>
+                              <TouchableOpacity
+                                style={[es.edicionBtnGuardar, { backgroundColor: tema.primario }, !nombreEditado.trim() && es.btnDisabled]}
+                                onPress={() => confirmarEdicion(itinerario.id)}
+                                disabled={!nombreEditado.trim()}
+                                activeOpacity={0.85}
+                              >
+                                <Text style={es.edicionBtnGuardarTxt}>✓</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[es.edicionBtnCancelar, { borderColor: tema.borde }]}
+                                onPress={cancelarEdicion}
+                                activeOpacity={0.85}
+                              >
+                                <Text style={[es.edicionBtnCancelarTxt, { color: tema.textoMuted }]}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <TouchableOpacity onPress={() => iniciarEdicion(itinerario)} activeOpacity={0.7}>
+                            <View style={es.nombreFila}>
+                              <Text style={[es.itinerarioNombre, { color: tema.texto }]}>{itinerario.nombre}</Text>
+                              <Text style={[es.iconoEditar, { color: tema.textoMuted }]}>✏️</Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
                         <Text style={[es.itinerarioMeta, { color: tema.textoMuted }]}>
                           {itinerario.totalDestinos} {t(itinerario.totalDestinos === 1 ? 'rut_destino' : 'rut_destinos')} · {itinerario.diasEstimados} {t(itinerario.diasEstimados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}
                         </Text>
@@ -649,6 +705,18 @@ const es = StyleSheet.create({
   modalBtnDisabled: { opacity: 0.45 },
   modalBtnCerrar:   { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   modalBtnCerrarTxt:{ fontSize: 13, fontWeight: '700' },
+
+  // Edición inline de nombre
+  nombreFila:         { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  iconoEditar:        { fontSize: 13 },
+  edicionInline:      { gap: 8, marginBottom: 4 },
+  edicionInput:       { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, fontWeight: '800' },
+  edicionBtns:        { flexDirection: 'row', gap: 8 },
+  edicionBtnGuardar:  { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  edicionBtnGuardarTxt: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  edicionBtnCancelar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  edicionBtnCancelarTxt: { fontSize: 14, fontWeight: '800' },
+  btnDisabled:        { opacity: 0.4 },
 
   // Picker de estados
   estadoPickerFila: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
