@@ -1,30 +1,19 @@
-// MapaRutas.native.tsx — expo-maps 0.12.x (AppleMaps/GoogleMaps)
-// Muestra los destinos del itinerario personalizado y traza una polilínea
-// (línea recta) que conecta sus coordenadas en orden de visita.
-import { Image as ExpoImage } from 'expo-image';
-import React, { useMemo, useState } from 'react';
+// MapaRutas.native.tsx — Leaflet embebido en WebView
+// Usa OpenStreetMap (sin API key). Funciona en Expo Go y builds de producción.
+import React, { useMemo } from 'react';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
+import WebView from 'react-native-webview';
+import { Image as ExpoImage } from 'expo-image';
 import { Estado } from '../lib/tipos';
 
-// Lazy-load expo-maps. En Expo Go el módulo nativo no está disponible.
-let AppleMaps: any = null;
-let GoogleMaps: any = null;
-let MAPS_DISPONIBLE = false;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const Maps = require('expo-maps');
-  AppleMaps = Maps.AppleMaps;
-  GoogleMaps = Maps.GoogleMaps;
-  MAPS_DISPONIBLE = !!(AppleMaps?.View && GoogleMaps?.View);
-} catch {
-  MAPS_DISPONIBLE = false;
+interface Punto {
+  lat: number;
+  lon: number;
+  nombre: string;
+  categoria: string;
+  precio: number;
+  numero: number;
 }
-
-const MEXICO_REGION = {
-  latitude: 23.6345,
-  longitude: -102.5528,
-};
 
 interface Props {
   rutaColor: string;
@@ -38,175 +27,186 @@ interface Props {
   onIrADetalle: (estado: Estado) => void;
 }
 
-export default function MapaRutas({
-  rutaColor,
-  estadosRuta,
-  polylineCoords,
-  favoritos,
-  isDark,
-  tema,
-  onToggleFav,
-  onIrADetalle,
-}: Props) {
-  const [estadoSel, setEstadoSel] = useState<Estado | null>(null);
+// ── HTML con Leaflet embebido ─────────────────────────────────────────────────
+const generarHtml = (puntos: Punto[], color: string, isDark: boolean): string => {
+  const puntosJson = JSON.stringify(puntos);
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const attribution = isDark
+    ? '&copy; <a href="https://carto.com/">CARTO</a>'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-  // Markers solo de los destinos del itinerario, numerados por orden de visita
-  const markers = useMemo(
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: ${isDark ? '#1a1a1a' : '#f0f0f0'}; }
+    #mapa { height: 100vh; width: 100%; }
+    .leaflet-container { background: ${isDark ? '#1a1a1a' : '#e8e0d8'}; }
+  </style>
+</head>
+<body>
+  <div id="mapa"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    var puntos = ${puntosJson};
+    var color  = "${color}";
+
+    var mapa = L.map('mapa', { zoomControl: true, attributionControl: true });
+
+    L.tileLayer("${tileUrl}", {
+      attribution: "${attribution}",
+      maxZoom: 19
+    }).addTo(mapa);
+
+    function crearIcono(numero) {
+      return L.divIcon({
+        className: '',
+        html: '<div style="background:' + color + ';color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);font-family:sans-serif">' + numero + '</div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -18]
+      });
+    }
+
+    var coords = [];
+
+    puntos.forEach(function(p) {
+      coords.push([p.lat, p.lon]);
+      L.marker([p.lat, p.lon], { icon: crearIcono(p.numero) })
+        .bindPopup(
+          '<div style="font-family:sans-serif;min-width:140px">' +
+          '<strong style="font-size:14px">' + p.nombre + '</strong>' +
+          '<p style="margin:4px 0 2px;font-size:12px;color:#777">' + p.categoria + '</p>' +
+          '<p style="margin:0;font-size:12px;color:' + color + ';font-weight:700">Desde $' +
+          p.precio.toLocaleString('es-MX') + ' MXN</p></div>'
+        )
+        .addTo(mapa);
+    });
+
+    if (coords.length >= 2) {
+      L.polyline(coords, {
+        color: color,
+        weight: 4,
+        opacity: 0.9,
+        dashArray: '8 5',
+        lineJoin: 'round'
+      }).addTo(mapa);
+    }
+
+    if (coords.length === 0) {
+      mapa.setView([23.6345, -102.5528], 5);
+    } else if (coords.length === 1) {
+      mapa.setView(coords[0], 8);
+    } else {
+      mapa.fitBounds(L.latLngBounds(coords), { padding: [40, 40] });
+    }
+  </script>
+</body>
+</html>`;
+};
+
+// ── Componente ────────────────────────────────────────────────────────────────
+export default function MapaRutas({
+  rutaColor, rutaNombre, estadosRuta, polylineCoords,
+  favoritos, isDark, tema, onToggleFav, onIrADetalle,
+}: Props) {
+  const puntos: Punto[] = useMemo(
     () =>
       estadosRuta
         .filter(e => e.latitude && e.longitude)
-        .map((estado, i) => {
-          const orden = i + 1;
-          const base = {
-            id: String(estado.id),
-            coordinates: { latitude: estado.latitude!, longitude: estado.longitude! },
-            title: estado.nombre,
-            tintColor: rutaColor,
-          };
-
-          if (Platform.OS === 'ios') {
-            return { ...base, monogram: String(orden) };
-          }
-          return { ...base, snippet: `Parada ${orden}` };
-        }),
-    [estadosRuta, rutaColor],
+        .map((e, i) => ({
+          lat: e.latitude!,
+          lon: e.longitude!,
+          nombre: e.nombre,
+          categoria: e.categoria,
+          precio: e.precio,
+          numero: i + 1,
+        })),
+    [estadosRuta],
   );
 
-  // Polyline para la ruta personalizada
-  const polylines = useMemo(() => {
-    if (polylineCoords.length < 2) { return []; }
-    return [
-      {
-        id: 'ruta-itinerario',
-        coordinates: polylineCoords,
-        color: rutaColor,
-        width: 4,
-      },
-    ];
-  }, [polylineCoords, rutaColor]);
-
-  const handleMarkerClick = (event: { id?: string }) => {
-    if (!event?.id) { return; }
-    const estado = estadosRuta.find(e => String(e.id) === event.id);
-    if (estado) { setEstadoSel(estado); }
-  };
-
-  // Calcular un zoom razonable según la dispersión de las coordenadas
-  const cameraPosition = useMemo(() => {
-    if (polylineCoords.length === 0) {
-      return { coordinates: MEXICO_REGION, zoom: 4.5 };
-    }
-    const lats = polylineCoords.map(c => c.latitude);
-    const lons = polylineCoords.map(c => c.longitude);
-    const centerLat = (Math.max(...lats) + Math.min(...lats)) / 2;
-    const centerLon = (Math.max(...lons) + Math.min(...lons)) / 2;
-    const span = Math.max(
-      Math.max(...lats) - Math.min(...lats),
-      Math.max(...lons) - Math.min(...lons)
-    );
-    // zoom heurístico
-    let zoom = 5.5;
-    if (span < 1) { zoom = 7; }
-    else if (span < 3) { zoom = 6; }
-    else if (span < 6) { zoom = 5.5; }
-    else if (span < 12) { zoom = 5; }
-    else { zoom = 4.5; }
-    return {
-      coordinates: { latitude: centerLat, longitude: centerLon },
-      zoom,
-    };
-  }, [polylineCoords]);
-
-  if (!MAPS_DISPONIBLE) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <Text style={{ fontSize: 40, marginBottom: 12 }}>🗺️</Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#555', textAlign: 'center', marginBottom: 6 }}>
-          Mapa no disponible
-        </Text>
-        <Text style={{ fontSize: 13, color: '#888', textAlign: 'center' }}>
-          El mapa requiere un build de desarrollo.{'\n'}
-          No está disponible en Expo Go.
-        </Text>
-      </View>
-    );
-  }
+  const html = useMemo(
+    () => generarHtml(puntos, rutaColor, isDark),
+    [puntos, rutaColor, isDark],
+  );
 
   return (
     <View style={{ flex: 1 }}>
-      {Platform.OS === 'ios' ? (
-        <AppleMaps.View
-          style={{ flex: 1 }}
-          cameraPosition={cameraPosition}
-          markers={markers}
-          polylines={polylines}
-          colorScheme={isDark ? 'DARK' : 'LIGHT'}
-          onMarkerClick={handleMarkerClick}
-        />
+      {/* Encabezado */}
+      <View style={[s.header, { backgroundColor: rutaColor }]}>
+        <Text style={s.headerNombre}>{rutaNombre}</Text>
+        <Text style={s.headerSub}>
+          {estadosRuta.length} {estadosRuta.length === 1 ? 'destino' : 'destinos'} · mapa interactivo
+        </Text>
+      </View>
+
+      {/* Mapa Leaflet en WebView */}
+      {estadosRuta.length === 0 ? (
+        <View style={[s.mapaVacio, { backgroundColor: tema.superficie as string }]}>
+          <Text style={{ fontSize: 40, marginBottom: 10 }}>🗺️</Text>
+          <Text style={[s.mapaVacioTxt, { color: tema.textoSecundario as string }]}>
+            Agrega destinos para ver tu ruta en el mapa.
+          </Text>
+        </View>
       ) : (
-        <GoogleMaps.View
-          style={{ flex: 1 }}
-          cameraPosition={cameraPosition}
-          markers={markers}
-          polylines={polylines}
-          colorScheme={isDark ? 'DARK' : 'LIGHT'}
-          onMarkerClick={handleMarkerClick}
+        <WebView
+          source={{ html }}
+          style={s.webview}
+          originWhitelist={['*']}
+          javaScriptEnabled
+          domStorageEnabled
+          startInLoadingState
+          scrollEnabled={false}
         />
       )}
 
-      {estadoSel && (
-        <View
-          style={[
-            s.estadoCard,
-            {
-              backgroundColor: tema.superficieBlanca as string,
-              borderColor: tema.borde as string,
-            },
-          ]}
-        >
-          <ExpoImage
-            source={estadoSel.imagen}
-            style={s.estadoCardImg}
-            contentFit="cover"
-            transition={150}
-            cachePolicy="memory-disk"
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={[s.cardNombre, { color: tema.texto as string }]}>
-              {estadoSel.nombre}
-            </Text>
-            <Text
-              style={[s.cardDesc, { color: tema.textoMuted as string }]}
-              numberOfLines={1}
-            >
-              {estadoSel.descripcion}
-            </Text>
-            <Text style={[s.cardPrecio, { color: rutaColor }]}>
-              Desde ${estadoSel.precio.toLocaleString()} MXN
-            </Text>
-          </View>
-          <View style={s.cardBtns}>
-            <TouchableOpacity
-              onPress={() => onToggleFav(estadoSel.id)}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            >
-              <Image
-                source={
-                  favoritos.includes(estadoSel.id)
-                    ? require('../assets/images/favoritos_rojo.png')
-                    : require('../assets/images/favoritos_gris.png')
-                }
-                style={{ width: 22, height: 22 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.btnVer, { backgroundColor: rutaColor }]}
-              onPress={() => onIrADetalle(estadoSel)}
-              activeOpacity={0.85}
-            >
-              <Text style={s.btnVerTxt}>Ver →</Text>
-            </TouchableOpacity>
+      {/* Tarjetas horizontales */}
+      {estadosRuta.length > 0 && (
+        <View style={[s.destinosBar, { backgroundColor: tema.superficieBlanca as string, borderTopColor: tema.borde as string }]}>
+          <View style={s.destinosFila}>
+            {estadosRuta.map((estado, i) => (
+              <TouchableOpacity
+                key={estado.id}
+                style={[s.destinoChip, { borderColor: rutaColor }]}
+                onPress={() => onIrADetalle(estado)}
+                activeOpacity={0.85}
+              >
+                <ExpoImage
+                  source={estado.imagen}
+                  style={s.destinoChipImg}
+                  contentFit="cover"
+                  transition={150}
+                  cachePolicy="memory-disk"
+                />
+                <View style={[s.destinoChipOverlay, { backgroundColor: rutaColor + 'CC' }]}>
+                  <Text style={s.destinoChipNum}>{i + 1}</Text>
+                </View>
+                <Text style={[s.destinoChipNombre, { color: tema.texto as string }]} numberOfLines={1}>
+                  {estado.nombre}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => onToggleFav(estado.id)}
+                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  style={s.favBtn}
+                >
+                  <Image
+                    source={
+                      favoritos.includes(estado.id)
+                        ? require('../assets/images/favoritos_rojo.png')
+                        : require('../assets/images/favoritos_gris.png')
+                    }
+                    style={{ width: 14, height: 14 }}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       )}
@@ -215,28 +215,21 @@ export default function MapaRutas({
 }
 
 const s = StyleSheet.create({
-  estadoCard: {
-    position: 'absolute',
-    bottom: 16,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  estadoCardImg: { width: 76, height: 76 },
-  cardNombre: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
-  cardDesc: { fontSize: 11, marginBottom: 3 },
-  cardPrecio: { fontSize: 12, fontWeight: '700' },
-  cardBtns: { paddingHorizontal: 12, gap: 10, alignItems: 'center' },
-  btnVer: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  btnVerTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  header:          { paddingHorizontal: 16, paddingVertical: 12 },
+  headerNombre:    { fontSize: 16, fontWeight: '900', color: '#fff' },
+  headerSub:       { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+
+  webview:         { flex: 1 },
+
+  mapaVacio:       { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  mapaVacioTxt:    { fontSize: 14, textAlign: 'center', fontWeight: '600' },
+
+  destinosBar:     { borderTopWidth: 1, paddingVertical: 10 },
+  destinosFila:    { flexDirection: 'row', paddingHorizontal: 12, gap: 8 },
+  destinoChip:     { width: 80, borderRadius: 12, borderWidth: 1.5, overflow: 'hidden', alignItems: 'center', paddingBottom: 6 },
+  destinoChipImg:  { width: '100%', height: 56 },
+  destinoChipOverlay: { position: 'absolute', top: 0, left: 0, width: 22, height: 22, borderBottomRightRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  destinoChipNum:  { color: '#fff', fontSize: 11, fontWeight: '900' },
+  destinoChipNombre: { fontSize: 10, fontWeight: '700', paddingHorizontal: 4, paddingTop: 4, textAlign: 'center' },
+  favBtn:          { marginTop: 2 },
 });
