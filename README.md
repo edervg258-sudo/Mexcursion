@@ -12,7 +12,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 - **Modo oscuro**: Interfaz adaptable al tema del sistema
 - **Multi-idioma**: Soporte para español e inglés
 - **Accesibilidad**: Diseño inclusivo con soporte VoiceOver
-- **Análisis y monitoreo**: Sentry para crash reporting (analytics es stub/no-op)
+- **Análisis y monitoreo**: Mixpanel + logs estructurados (console nativo)
 
 ## 🛠️ Tecnologías
 
@@ -24,7 +24,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 - **Pagos**: Simulación de tarjeta + simulación SPEI/OXXO
 - **Mapas**: expo-maps (nativo, requiere development build)
 - **Analytics**: stub/no-op (pendiente integración real)
-- **Crash Reporting**: Sentry
+- **Crash Reporting**: ErrorBoundary + logs a consola
 - **Testing**: Jest + React Native Testing Library
 - **CI/CD**: GitHub Actions
 
@@ -57,7 +57,6 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
    ```
    Edita `.env` con tus claves de API:
    - Supabase URL y anon key
-   - Sentry DSN
 
 4. **Configura Supabase**
    - Crea un proyecto en [supabase.com](https://supabase.com)
@@ -202,8 +201,7 @@ eas submit --platform ios --profile production
 
 #### **Backend**
 - **Supabase**: Ya configurado, solo cambiar URLs en variables de entorno
-- **Analytics**: stub por ahora, sin dependencia Firebase
-- **Sentry**: Configurado para crash reporting
+- **Analytics**: Mixpanel con cola offline en AsyncStorage
 
 ### Variables de Entorno por Ambiente
 
