@@ -110,7 +110,10 @@ export default function FavoritosScreen() {
     const cargar = async () => {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
-      if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
+      if (!usuario) {
+        setCargando(false);
+        return;
+      }
       setUsuarioId(usuario.id);
 
       const [idsFav, destinosDB] = await Promise.all([
@@ -163,6 +166,15 @@ export default function FavoritosScreen() {
       <View style={s.contenedorCentrado}>
         {cargando ? (
           <SkeletonLista cantidad={3} />
+        ) : !usuarioId ? (
+          <View style={[s.vacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+            <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />
+            <Text style={[s.tituloVacio, { color: tema.texto }]}>Guarda tus favoritos</Text>
+            <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>Inicia sesión para guardar y ver tus destinos favoritos.</Text>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.push('/login' as never), 0)}>
+              <Text style={s.textoBotonIr}>Iniciar sesión</Text>
+            </TouchableOpacity>
+          </View>
         ) : estadosFavoritos.length === 0 ? (
           <View style={[s.vacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
             <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />

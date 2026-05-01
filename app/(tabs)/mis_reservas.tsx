@@ -3,15 +3,16 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, FlatList, Platform, RefreshControl,
-    ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
+    ActivityIndicator, Animated, FlatList, Modal, Platform, RefreshControl,
+    ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { DetalleReservaModal, ReservaDetalle } from '../../components/DetalleReservaModal';
 import { TabChrome } from '../../components/TabChrome';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { actualizarEstadoReserva, cargarReservas, modificarReserva, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { supabase } from '../../lib/supabase';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
@@ -88,9 +89,14 @@ export default function MisReservasScreen() {
   ];
 
   const [filtro, setFiltro]               = useState<Filtro>('todas');
-  const [cancelando, setCancelando]       = useState<number | null>(null);
-  const [confirmandoId, setConfirmandoId] = useState<number | null>(null);
+  const [cancelando, setCancelando]         = useState<number | null>(null);
+  const [confirmandoId, setConfirmandoId]   = useState<number | null>(null);
   const [reservaDetalle, setReservaDetalle] = useState<ReservaDetalle | null>(null);
+  const [editandoReserva, setEditandoReserva] = useState<Reserva | null>(null);
+  const [editFecha, setEditFecha]     = useState('');
+  const [editPersonas, setEditPersonas] = useState('');
+  const [editNotas, setEditNotas]     = useState('');
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
 
   useEffect(() => { configurarBarraAndroid(); }, []);
 
@@ -165,6 +171,20 @@ export default function MisReservasScreen() {
     await queryClient.resetQueries({ queryKey: ['reservas-usuario', usuario?.id] });
   }, [queryClient, usuario?.id]); // eslint-disable-line
 
+  // Realtime: recarga automática cuando cambia el estado de una reserva
+  useEffect(() => {
+    if (!usuario?.id) { return; }
+    const canal = supabase
+      .channel(`reservas-usuario-${usuario.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reservas', filter: `usuario_id=eq.${usuario.id}` },
+        () => { queryClient.invalidateQueries({ queryKey: ['reservas-usuario', usuario.id] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [usuario?.id, queryClient]); // eslint-disable-line
+
   const reservasFiltradas = filtro === 'todas'
     ? (reservas as Reserva[])
     : (reservas as Reserva[]).filter((r: Reserva) => r.estado === filtro);
@@ -183,6 +203,30 @@ export default function MisReservasScreen() {
     }), 0);
   };
 
+  const abrirEdicion = (item: Reserva) => {
+    setEditandoReserva(item);
+    setEditFecha(item.fecha.split('T')[0]);
+    setEditPersonas(String(item.personas));
+    setEditNotas(item.notas ?? '');
+  };
+
+  const guardarEdicion = async () => {
+    if (!editandoReserva) { return; }
+    const personas = parseInt(editPersonas, 10);
+    if (!editFecha || isNaN(personas) || personas < 1) { return; }
+    setGuardandoEdit(true);
+    const r = await modificarReserva(editandoReserva.id, {
+      fecha: editFecha,
+      personas,
+      notas: editNotas.trim(),
+    });
+    setGuardandoEdit(false);
+    if (r.exito) {
+      queryClient.invalidateQueries({ queryKey: ['reservas-usuario', usuario?.id] });
+      setEditandoReserva(null);
+    }
+  };
+
   const confirmarCancelacion = async (item: Reserva) => {
     setCancelando(item.id);
     setConfirmandoId(null);
@@ -195,6 +239,7 @@ export default function MisReservasScreen() {
 
   const compartirReserva = async (item: Reserva) => {
     try {
+      const deepLink = `mexcursion://detalle?nombre=${encodeURIComponent(item.destino)}`;
       await Share.share({
         title: `Reserva ${item.folio} — Mexcursión`,
         message:
@@ -204,7 +249,8 @@ export default function MisReservasScreen() {
           `📅 Fecha: ${item.fecha.split('T')[0]}\n` +
           `👥 Personas: ${item.personas}\n` +
           `💰 Total: $${item.total.toLocaleString()} MXN\n\n` +
-          `¡Descubre México con Mexcursión! 🇲🇽`,
+          `¡Descubre México con Mexcursión! 🇲🇽\n${deepLink}`,
+        url: deepLink,
       });
     } catch { /* silencioso */ }
   };
@@ -315,6 +361,16 @@ export default function MisReservasScreen() {
             >
               <Ionicons name="share-social-outline" size={16} color={tema.textoSecundario} />
             </TouchableOpacity>
+
+            {cancelable && (
+              <TouchableOpacity
+                style={[es.btnEditar, { borderColor: tema.borde }]}
+                onPress={() => abrirEdicion(item)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={14} color={tema.textoSecundario} />
+              </TouchableOpacity>
+            )}
 
             {cancelable && (
               <TouchableOpacity
@@ -450,6 +506,56 @@ export default function MisReservasScreen() {
         visible={!!reservaDetalle}
         onClose={() => setReservaDetalle(null)}
       />
+
+      {/* Modal edición de reserva */}
+      <Modal visible={!!editandoReserva} transparent animationType="slide" onRequestClose={() => setEditandoReserva(null)}>
+        <View style={es.modalOverlay}>
+          <View style={[es.modalCard, { backgroundColor: tema.superficieBlanca }]}>
+            <Text style={[es.modalTitulo, { color: tema.texto }]}>Modificar reserva</Text>
+
+            <Text style={[es.modalLabel, { color: tema.textoMuted }]}>Fecha del viaje</Text>
+            <TextInput
+              style={[es.modalInput, { backgroundColor: tema.superficie, color: tema.texto, borderColor: tema.borde }]}
+              value={editFecha}
+              onChangeText={setEditFecha}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={tema.textoMuted}
+            />
+
+            <Text style={[es.modalLabel, { color: tema.textoMuted }]}>Número de personas</Text>
+            <TextInput
+              style={[es.modalInput, { backgroundColor: tema.superficie, color: tema.texto, borderColor: tema.borde }]}
+              value={editPersonas}
+              onChangeText={setEditPersonas}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor={tema.textoMuted}
+            />
+
+            <Text style={[es.modalLabel, { color: tema.textoMuted }]}>Notas (opcional)</Text>
+            <TextInput
+              style={[es.modalInput, es.modalInputMulti, { backgroundColor: tema.superficie, color: tema.texto, borderColor: tema.borde }]}
+              value={editNotas}
+              onChangeText={setEditNotas}
+              multiline
+              numberOfLines={3}
+              placeholder="Solicitudes especiales, alergias, etc."
+              placeholderTextColor={tema.textoMuted}
+            />
+
+            <View style={es.modalBtns}>
+              <TouchableOpacity style={[es.modalBtnSec, { borderColor: tema.borde }]} onPress={() => setEditandoReserva(null)} activeOpacity={0.8}>
+                <Text style={[es.modalBtnSecTxt, { color: tema.textoSecundario }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={es.modalBtnPrim} onPress={guardarEdicion} disabled={guardandoEdit} activeOpacity={0.8}>
+                {guardandoEdit
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={es.modalBtnPrimTxt}>Guardar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </TabChrome>
   );
 }
@@ -508,4 +614,17 @@ const es = StyleSheet.create({
   btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },
   txtExplorar:          { color: '#fff', fontWeight: '700', fontSize: 15 },
   btnIcono:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  btnEditar:            { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+
+  modalOverlay:         { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard:            { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 4 },
+  modalTitulo:          { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  modalLabel:           { fontSize: 12, fontWeight: '600', marginTop: 10, marginBottom: 4 },
+  modalInput:           { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14 },
+  modalInputMulti:      { height: 80, textAlignVertical: 'top' },
+  modalBtns:            { flexDirection: 'row', gap: 10, marginTop: 20 },
+  modalBtnSec:          { flex: 1, borderWidth: 1.5, borderRadius: 25, paddingVertical: 13, alignItems: 'center' },
+  modalBtnSecTxt:       { fontSize: 14, fontWeight: '600' },
+  modalBtnPrim:         { flex: 1, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, alignItems: 'center' },
+  modalBtnPrimTxt:      { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

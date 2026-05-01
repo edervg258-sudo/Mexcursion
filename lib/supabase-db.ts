@@ -34,6 +34,23 @@ const isNetworkLikeError = (error: unknown) => {
   return msg.includes('network') || msg.includes('fetch') || msg.includes('timeout') || msg.includes('offline');
 };
 
+// Detecta errores de autenticación en respuestas de Supabase y cierra la sesión
+const manejarErrorAuth = (error: { message?: string; code?: string; status?: number } | null) => {
+  if (!error) return;
+  const msg = (error.message ?? '').toLowerCase();
+  const esErrorAuth =
+    error.status === 401 ||
+    msg.includes('jwt expired') ||
+    msg.includes('invalid jwt') ||
+    msg.includes('not authenticated') ||
+    msg.includes('refresh token') ||
+    error.code === 'PGRST301';
+  if (esErrorAuth) {
+    _sessionCache = null;
+    supabase.auth.signOut().catch(() => {});
+  }
+};
+
 let _offlineHandlersReady = false;
 const ensureOfflineHandlers = () => {
   if (_offlineHandlersReady) return;
@@ -204,7 +221,7 @@ export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
         .eq('id', user.id)
         .maybeSingle();
 
-      if (dbError) console.error('obtenerUsuarioActivo BD error:', dbError.message);
+      if (dbError) { manejarErrorAuth(dbError); console.error('obtenerUsuarioActivo BD error:', dbError.message); }
 
       if (data) {
         const usuario: Usuario = {
@@ -313,6 +330,41 @@ export async function actualizarPerfil(
   } catch (err) {
     console.error('actualizarPerfil error:', err);
     return { exito: false, error: 'Error al actualizar perfil.' };
+  }
+}
+
+export async function subirFotoPerfil(
+  usuario_id: string,
+  uri: string,
+  mimeType: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const ext      = mimeType.includes('png') ? 'png' : 'jpg';
+    const ruta     = `avatares/${usuario_id}.${ext}`;
+    const response = await fetch(uri);
+    const blob     = await response.blob();
+
+    const { error: uploadError } = await supabase.storage
+      .from('fotos')
+      .upload(ruta, blob, { upsert: true, contentType: mimeType });
+
+    if (uploadError) { return { exito: false, error: 'No se pudo subir la imagen.' }; }
+
+    const { data: urlData } = supabase.storage.from('fotos').getPublicUrl(ruta);
+    const url = urlData.publicUrl + `?t=${Date.now()}`;
+
+    const { error: dbError } = await supabase
+      .from('usuarios')
+      .update({ foto_url: url })
+      .eq('id', usuario_id);
+
+    if (dbError) { return { exito: false, error: 'Imagen subida pero no se actualizó el perfil.' }; }
+
+    invalidarSesionCache();
+    return { exito: true, url };
+  } catch (err) {
+    console.error('subirFotoPerfil error:', err);
+    return { exito: false, error: 'Error al subir la imagen.' };
   }
 }
 
@@ -674,6 +726,27 @@ export async function guardarReserva(
       });
       return 'failed';
     }
+
+    // Email de confirmación — fire-and-forget, no bloquea el flujo
+    try {
+      const usuario = await obtenerUsuarioActivo();
+      if (usuario?.correo) {
+        supabase.functions.invoke('confirmar-reserva', {
+          body: {
+            correo:   usuario.correo,
+            nombre:   usuario.nombre ?? 'Usuario',
+            folio:    folioNormalizado,
+            destino:  destino.trim(),
+            paquete:  paquete.trim(),
+            fecha:    fechaISO,
+            personas,
+            total,
+            metodo:   metodo.toLowerCase(),
+          },
+        }).catch(() => {});
+      }
+    } catch { /* silencioso */ }
+
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
@@ -724,6 +797,24 @@ export async function actualizarEstadoReserva(id: number, estado: string): Promi
   try {
     await supabase.from('reservas').update({ estado }).eq('id', id);
   } catch (err) { console.error('actualizarEstadoReserva error:', err); }
+}
+
+export async function modificarReserva(
+  id: number,
+  cambios: { fecha?: string; personas?: number; notas?: string }
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const update: Record<string, unknown> = {};
+    if (cambios.fecha    !== undefined) update.fecha    = cambios.fecha;
+    if (cambios.personas !== undefined) update.personas = cambios.personas;
+    if (cambios.notas    !== undefined) update.notas    = cambios.notas;
+    const { error } = await supabase.from('reservas').update(update).eq('id', id);
+    if (error) { return { exito: false, error: 'No se pudo actualizar la reserva.' }; }
+    return { exito: true };
+  } catch (err) {
+    console.error('modificarReserva error:', err);
+    return { exito: false, error: 'Error al modificar la reserva.' };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════

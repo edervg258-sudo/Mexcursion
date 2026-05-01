@@ -17,6 +17,18 @@ type FormType = {
 };
 type ErroresType = Partial<Record<keyof FormType, string>>;
 
+function calcularFortaleza(pass: string): { nivel: 0 | 1 | 2 | 3; etiqueta: string; color: string } {
+  if (pass.length === 0) { return { nivel: 0, etiqueta: '', color: '#ddd' }; }
+  let pts = 0;
+  if (pass.length >= 8)             { pts++; }
+  if (/[A-Z]/.test(pass))           { pts++; }
+  if (/[0-9]/.test(pass))           { pts++; }
+  if (/[^A-Za-z0-9]/.test(pass))   { pts++; }
+  if (pts <= 1) { return { nivel: 1, etiqueta: 'Débil',   color: '#DD331D' }; }
+  if (pts === 2) { return { nivel: 2, etiqueta: 'Media',   color: '#e9c46a' }; }
+  return           { nivel: 3, etiqueta: 'Fuerte',  color: '#3AB7A5' };
+}
+
 export default function RegistroScreen() {
   const [form, setForm]                       = useState<FormType>({ nombre: '', nombre_usuario: '', correo: '', telefono: '', contrasena: '' });
   const [errores, setErrores]                 = useState<ErroresType>({});
@@ -206,6 +218,22 @@ export default function RegistroScreen() {
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
+                {form.contrasena.length > 0 && (() => {
+                  const { nivel, etiqueta, color } = calcularFortaleza(form.contrasena);
+                  return (
+                    <View style={estilos.fortalezaContenedor}>
+                      <View style={estilos.fortalezaBarra}>
+                        {[1, 2, 3].map(i => (
+                          <View
+                            key={i}
+                            style={[estilos.fortalezaSegmento, { backgroundColor: i <= nivel ? color : '#e8e8e8' }]}
+                          />
+                        ))}
+                      </View>
+                      <Text style={[estilos.fortalezaEtiqueta, { color }]}>{etiqueta}</Text>
+                    </View>
+                  );
+                })()}
                 {errores.contrasena ? <Text style={estilos.textoError}>⚠ {errores.contrasena}</Text> : null}
               </View>
 
@@ -251,6 +279,10 @@ export default function RegistroScreen() {
               <TouchableOpacity style={estilos.enlace} onPress={() => router.push('/login')}>
                 <Text style={estilos.textoEnlace}>¿Ya tienes cuenta? <Text style={estilos.textoEnlaceColor}>Inicia sesión</Text></Text>
               </TouchableOpacity>
+
+              <TouchableOpacity style={estilos.enlaceInvitado} onPress={() => router.replace('/(tabs)/menu' as never)}>
+                <Text style={estilos.textoInvitado}>Explorar sin cuenta →</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -293,6 +325,14 @@ const estilos = StyleSheet.create({
   checkboxCheck:    { color: '#fff', fontSize: 13, fontWeight: '700' },
   checkboxTexto:    { fontSize: 13, color: '#555', flex: 1, flexWrap: 'wrap' },
   checkboxEnlace:   { color: '#3AB7A5', fontWeight: '700', textDecorationLine: 'underline' },
+
+  enlaceInvitado:  { marginTop: 10, alignItems: 'center', paddingVertical: 6 },
+  textoInvitado:   { fontSize: 13, color: '#aaa' },
+
+  fortalezaContenedor: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, paddingHorizontal: 4 },
+  fortalezaBarra:      { flex: 1, flexDirection: 'row', gap: 4 },
+  fortalezaSegmento:   { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#e8e8e8' },
+  fortalezaEtiqueta:   { fontSize: 11, fontWeight: '700', minWidth: 44, textAlign: 'right' },
 
   modalOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContenido:   { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%' },
