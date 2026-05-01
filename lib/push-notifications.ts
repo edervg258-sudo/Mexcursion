@@ -1,12 +1,12 @@
-// ============================================================
-//  lib/push-notifications.ts — Infraestructura de push
-// ============================================================
+// lib/push-notifications.ts — Infraestructura de push
 import Constants from 'expo-constants';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 type NotificationsModule = typeof import('expo-notifications');
+
+export type TipoNotificacion = 'reservas' | 'ofertas' | 'general';
 
 let notificationsModule: NotificationsModule | null | undefined;
 
@@ -20,8 +20,6 @@ function getNotificationsModule(): NotificationsModule | null {
   const pushHabilitado =
     Constants.expoConfig?.extra?.enableNativePushNotifications === true;
 
-  // Las push nativas solo se activan explícitamente en builds que ya incluyen
-  // el módulo. En Expo Go o sin esta bandera, se deshabilitan por seguridad.
   const pushTokenManager = requireOptionalNativeModule('ExpoPushTokenManager');
   if (!pushHabilitado || isExpoGo || !pushTokenManager) {
     notificationsModule = null;
@@ -29,8 +27,6 @@ function getNotificationsModule(): NotificationsModule | null {
   }
 
   try {
-    // Cargar de forma diferida evita romper el arranque cuando el módulo nativo
-    // no está presente en Expo Go o en un binario no reconstruido.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     notificationsModule = require('expo-notifications') as NotificationsModule;
   } catch {
@@ -62,17 +58,46 @@ export async function configurarNotificaciones() {
     }),
   });
 
-  // Crear canal Android en arranque, antes de cualquier notificación o solicitud de permiso
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    await Notifications.setNotificationChannelAsync('general', {
       name:             'General',
       importance:       Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor:       '#3AB7A5',
     });
+    await Notifications.setNotificationChannelAsync('reservas', {
+      name:             'Reservas y recordatorios',
+      importance:       Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor:       '#3AB7A5',
+    });
+    await Notifications.setNotificationChannelAsync('ofertas', {
+      name:             'Ofertas especiales',
+      importance:       Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 100, 100, 100],
+      lightColor:       '#e9c46a',
+    });
   }
 
   return true;
+}
+
+// ── Guardar token con retry (3 intentos, backoff 2s/4s/8s) ──────────────────
+async function guardarTokenConRetry(usuarioId: string, token: string): Promise<boolean> {
+  const MAX = 3;
+  for (let intento = 0; intento < MAX; intento++) {
+    const { error } = await supabase
+      .from('usuarios')
+      .update({ push_token: token })
+      .eq('id', usuarioId);
+    if (!error) return true;
+    if (intento < MAX - 1) {
+      await new Promise(r => setTimeout(r, 2000 * Math.pow(2, intento)));
+    } else {
+      console.error('[push] Error al guardar push_token tras 3 intentos:', error.message);
+    }
+  }
+  return false;
 }
 
 // ── Solicitar permisos y registrar token ─────────────────────────────────────
@@ -80,9 +105,8 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
   const Notifications = getNotificationsModule();
   if (!Notifications) return null;
 
-  // Solo en dispositivo físico
   const { data: esFisico } = await Notifications.getDevicePushTokenAsync().catch(() => ({ data: null }));
-  if (!esFisico) return null;  // simulador
+  if (!esFisico) return null;
 
   const { status: existente } = await Notifications.getPermissionsAsync();
   let estadoFinal = existente;
@@ -94,27 +118,72 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
   if (estadoFinal !== 'granted') return null;
 
   const token = (await Notifications.getExpoPushTokenAsync()).data;
-
-  // Persistir token en Supabase (columna push_token en tabla usuarios)
-  const { error: tokenError } = await supabase
-    .from('usuarios')
-    .update({ push_token: token })
-    .eq('id', usuarioId);
-  if (tokenError) {
-    console.error('[push] Error al guardar push_token:', tokenError.message);
-  }
-
+  await guardarTokenConRetry(usuarioId, token);
   return token;
 }
 
+// ── Deep linking: registrar handler de toque en notificación ─────────────────
+// Llama a esta función desde _layout.tsx pasando el router de expo-router.
+// El `data` de la notificación debe incluir: { screen, params }
+export function registrarDeepLinkDeNotificacion(
+  navigate: (screen: string, params?: Record<string, string>) => void
+): () => void {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return () => {};
+
+  const suscripcion = Notifications.addNotificationResponseReceivedListener(response => {
+    const data = response.notification.request.content.data as {
+      screen?: string;
+      params?: Record<string, string>;
+    };
+    if (data?.screen) {
+      navigate(data.screen, data.params);
+    }
+  });
+
+  return () => suscripcion.remove();
+}
+
+// ── Habilitar / deshabilitar un canal de notificaciones (Android) ─────────────
+// En iOS no existen canales; el usuario controla permisos desde Ajustes del sistema.
+export async function setTipoNotificacionHabilitado(
+  tipo: TipoNotificacion,
+  habilitado: boolean
+): Promise<void> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications || Platform.OS !== 'android') return;
+
+  const importance = habilitado
+    ? tipo === 'ofertas'
+      ? Notifications.AndroidImportance.DEFAULT
+      : Notifications.AndroidImportance.HIGH
+    : Notifications.AndroidImportance.NONE;
+
+  await Notifications.setNotificationChannelAsync(tipo, {
+    name: tipo,
+    importance,
+  });
+}
+
 // ── Enviar notificación local ─────────────────────────────────────────────────
-export async function mostrarNotificacionLocal(titulo: string, cuerpo: string) {
+export async function mostrarNotificacionLocal(
+  titulo: string,
+  cuerpo: string,
+  tipo: TipoNotificacion = 'general',
+  data?: Record<string, string>
+) {
   const Notifications = getNotificationsModule();
   if (!Notifications) return;
 
   await Notifications.scheduleNotificationAsync({
-    content: { title: titulo, body: cuerpo, sound: true },
-    trigger:  null, // inmediata
+    content: {
+      title: titulo,
+      body: cuerpo,
+      sound: true,
+      data: data ?? {},
+      ...(Platform.OS === 'android' ? { channelId: tipo } : {}),
+    },
+    trigger: null,
   });
 }
 
@@ -122,6 +191,5 @@ export async function mostrarNotificacionLocal(titulo: string, cuerpo: string) {
 export async function limpiarBadge() {
   const Notifications = getNotificationsModule();
   if (!Notifications) return;
-
   await Notifications.setBadgeCountAsync(0);
 }
