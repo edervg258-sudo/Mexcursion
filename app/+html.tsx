@@ -1,5 +1,8 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 
+const APP_URL = 'https://mexcursion.vercel.app';
+const OG_IMAGE = `${APP_URL}/icons/icon-1024.png`;
+
 // Este archivo sólo corre en web. Personaliza el <html> shell que Expo Router usa.
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
@@ -8,6 +11,29 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+        {/* SEO primario */}
+        <title>Mexcursión — Descubre México</title>
+        <meta name="description" content="Explora los 32 estados de México con paquetes de turismo curados: hotel, restaurante, transporte y actividades en un solo lugar." />
+        <meta name="keywords" content="turismo México, viajes México, destinos México, excursiones, paquetes turísticos" />
+        <link rel="canonical" href={APP_URL} />
+
+        {/* Open Graph (Facebook, WhatsApp, LinkedIn) */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Mexcursión" />
+        <meta property="og:title" content="Mexcursión — Descubre México" />
+        <meta property="og:description" content="Explora los 32 estados de México con paquetes de turismo curados: hotel, restaurante, transporte y actividades en un solo lugar." />
+        <meta property="og:image" content={OG_IMAGE} />
+        <meta property="og:image:width" content="1024" />
+        <meta property="og:image:height" content="1024" />
+        <meta property="og:url" content={APP_URL} />
+        <meta property="og:locale" content="es_MX" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Mexcursión — Descubre México" />
+        <meta name="twitter:description" content="Explora los 32 estados de México con paquetes de turismo curados." />
+        <meta name="twitter:image" content={OG_IMAGE} />
 
         {/* PWA manifest */}
         <link rel="manifest" href="/manifest.json" />
@@ -19,7 +45,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
         {/* iOS: habilita "Agregar a pantalla de inicio" como app standalone */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Mercursión" />
+        <meta name="apple-mobile-web-app-title" content="Mexcursión" />
         <link rel="apple-touch-icon" href="/icons/icon-1024.png" />
 
         {/* Previene que el teléfono auto-detecte números de teléfono */}

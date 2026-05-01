@@ -2,6 +2,8 @@
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
 import { addBreadcrumb, captureApiError } from './sentry';
+import { verificarBloqueo, registrarIntentoFallido, limpiarBloqueo } from './auth-rate-limit';
+import { calcularCostoCancelacion, type ResultadoCancelacion } from './politicas-negocio';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -123,31 +125,34 @@ export async function iniciarSesion(
   correo: string,
   contrasena: string
 ): Promise<{ exito: boolean; usuario?: Usuario; error?: string }> {
+  const email = (correo ?? '').trim().toLowerCase();
+
+  const bloqueo = await verificarBloqueo(email);
+  if (bloqueo.bloqueado) {
+    return {
+      exito: false,
+      error: `Demasiados intentos fallidos. Intenta de nuevo en ${bloqueo.minutosRestantes} minuto${bloqueo.minutosRestantes === 1 ? '' : 's'}.`,
+    };
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: correo,
+      email,
       password: contrasena,
     });
 
     if (error) {
-      console.log('❌ Error de login:', error.message);
-      
-      // Manejar específicamente errores de refresh token
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
       }
-      
+      await registrarIntentoFallido(email);
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
-    console.log('✅ Login exitoso para:', correo);
-    
-    // Obtener usuario activo inmediatamente
+    await limpiarBloqueo(email);
     const usuario = await obtenerUsuarioActivo();
-    
     return { exito: true, usuario: usuario ?? undefined };
-  } catch (error) {
-    console.log('❌ Error inesperado en login:', error);
+  } catch {
     return { exito: false, error: 'Error al iniciar sesión.' };
   }
 }
@@ -674,6 +679,31 @@ export async function guardarReserva(
       });
       return 'failed';
     }
+
+    // Email de confirmación — best-effort, no bloquea
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const emailUsuario = session?.user?.email;
+        const { data: perfil } = await supabase.from('usuarios').select('nombre').eq('id', usuario_id).maybeSingle();
+        if (emailUsuario) {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              tipo: 'confirmacion',
+              folio: folioNormalizado,
+              destino: fila.destino,
+              paquete: fila.paquete,
+              fecha: fecha,
+              personas: fila.personas,
+              total: fila.total,
+              email: emailUsuario,
+              nombre: perfil?.nombre ?? 'Viajero',
+            },
+          });
+        }
+      } catch { /* email es best-effort */ }
+    })();
+
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
@@ -941,3 +971,142 @@ export async function cambiarTipoUsuario(usuario_id: string, tipo: string): Prom
 }
 
 export const toggleActivoUsuarioAdmin  = (usuario_id: string) => toggleActivo('usuarios', 'id', usuario_id);
+
+// ══════════════════════════════════════════════════════════════════════════
+//  CANCELACIÓN CON POLÍTICA DE NEGOCIO
+// ══════════════════════════════════════════════════════════════════════════
+
+export type ResultadoCancelacionReserva = {
+  exito: boolean;
+  politica?: ResultadoCancelacion;
+  error?: string;
+};
+
+export async function cancelarReserva(
+  reserva_id: number,
+  usuario_id: string
+): Promise<ResultadoCancelacionReserva> {
+  try {
+    const { data: reserva, error: fetchError } = await supabase
+      .from('reservas')
+      .select('id, fecha, total, estado, usuario_id, folio, destino')
+      .eq('id', reserva_id)
+      .eq('usuario_id', usuario_id)
+      .maybeSingle();
+
+    if (fetchError || !reserva) {
+      return { exito: false, error: 'Reserva no encontrada.' };
+    }
+    if (reserva.estado === 'cancelada') {
+      return { exito: false, error: 'Esta reserva ya está cancelada.' };
+    }
+    if (reserva.estado === 'completada') {
+      return { exito: false, error: 'No se puede cancelar una reserva completada.' };
+    }
+
+    // Convertir fecha ISO (YYYY-MM-DD) → DD/MM/YYYY para calcularCostoCancelacion
+    const partes = (reserva.fecha as string).split('T')[0].split('-');
+    const fechaViaje = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    const fechaHoy   = new Date();
+    const diaHoy     = String(fechaHoy.getDate()).padStart(2, '0');
+    const mesHoy     = String(fechaHoy.getMonth() + 1).padStart(2, '0');
+    const anioHoy    = String(fechaHoy.getFullYear());
+    const fechaCancelacion = `${diaHoy}/${mesHoy}/${anioHoy}`;
+
+    let politica: ResultadoCancelacion;
+    try {
+      politica = calcularCostoCancelacion(fechaViaje, fechaCancelacion, Number(reserva.total));
+    } catch {
+      // Fecha de viaje ya pasó — cancelación gratuita sin reembolso real
+      politica = { costo: 0, reembolsable: 0, mensaje: 'Viaje ya transcurrido — sin reembolso.' };
+    }
+
+    const { error: updateError } = await supabase
+      .from('reservas')
+      .update({ estado: 'cancelada' })
+      .eq('id', reserva_id)
+      .eq('usuario_id', usuario_id);
+
+    if (updateError) {
+      captureApiError({ feature: 'reservas', action: 'cancelar', error: updateError, metadata: { reserva_id } });
+      return { exito: false, error: 'Error al cancelar la reserva.' };
+    }
+
+    await crearNotificacion(
+      usuario_id,
+      'cancelacion',
+      'Reserva cancelada',
+      `Tu reserva para ${reserva.destino} (${reserva.folio}) ha sido cancelada. ${politica.mensaje}`
+    );
+
+    // Disparar email de cancelación (no bloqueante)
+    void supabase.functions
+      .invoke('send-email', {
+        body: {
+          tipo: 'cancelacion',
+          reserva_id,
+          usuario_id,
+          folio: reserva.folio,
+          destino: reserva.destino,
+          politica,
+        },
+      })
+      .catch(() => {/* email es best-effort */});
+
+    addBreadcrumb({ category: 'booking', message: 'cancelarReserva', data: { reserva_id, usuario_id } });
+    return { exito: true, politica };
+  } catch (err) {
+    console.error('cancelarReserva error:', err);
+    return { exito: false, error: 'Error inesperado al cancelar.' };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  REALTIME — disponibilidad en tiempo real
+// ══════════════════════════════════════════════════════════════════════════
+
+export function suscribirReservasDestino(
+  destino: string,
+  onChange: (total: number) => void
+): () => void {
+  let activo = true;
+
+  // Cargar conteo inicial
+  supabase
+    .from('reservas')
+    .select('id', { count: 'exact', head: true })
+    .eq('destino', destino)
+    .in('estado', ['confirmada', 'pendiente'])
+    .then(({ count }) => {
+      if (activo) onChange(count ?? 0);
+    });
+
+  const canal = supabase
+    .channel(`reservas-destino-${destino}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'reservas',
+        filter: `destino=eq.${destino}`,
+      },
+      () => {
+        // Re-contar al recibir cualquier cambio
+        supabase
+          .from('reservas')
+          .select('id', { count: 'exact', head: true })
+          .eq('destino', destino)
+          .in('estado', ['confirmada', 'pendiente'])
+          .then(({ count }) => {
+            if (activo) onChange(count ?? 0);
+          });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    activo = false;
+    supabase.removeChannel(canal);
+  };
+}

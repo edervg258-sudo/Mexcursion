@@ -25,7 +25,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
-import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo, suscribirReservasDestino } from '../../lib/supabase-db';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = Math.min(W, 800);
@@ -86,6 +86,12 @@ export default function DetalleScreen() {
   const [paqueteExpandido, setPaqueteExpandido] = useState<string | null>('economico');
   const [itinerarios, setItinerarios]           = useState<Itinerario[]>([]);
   const [usuarioId, setUsuarioId]               = useState<string | null>(null);
+  const [reservasActivas, setReservasActivas]   = useState<number>(0);
+
+  useEffect(() => {
+    if (!nombre) return;
+    return suscribirReservasDestino(nombre, setReservasActivas);
+  }, [nombre]);
 
   // Modal selector
   const [modalVisible, setModalVisible]         = useState(false);
@@ -334,6 +340,14 @@ export default function DetalleScreen() {
                       ))}
                     </View>
 
+                    {reservasActivas > 0 && (
+                      <View style={estilos.bannerDisponibilidad}>
+                        <Text style={estilos.textoBannerDisponibilidad}>
+                          🔥 {reservasActivas} {reservasActivas === 1 ? 'persona ha reservado' : 'personas han reservado'} este destino
+                        </Text>
+                      </View>
+                    )}
+
                     <View style={estilos.filaBotones}>
                       <TouchableOpacity
                         testID="add-itinerary-button"
@@ -514,6 +528,8 @@ const estilos = StyleSheet.create({
   puntoActividad:        { width:8, height:8, borderRadius:4 },
   textoActividad:        { fontSize:13, color:'#444', flex:1 },
   filaBotones:           { flexDirection:'row', gap:10, marginTop:16 },
+  bannerDisponibilidad:  { backgroundColor:'#FFF3CD', borderRadius:8, paddingVertical:8, paddingHorizontal:12, marginTop:12, marginBottom:4 },
+  textoBannerDisponibilidad: { color:'#856404', fontSize:13, fontWeight:'600' },
   botonRuta:             { flex:1, backgroundColor:'#3AB7A5', paddingVertical:13, borderRadius:25, alignItems:'center', elevation:3 },
   botonRutaActivo:       { backgroundColor:'#27897b' },
   textoBotonRuta:        { color:'#fff', fontWeight:'700', fontSize:14 },

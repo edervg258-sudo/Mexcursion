@@ -11,7 +11,7 @@ import { TabChrome } from '../../components/TabChrome';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { actualizarEstadoReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { cancelarReserva, cargarReservas, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonFilas } from './skeletonloader';
 
@@ -128,9 +128,9 @@ export default function MisReservasScreen() {
     staleTime: 1000 * 60 * 30,
   });
 
-  const actualizarEstadoMutation = useMutation({
-    mutationFn: ({ id, estado }: { id: number; estado: string }) =>
-      actualizarEstadoReserva(id, estado),
+  const cancelarMutation = useMutation({
+    mutationFn: ({ id, usuario_id }: { id: number; usuario_id: string }) =>
+      cancelarReserva(id, usuario_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservas-usuario'] });
     },
@@ -184,13 +184,45 @@ export default function MisReservasScreen() {
   };
 
   const confirmarCancelacion = async (item: Reserva) => {
-    setCancelando(item.id);
-    setConfirmandoId(null);
+    if (!usuario?.id) return;
+
+    // Calcular política antes de cancelar para mostrarla en el Alert
+    const { calcularCostoCancelacion } = await import('../../lib/politicas-negocio');
+    const partes = item.fecha.split('T')[0].split('-');
+    const fechaViaje = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    const hoy = new Date();
+    const fechaCancelacion = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+
+    let mensajePolitica = '';
     try {
-      await actualizarEstadoMutation.mutateAsync({ id: item.id, estado: 'cancelada' });
-    } finally {
-      setCancelando(null);
+      const politica = calcularCostoCancelacion(fechaViaje, fechaCancelacion, item.total);
+      mensajePolitica = politica.costo > 0
+        ? `\n\n${politica.mensaje}\nReembolsable: $${politica.reembolsable.toLocaleString('es-MX')} MXN`
+        : '\n\nCancelación gratuita.';
+    } catch {
+      mensajePolitica = '\n\nEl viaje ya transcurrió — sin reembolso.';
     }
+
+    Alert.alert(
+      '¿Cancelar reserva?',
+      `Destino: ${item.destino}${mensajePolitica}`,
+      [
+        { text: 'No, mantener', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelando(item.id);
+            setConfirmandoId(null);
+            try {
+              await cancelarMutation.mutateAsync({ id: item.id, usuario_id: usuario.id });
+            } finally {
+              setCancelando(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const compartirReserva = async (item: Reserva) => {
