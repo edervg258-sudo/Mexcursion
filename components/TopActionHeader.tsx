@@ -23,7 +23,14 @@ export function TopActionHeader({
     <View style={[styles.encabezado, maxWidth ? { maxWidth } : null]}>
       <View style={styles.leadingRow}>
         {onBackPress ? (
-          <TouchableOpacity style={styles.botonAtras} onPress={onBackPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Volver">
+          <TouchableOpacity
+            testID="back-button"
+            style={styles.botonAtras}
+            onPress={onBackPress}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
             <Text style={styles.textoAtras}>{'‹'}</Text>
           </TouchableOpacity>
         ) : null}
@@ -35,7 +42,7 @@ export function TopActionHeader({
         {!!subtitle && <Text style={styles.subtitulo}>{subtitle}</Text>}
         <Text style={styles.tituloEncabezado}>{title}</Text>
       </View>
-      <View style={styles.iconosHeader}>
+      <View style={styles.iconosHeader} testID="header-actions">
         <NotificationIconButton onPress={onNotificationsPress} />
       </View>
     </View>

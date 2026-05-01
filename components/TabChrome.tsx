@@ -54,13 +54,17 @@ export function TabChrome({
       <View style={[styles.separadorSidebar, { backgroundColor: tema.borde }]} />
       {PESTANAS.map(p => {
         const active = isActive(p.ruta);
+        const tabName = p.ruta.replace('/(tabs)/', '');
         return (
           <TouchableOpacity
             key={p.ruta}
-            testID={p.ruta.replace('/(tabs)/', '') + '-tab'}
+            testID={`sidebar-${tabName}-button`}
             style={[styles.itemSidebar, active && { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}
             onPress={() => navigateTab(p.ruta)}
             activeOpacity={0.75}
+            accessibilityRole="tab"
+            accessibilityLabel={t(('tab_' + tabName) as TraduccionClave)}
+            accessibilityState={{ selected: active }}
           >
             <Image source={active ? p.iconoRojo : p.iconoGris} style={styles.iconoSidebar} resizeMode="contain" />
           </TouchableOpacity>
@@ -72,7 +76,14 @@ export function TabChrome({
   const header = title ? (
     <View style={[styles.encabezado, { maxWidth }]}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={[styles.botonAtras, { backgroundColor: isDark ? tema.superficie : '#F0F0F0' }]} activeOpacity={0.8}>
+        <TouchableOpacity
+          testID="header-back-button"
+          onPress={onBack}
+          style={[styles.botonAtras, { backgroundColor: isDark ? tema.superficie : '#F0F0F0' }]}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Text style={[styles.textoAtras, { color: tema.texto }]}>{'‹'}</Text>
         </TouchableOpacity>
       ) : (
@@ -94,17 +105,21 @@ export function TabChrome({
       <View style={[styles.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
         {PESTANAS.map(p => {
           const active = isActive(p.ruta);
+          const tabName = p.ruta.replace('/(tabs)/', '');
           return (
             <TouchableOpacity
               key={p.ruta}
-              testID={p.ruta.replace('/(tabs)/', '') + '-tab'}
+              testID={`bottom-nav-${tabName}-button`}
               style={styles.itemPestana}
               activeOpacity={1}
               onPress={() => navigateTab(p.ruta)}
+              accessibilityRole="tab"
+              accessibilityLabel={t(('tab_' + tabName) as TraduccionClave)}
+              accessibilityState={{ selected: active }}
             >
               <Image source={active ? p.iconoRojo : p.iconoGris} style={styles.iconoPestana} resizeMode="contain" />
               <Text style={[styles.etiquetaPestana, { color: tema.textoMuted }, active && { color: '#3AB7A5', fontWeight: '700' }]}>
-                {t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}
+                {t(('tab_' + tabName) as TraduccionClave)}
               </Text>
             </TouchableOpacity>
           );

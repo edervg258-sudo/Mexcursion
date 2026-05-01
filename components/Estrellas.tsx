@@ -10,9 +10,24 @@ type Props = {
 
 export function Estrellas({ valor, tamaño = 18, seleccionable = false, onSelect }: Props) {
   return (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
+    <View
+      style={{ flexDirection: 'row', gap: 2 }}
+      testID="rating-stars"
+      accessible={true}
+      accessibilityRole="adjustable"
+      accessibilityLabel={`Calificación: ${valor} de 5 estrellas`}
+    >
       {[1, 2, 3, 4, 5].map(n => (
-        <TouchableOpacity key={n} disabled={!seleccionable} onPress={() => onSelect?.(n)} activeOpacity={0.7}>
+        <TouchableOpacity
+          key={n}
+          testID={`star-${n}`}
+          disabled={!seleccionable}
+          onPress={() => onSelect?.(n)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Calificar ${n} estrellas`}
+          accessibilityState={{ disabled: !seleccionable }}
+        >
           <Text style={{ fontSize: tamaño, color: n <= valor ? '#f5a623' : '#ddd' }}>★</Text>
         </TouchableOpacity>
       ))}

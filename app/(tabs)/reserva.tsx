@@ -100,9 +100,13 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   return (
     <>
       <TouchableOpacity
+        testID="open-calendar-button"
         style={[es.cajaInput, { justifyContent: 'space-between' }]}
         onPress={() => setVisible(true)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={fecha ? `Fecha seleccionada: ${fecha}` : "Seleccionar fecha de viaje"}
+        accessibilityHint="Abre calendario para elegir fecha"
       >
         <Text style={[es.input, { color: fecha ? '#333' : '#bbb', flex: 1 }]}>
           {fecha || 'DD/MM/AAAA'}
@@ -120,13 +124,28 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
             <View style={es.calCaja}>
               {/* Navegación mes */}
               <View style={es.calNav}>
-                <TouchableOpacity onPress={prevMes} style={es.calNavBtn}>
+                <TouchableOpacity
+                  testID="calendar-prev-month-button"
+                  onPress={prevMes}
+                  style={es.calNavBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mes anterior"
+                >
                   <Text style={[es.calNavArrow, { color: ac }]}>‹</Text>
                 </TouchableOpacity>
-                <Text style={es.calNavTitulo}>
+                <Text
+                  style={es.calNavTitulo}
+                  accessibilityLabel={`${MESES_ES[mesBase.getMonth()]} ${mesBase.getFullYear()}`}
+                >
                   {MESES_ES[mesBase.getMonth()]} {mesBase.getFullYear()}
                 </Text>
-                <TouchableOpacity onPress={nextMes} style={es.calNavBtn}>
+                <TouchableOpacity
+                  testID="calendar-next-month-button"
+                  onPress={nextMes}
+                  style={es.calNavBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mes siguiente"
+                >
                   <Text style={[es.calNavArrow, { color: ac }]}>›</Text>
                 </TouchableOpacity>
               </View>
@@ -148,11 +167,15 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
                   const selec   = seleccionado?.toDateString() === fd.toDateString();
                   return (
                     <TouchableOpacity
+                      testID={`calendar-day-${dia}`}
                       key={`d${i}`}
                       style={es.calCelda}
                       onPress={() => !pasado && elegirDia(dia)}
                       disabled={pasado}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${dia} de ${MESES_ES[mesBase.getMonth()]}`}
+                      accessibilityState={{ disabled: pasado }}
                     >
                       <View style={[
                         es.calCirculo,
@@ -313,11 +336,25 @@ export default function ReservaScreen() {
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_num_personas')}</Text>
           <View style={es.filaPersonas}>
-            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.max(1, p - 1))} activeOpacity={0.8}>
+            <TouchableOpacity
+              testID="decrease-travelers-button"
+              style={es.btnPersona}
+              onPress={() => setPersonas(p => Math.max(1, p - 1))}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Disminuir número de viajeros"
+            >
               <Text style={es.textoPersona}>−</Text>
             </TouchableOpacity>
-            <Text style={es.numPersonas}>{personas}</Text>
-            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.min(20, p + 1))} activeOpacity={0.8}>
+            <Text style={es.numPersonas} accessibilityLabel={`${personas} viajeros`}>{personas}</Text>
+            <TouchableOpacity
+              testID="increase-travelers-button"
+              style={es.btnPersona}
+              onPress={() => setPersonas(p => Math.min(20, p + 1))}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Aumentar número de viajeros"
+            >
               <Text style={es.textoPersona}>+</Text>
             </TouchableOpacity>
             <View style={es.cajaTotalPersonas}>
@@ -334,13 +371,16 @@ export default function ReservaScreen() {
         {/* Fecha con calendario */}
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_fecha')}</Text>
-          <CalendarioPicker fecha={fecha} onSelect={setFecha} color="#3AB7A5" />
+          <View testID="date-picker-container">
+            <CalendarioPicker fecha={fecha} onSelect={setFecha} color="#3AB7A5" />
+          </View>
           {errores.fecha ? <Text style={es.textoError}>{errores.fecha}</Text> : null}
         </View>
 
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_notas')}</Text>
           <TextInput
+            testID="traveler-notes-input"
             style={[es.cajaInput, { height: 88, paddingTop: 12, paddingHorizontal: 18 }]}
             value={notas}
             onChangeText={setNotas}
@@ -349,6 +389,8 @@ export default function ReservaScreen() {
             multiline
             textAlignVertical="top"
             underlineColorAndroid="transparent"
+            accessibilityLabel="Notas adicionales"
+            accessibilityHint="Campo opcional para notas especiales sobre tu reserva"
           />
         </View>
 

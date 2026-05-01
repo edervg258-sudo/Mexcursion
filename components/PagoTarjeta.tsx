@@ -92,13 +92,16 @@ export function PagoTarjeta({
         </View>
         <View style={estilos.formularioCuerpo}>
           <TextInput
+            testID="cardholder-name-input"
             style={[estilos.input, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
             placeholder="Nombre del titular"
             placeholderTextColor={isDark ? '#888' : '#999'}
             value={titular}
             onChangeText={(value) => { setTitular(value); if (error) { setError(null); } }}
+            accessibilityLabel="Nombre del titular de la tarjeta"
           />
           <TextInput
+            testID="card-number-input"
             style={[estilos.input, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
             placeholder="Numero de tarjeta"
             placeholderTextColor={isDark ? '#888' : '#999'}
@@ -106,17 +109,21 @@ export function PagoTarjeta({
             onChangeText={(value) => { setNumero(value.replace(/\D/g, '')); if (error) { setError(null); } }}
             keyboardType="number-pad"
             maxLength={16}
+            accessibilityLabel="Número de tarjeta, 16 dígitos"
           />
           <View style={estilos.fila}>
             <TextInput
+              testID="card-expiry-input"
               style={[estilos.input, estilos.inputMitad, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
               placeholder="MM/AA"
               placeholderTextColor={isDark ? '#888' : '#999'}
               value={vencimiento}
               onChangeText={(value) => { setVencimiento(value); if (error) { setError(null); } }}
               maxLength={5}
+              accessibilityLabel="Fecha de vencimiento en formato MM/AA"
             />
             <TextInput
+              testID="card-cvv-input"
               style={[estilos.input, estilos.inputMitad, { color: isDark ? '#fff' : '#333', borderColor: isDark ? '#555' : '#ddd', backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9' }]}
               placeholder="CVV"
               placeholderTextColor={isDark ? '#888' : '#999'}
@@ -124,6 +131,7 @@ export function PagoTarjeta({
               onChangeText={(value) => { setCvv(value.replace(/\D/g, '')); if (error) { setError(null); } }}
               keyboardType="number-pad"
               maxLength={4}
+              accessibilityLabel="Código de seguridad CVV"
             />
           </View>
           <View style={[estilos.infoBox, { backgroundColor: isDark ? '#2a3f3f' : '#f0faf9', borderColor: isDark ? '#3a5f5f' : '#d1e8e5' }]}>
@@ -146,14 +154,20 @@ export function PagoTarjeta({
         onPress={handleCheckout}
         disabled={loading}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`Pagar ${amount.toLocaleString()} pesos`}
+        accessibilityState={{ disabled: loading }}
       >
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={estilos.btnPagarText}>Pagar ahora</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity
+        testID="back-to-payment-methods-button"
         style={estilos.btnVolver}
         onPress={onBack}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Volver a métodos de pago"
       >
         <Text style={estilos.btnVolverText}>Volver a metodos de pago</Text>
       </TouchableOpacity>

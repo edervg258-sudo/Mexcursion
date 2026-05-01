@@ -48,11 +48,15 @@ export const TimelineItem = React.memo(function TimelineItem({
         <Text style={s.timelineNumTxt}>{index + 1}</Text>
       </View>
       <TouchableOpacity
+        testID={`timeline-item-${estado.id}`}
         style={[s.timelineCard, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={`${estado.nombre}, desde ${estado.precio.toLocaleString()} pesos`}
+        accessibilityHint="Ver detalles de este destino"
       >
         <ExpoImage
           source={estado.imagen}
@@ -70,7 +74,14 @@ export const TimelineItem = React.memo(function TimelineItem({
           </Text>
         </View>
         <View style={s.timelineAcciones}>
-          <TouchableOpacity onPress={handleFav} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+          <TouchableOpacity
+            testID={`timeline-favorite-button-${estado.id}`}
+            onPress={handleFav}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={esFavorito ? `Quitar ${estado.nombre} de favoritos` : `Agregar ${estado.nombre} a favoritos`}
+            accessibilityState={{ checked: esFavorito }}
+          >
             <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
               <Image
                 source={esFavorito
