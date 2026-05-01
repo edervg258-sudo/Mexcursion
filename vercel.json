@@ -6,8 +6,21 @@
   "env": {
     "EXPO_PUBLIC_SUPABASE_URL": "@supabase-url",
     "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "EXPO_PUBLIC_FIREBASE_API_KEY": "@firebase-api-key",
-    "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "@google-maps-api-key",
-    "EXPO_PUBLIC_SENTRY_DSN": "@sentry-dsn"
-  }
+    "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "@google-maps-api-key"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'"
+        },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self)" }
+      ]
+    }
+  ]
 }

@@ -30,7 +30,6 @@ import {
 import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
-import { initSentry, setUser } from '../lib/sentry';
 
 type NotificationSubscription = { remove: () => void };
 
@@ -121,7 +120,6 @@ export default function RootLayout() {
 
   useEffect(() => { configurarBarraAndroid(); }, []);
   useEffect(() => { configurarNotificaciones(); }, []);
-  useEffect(() => { initSentry(); }, []);
 
   useEffect(() => {
     const initRuntime = async () => {
@@ -142,13 +140,11 @@ export default function RootLayout() {
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
         setUserId('');
-        setUser({ id: '', email: '' });
       }
       if (event === 'SIGNED_IN' && session?.user?.id) {
         const uid = session.user.id;
         setUserId(uid);
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
-        setUser({ id: uid, email: session.user.email ?? undefined });
 
         // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
         const Notifications = getNotifications();

@@ -18,9 +18,27 @@ shadow_database_url = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 enabled = true
 max_connections = 20
 max_message_length = 200000
-# Should we log HTTP requests?
 log_level = "info"
 
 [analytics]
 # Self-hosted: Analytics disabled for local dev
 enabled = false
+
+[auth]
+# Tiempo de vida del access token (segundos) — 1 hora
+jwt_expiry = 3600
+# Tiempo de vida del refresh token (segundos) — 7 días
+refresh_token_rotation_enabled = true
+security_update_password_require_reauthentication = true
+
+# Rate limiting para endpoints de auth
+[auth.rate_limits]
+# Máximo de intentos de sign-in por IP en una ventana de 1h
+sign_in_token_count = 10
+sign_in_window_seconds = 3600
+# Máximo de intentos de sign-up por IP en una ventana de 1h
+sign_up_token_count = 5
+sign_up_window_seconds = 3600
+# Máximo de peticiones de forgot password en una ventana de 1h
+password_recovery_token_count = 3
+password_recovery_window_seconds = 3600

@@ -75,5 +75,41 @@ describe('Mercursión App', () => {
     await element(by.text('Pagar ahora')).tap();
     await expect(element(by.text('Ingresa el nombre del titular.'))).toBeVisible();
   });
+
+  it('muestra banner offline y sincroniza al recuperar red (requires E2E creds)', async () => {
+    if (!HAS_E2E_CREDS) return;
+
+    // Login
+    await expect(element(by.id('login-email-input'))).toBeVisible();
+    await element(by.id('login-email-input')).replaceText(E2E_EMAIL);
+    await element(by.id('login-password-input')).replaceText(E2E_PASSWORD);
+    await element(by.id('login-continue-button')).tap();
+    await waitFor(element(by.id('menu-screen'))).toBeVisible().withTimeout(15000);
+
+    // Desactivar red
+    await device.setStatusBar({ networkActivity: false });
+    await device.disableSynchronization();
+
+    // El banner offline debería aparecer
+    await waitFor(element(by.id('offline-banner'))).toBeVisible().withTimeout(8000);
+
+    // Agregar favorito estando offline (acción queda encolada)
+    await element(by.id('destination-card')).atIndex(0).tap();
+    await waitFor(element(by.id('detail-screen'))).toBeVisible().withTimeout(10000);
+    await element(by.id('favorito-button')).tap();
+
+    // Restaurar red
+    await device.setStatusBar({ networkActivity: true });
+    await device.enableSynchronization();
+
+    // El banner offline desaparece
+    await waitFor(element(by.id('offline-banner'))).not.toBeVisible().withTimeout(12000);
+
+    // Navegar a favoritos y verificar que el destino fue sincronizado
+    await device.pressBack();
+    await element(by.id('tab-favoritos')).tap();
+    await waitFor(element(by.id('favoritos-screen'))).toBeVisible().withTimeout(8000);
+    await expect(element(by.id('favorito-item')).atIndex(0)).toBeVisible();
+  });
 });
 

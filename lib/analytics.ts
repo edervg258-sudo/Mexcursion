@@ -37,17 +37,54 @@ const initMixpanel = async () => {
 initMixpanel();
 
 export const AnalyticsEvents = {
-  APP_OPEN: 'app_open',
-  LOGIN: 'login',
-  SIGN_UP: 'sign_up',
-  SEARCH: 'search',
-  VIEW_ITEM: 'view_item',
-  BEGIN_CHECKOUT: 'begin_checkout',
-  PURCHASE: 'purchase',
-  ADD_TO_FAVORITES: 'add_to_favorites',
+  // ── Sesión
+  APP_OPEN:           'app_open',
+  APP_INSTALL:        'app_install',       // primera apertura
+  SESSION_START:      'session_start',
+
+  // ── Auth
+  LOGIN:              'login',
+  SIGN_UP:            'sign_up',
+  LOGOUT:             'logout',
+  PASSWORD_RESET:     'password_reset',
+
+  // ── Descubrimiento
+  SEARCH:             'search',
+  DESTINATION_VIEWED: 'destination_viewed',
+  PACKAGE_SELECTED:   'package_selected',
+  ADD_TO_FAVORITES:   'add_to_favorites',
   REMOVE_FROM_FAVORITES: 'remove_from_favorites',
-  SHARE: 'share',
-  RATE_APP: 'rate_app',
+
+  // ── Funnel de reserva (cada paso es un evento separado para medir drop-off)
+  BOOKING_STARTED:          'booking_started',           // toca "Reservar"
+  BOOKING_STEP_FORM:        'booking_step_form',         // llena datos del viajero
+  BOOKING_STEP_PAYMENT:     'booking_step_payment',      // llega a pago
+  PAYMENT_METHOD_SELECTED:  'payment_method_selected',
+  PURCHASE:                 'purchase',                  // pago exitoso
+  PURCHASE_FAILED:          'purchase_failed',
+
+  // ── Post-reserva
+  BOOKING_CANCELLED:        'booking_cancelled',
+  REVIEW_SUBMITTED:         'review_submitted',
+
+  // ── Itinerarios
+  ITINERARY_CREATED:        'itinerary_created',
+  ITINERARY_RENAMED:        'itinerary_renamed',
+  ITINERARY_ITEM_ADDED:     'itinerary_item_added',
+
+  // ── Notificaciones
+  NOTIFICATION_RECEIVED:    'notification_received',
+  NOTIFICATION_TAPPED:      'notification_tapped',
+  DEEP_LINK_OPENED:         'deep_link_opened',
+
+  // ── Offline / sync
+  OFFLINE_ACTION_QUEUED:    'offline_action_queued',
+  OFFLINE_SYNC_SUCCESS:     'offline_sync_success',
+  OFFLINE_SYNC_FAILED:      'offline_sync_failed',
+
+  // ── Social
+  SHARE:              'share',
+  RATE_APP:           'rate_app',
 } as const;
 
 const loadQueue = async (): Promise<AnalyticsEvent[]> => {
@@ -167,4 +204,43 @@ export const logEvent = async (event: string, params: Record<string, unknown> = 
 
   await enqueueEvent(payload);
   await flushQueue();
+};
+
+// ── Helpers de negocio ────────────────────────────────────────────────────────
+
+// Registra un paso del funnel de reserva. Úsalo en cada pantalla del flujo.
+export const trackFunnelStep = async (
+  step: 'started' | 'form' | 'payment' | 'completed' | 'failed',
+  params: Record<string, unknown> = {}
+) => {
+  const eventMap = {
+    started:   AnalyticsEvents.BOOKING_STARTED,
+    form:      AnalyticsEvents.BOOKING_STEP_FORM,
+    payment:   AnalyticsEvents.BOOKING_STEP_PAYMENT,
+    completed: AnalyticsEvents.PURCHASE,
+    failed:    AnalyticsEvents.PURCHASE_FAILED,
+  };
+  await logEvent(eventMap[step], params);
+};
+
+// Llama esto al hacer login/registro para enriquecer los perfiles de Mixpanel.
+export const identifyUser = async (user: {
+  id: string;
+  nombre?: string;
+  idioma?: string;
+  tipo?: string;
+}) => {
+  await setUserId(user.id);
+  if (mixpanelInstance) {
+    try {
+      await mixpanelInstance.identify(user.id);
+      const props: Record<string, string> = { $distinct_id: user.id };
+      if (user.nombre) props['$name'] = user.nombre;
+      if (user.idioma) props['idioma'] = user.idioma;
+      if (user.tipo)   props['tipo']   = user.tipo;
+      await mixpanelInstance.setUserProperties(props);
+    } catch {
+      // no-op
+    }
+  }
 };
