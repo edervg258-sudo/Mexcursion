@@ -130,6 +130,8 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   value={correo}
                   onChangeText={t => { setCorreo(t); if (errorCorreo) {setErrorCorreo('');} }}
+                  accessibilityLabel="Correo electrónico"
+                  accessibilityHint="Ingresa tu correo para iniciar sesión"
                 />
                 {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
               </View>
@@ -145,8 +147,16 @@ export default function LoginScreen() {
                     secureTextEntry={!verContrasena}
                     value={contrasena}
                     onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
+                    accessibilityLabel="Contraseña"
+                    accessibilityHint="Ingresa tu contraseña para iniciar sesión"
                   />
-                  <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
+                  <TouchableOpacity
+                    testID="toggle-password-visibility"
+                    onPress={() => setVerContrasena(v => !v)}
+                    style={estilos.botonOjo}
+                    accessibilityRole="button"
+                    accessibilityLabel={verContrasena ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
@@ -154,8 +164,11 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity
+                testID="forgot-password-button"
                 style={estilos.enlaceOlvide}
                 onPress={() => { setErrorCorreo(''); setModalRecuperar(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="¿Olvidaste tu contraseña?"
               >
                 <Text style={estilos.textoOlvide}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
@@ -165,11 +178,20 @@ export default function LoginScreen() {
                 style={[estilos.boton, cargando && estilos.botonDesactivado]}
                 onPress={handleLogin}
                 disabled={cargando}
+                accessibilityRole="button"
+                accessibilityLabel="Iniciar sesión"
+                accessibilityState={{ disabled: cargando }}
               >
                 <Text style={estilos.textoBoton}>{cargando ? 'Ingresando...' : 'Continuar'}</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={estilos.enlace} onPress={() => router.push('/registro')}>
+              <TouchableOpacity
+                testID="go-to-signup-button"
+                style={estilos.enlace}
+                onPress={() => router.push('/registro')}
+                accessibilityRole="button"
+                accessibilityLabel="Ir a registro de nueva cuenta"
+              >
                 <Text style={estilos.textoEnlace}>¿No tienes cuenta? <Text style={estilos.textoEnlaceColor}>Regístrate</Text></Text>
               </TouchableOpacity>
             </View>
@@ -187,6 +209,7 @@ export default function LoginScreen() {
             {/* FIX #1: Usa errorCorreoRecup en lugar del errorCorreo del login */}
             <View style={estilos.grupoCampo}>
               <TextInput
+                testID="recovery-email-input"
                 style={[estilos.campo, errorCorreoRecup ? estilos.campoError : null]}
                 placeholder="Correo electrónico"
                 placeholderTextColor="#aaa"
@@ -194,14 +217,28 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 value={correoRecup}
                 onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) {setErrorCorreoRecup('');} }}
+                accessibilityLabel="Correo electrónico para recuperación"
+                accessibilityHint="Ingresa el correo asociado a tu cuenta"
               />
               {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
             </View>
 
-            <TouchableOpacity style={estilos.boton} onPress={handleRecuperar}>
+            <TouchableOpacity
+              testID="send-recovery-button"
+              style={estilos.boton}
+              onPress={handleRecuperar}
+              accessibilityRole="button"
+              accessibilityLabel="Enviar instrucciones de recuperación"
+            >
               <Text style={estilos.textoBoton}>Enviar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={estilos.enlace} onPress={cerrarModal}>
+            <TouchableOpacity
+              testID="close-recovery-modal-button"
+              style={estilos.enlace}
+              onPress={cerrarModal}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar"
+            >
               <Text style={[estilos.textoOlvide, { textAlign: 'center' }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>

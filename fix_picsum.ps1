@@ -1,3 +1,9 @@
+# ⚠️ LEGACY SCRIPT — Probablemente ya no es necesario
+# Fue útil en desarrollo inicial para cambiar URLs de Unsplash a Picsum en lib/constantes.ts
+# Ahora las URLs deben estar correctas en la fuente. Mantener solo como referencia histórica.
+# Si las imágenes de destinos están usando Unsplash en lugar de Picsum, considera actualizar
+# lib/constantes.ts directamente en lugar de ejecutar este script.
+
 $file = 'lib\constantes.ts'
 $c = Get-Content $file -Raw -Encoding UTF8
 

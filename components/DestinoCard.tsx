@@ -69,11 +69,13 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
         </TouchableOpacity>
 
         <TouchableOpacity
+          testID={`favorite-button-${item.id}`}
           style={s.botonFavorito}
           onPress={() => onToggleFavorito(item.id)}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={item.favorito ? `Quitar ${item.nombre} de favoritos` : `Agregar ${item.nombre} a favoritos`}
+          accessibilityState={{ checked: item.favorito }}
         >
           <Animated.View style={{ transform: [{ scale: animFav }] }}>
             <Image

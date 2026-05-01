@@ -33,12 +33,16 @@ export const RutaChip = React.memo(function RutaChip({ ruta, activa, onPress }: 
 
   return (
     <TouchableOpacity
+      testID={`route-chip-${ruta.id}`}
       style={[
         s.chip,
         { backgroundColor: activa ? ruta.color : tema.superficie, borderColor: activa ? ruta.color : tema.borde },
       ]}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="tab"
+      accessibilityLabel={`${ruta.nombre}, ${ruta.estadoIds.length * ruta.diasPorEstado} días`}
+      accessibilityState={{ selected: activa }}
     >
       {img ? (
         <Image source={img} style={s.img} resizeMode="cover" />
