@@ -46,7 +46,15 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "mexcursion" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -55,6 +63,13 @@
     "plugins": [
       "expo-router",
       "expo-maps",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tu galería para cambiar tu foto de perfil.",
+          "cameraPermission": "La app necesita acceso a tu cámara para tomar tu foto de perfil."
+        }
+      ],
       [
         "expo-notifications",
         {

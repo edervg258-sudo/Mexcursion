@@ -172,6 +172,10 @@ export default function LoginScreen() {
               <TouchableOpacity style={estilos.enlace} onPress={() => router.push('/registro')}>
                 <Text style={estilos.textoEnlace}>¿No tienes cuenta? <Text style={estilos.textoEnlaceColor}>Regístrate</Text></Text>
               </TouchableOpacity>
+
+              <TouchableOpacity style={estilos.enlaceInvitado} onPress={() => router.replace('/(tabs)/menu' as never)}>
+                <Text style={estilos.textoInvitado}>Explorar sin cuenta →</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -235,6 +239,8 @@ const estilos = StyleSheet.create({
   enlace:           { marginTop: 16, alignItems: 'center' },
   textoEnlace:      { fontSize: 13, color: '#666' },
   textoEnlaceColor: { color: '#3AB7A5', fontWeight: '600' },
+  enlaceInvitado:   { marginTop: 10, alignItems: 'center', paddingVertical: 6 },
+  textoInvitado:    { fontSize: 13, color: '#aaa' },
   fondoModal:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   tarjetaModal:     { width: '100%', maxWidth: 380, backgroundColor: '#fff', borderRadius: 20, padding: 24, elevation: 8 },
   tituloModal:      { fontSize: 20, fontWeight: '700', color: '#222', marginBottom: 6, textAlign: 'center' },

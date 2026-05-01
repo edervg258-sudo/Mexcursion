@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
-    Alert, Animated, Image, Modal, Platform, ScrollView,
+    ActivityIndicator, Alert, Animated, Image, Modal, Platform, ScrollView,
     StyleSheet, Switch, Text, TextInput,
     TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
@@ -13,11 +13,13 @@ import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
+import * as ImagePicker from 'expo-image-picker';
 import {
     actualizarPerfil, actualizarPreferencias,
     cambiarContrasena,
     cerrarSesion,
     obtenerUsuarioActivo,
+    subirFotoPerfil,
 } from '../../lib/supabase-db';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { SkeletonPerfil } from './skeletonloader';
@@ -70,6 +72,7 @@ export default function PerfilScreen() {
   const [passNueva, setPassNueva]           = useState('');
   const [passConfirmar, setPassConfirmar]   = useState('');
   const [notificaciones, setNotificaciones] = useState(true);
+  const [subiendoFoto, setSubiendoFoto]     = useState(false);
 
   useFocusEffect(useCallback(() => {
     fadeAnim.setValue(0);
@@ -140,6 +143,25 @@ export default function PerfilScreen() {
     if (sesion?.id) {
       await actualizarPreferencias(sesion.id, { notificaciones: valor ? 1 : 0 });
     }
+  };
+
+  const handleCambiarFoto = async () => {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) { return mensaje('Necesitamos acceso a tu galería para cambiar tu foto.'); }
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (resultado.canceled || !resultado.assets?.[0]) { return; }
+    const asset = resultado.assets[0];
+    if (!sesion?.id) { return; }
+    setSubiendoFoto(true);
+    const r = await subirFotoPerfil(sesion.id, asset.uri, asset.mimeType ?? 'image/jpeg');
+    setSubiendoFoto(false);
+    if (!r.exito) { return mensaje(r.error ?? 'No se pudo cambiar la foto.'); }
+    setSesion(ant => ant ? { ...ant, foto_url: r.url ?? null } : null);
   };
 
   const handleIdioma = async (valor: string) => {
@@ -283,9 +305,20 @@ export default function PerfilScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
             <View style={[estilos.infoUsuario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
-                <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
-              </Animated.View>
+              <TouchableOpacity onPress={handleCambiarFoto} disabled={subiendoFoto} activeOpacity={0.8} style={estilos.avatarWrapper}>
+                <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
+                  {sesion.foto_url ? (
+                    <Image source={{ uri: sesion.foto_url }} style={estilos.avatarImagen} />
+                  ) : (
+                    <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
+                  )}
+                </Animated.View>
+                <View style={estilos.avatarCamaraChip}>
+                  {subiendoFoto
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="camera" size={13} color="#fff" />}
+                </View>
+              </TouchableOpacity>
               <View>
                 <Text style={[estilos.nombreUsuario, { color: tema.texto }]}>{sesion.nombre}</Text>
                 {!!sesion.nombre_usuario && (
@@ -406,7 +439,10 @@ const estilos = StyleSheet.create({
   botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   iconoEncabezado:       { width: 28, height: 28 },
   infoUsuario:           { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, width: '100%', maxWidth: 900, alignSelf: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E7ECEB', marginBottom: 10 },
-  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  avatarWrapper:         { position: 'relative' },
+  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImagen:          { width: 52, height: 52, borderRadius: 26 },
+  avatarCamaraChip:      { position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' },
   inicialUsuario:        { fontSize: 22, fontWeight: '700', color: '#fff' },
   nombreUsuario:         { fontSize: 16, fontWeight: '700', color: '#333' },
   usernameUsuario:       { fontSize: 13, color: '#3AB7A5', fontWeight: '600', marginTop: 1 },

@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Animated, Modal, Platform, ScrollView,
+  Alert, Animated, Modal, Platform, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
@@ -66,22 +66,18 @@ export default function RutasScreen() {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [nombreEditado, setNombreEditado] = useState('');
-  const [cargando,   setCargando]   = useState(true);
+  const [cargando,    setCargando]    = useState(true);
+  const [recargando,  setRecargando]  = useState(false);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
-  useFocusEffect(useCallback(() => {
-    const cargar = async () => {
-      setCargando(true);
-      fadeAnim.setValue(0);
-      const usuario = await obtenerUsuarioActivo();
-      if (!usuario) {
-        setUsuarioId(null);
-        setFavoritos([]);
-        setItinerarios([]);
-        setCargando(false);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
-        return;
-      }
+  const cargarDatos = useCallback(async (esRecarga = false) => {
+    if (!esRecarga) { setCargando(true); fadeAnim.setValue(0); }
+    const usuario = await obtenerUsuarioActivo();
+    if (!usuario) {
+      setUsuarioId(null);
+      setFavoritos([]);
+      setItinerarios([]);
+    } else {
       setUsuarioId(usuario.id);
       const [idsFav, itinerariosUsuario] = await Promise.all([
         cargarFavoritos(usuario.id),
@@ -89,11 +85,18 @@ export default function RutasScreen() {
       ]);
       setFavoritos(idsFav);
       setItinerarios(itinerariosUsuario);
-      setCargando(false);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
-    };
-    cargar();
-  }, [fadeAnim]));
+    }
+    setCargando(false);
+    setRecargando(false);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [fadeAnim]);
+
+  useFocusEffect(useCallback(() => { cargarDatos(); }, [cargarDatos]));
+
+  const onRefresh = useCallback(async () => {
+    setRecargando(true);
+    await cargarDatos(true);
+  }, [cargarDatos]);
 
   const toggleFavorito = useCallback(async (estadoId: number) => {
     if (!usuarioId) { return; }
@@ -258,6 +261,14 @@ export default function RutasScreen() {
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={es.misRutasScroll}
+            refreshControl={
+              <RefreshControl
+                refreshing={recargando}
+                onRefresh={onRefresh}
+                colors={['#3AB7A5']}
+                tintColor="#3AB7A5"
+              />
+            }
           >
             {/* Hero "Mis viajes" */}
             <View style={[es.heroMisViajes, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
