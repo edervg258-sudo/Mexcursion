@@ -11,6 +11,7 @@ import {
 import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { validarEmail } from '../../lib/validaciones';
 
 // ─── Calendario funcional (web + nativo sin dependencias externas) ────────────
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -210,7 +211,7 @@ export default function ReservaScreen() {
       case 'nombre':
         return valor.trim().length < 3 ? t('rsv_err_nombre') : '';
       case 'email':
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim()) ? '' : t('rsv_err_correo');
+        return validarEmail(valor.trim()) ? '' : t('rsv_err_correo');
       case 'tel':
         return valor.replace(/\D/g, '').length >= 10 ? '' : t('rsv_err_telefono');
       case 'fecha': {

@@ -103,7 +103,7 @@ export function useItinerarios() {
   }, [usuarioId]);
 
   const irADetalle = useCallback((estado: Estado) => {
-    router.push({ pathname: '/(tabs)/detalle', params: { nombre: estado.nombre, categoria: estado.categoria } } as never);
+    router.push({ pathname: '/(tabs)/detalle', params: { nombre: estado.nombre, categoria: estado.categoria } });
   }, []);
 
   const itinerariosResumen = useMemo<ItinerarioResumen[]>(() =>
@@ -210,7 +210,7 @@ export function useItinerarios() {
     router.push({
       pathname: '/(tabs)/detalle',
       params: { nombre: estado, categoria: estadoEncontrado?.categoria ?? '' },
-    } as never);
+    });
   }, []);
 
   const obtenerEtiquetaNivel = useCallback((nivel: string) => {

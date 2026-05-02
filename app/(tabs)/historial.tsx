@@ -158,7 +158,7 @@ export default function HistorialScreen() {
     <TabChrome
       esPC={esPC}
       title={t('hist_titulo')}
-      onBack={() => router.replace('/(tabs)/perfil' as never)}
+      onBack={() => router.replace('/(tabs)/perfil')}
       headerRight={<View style={s.headerSpacer} />}
     >
       <View style={s.subheader}>

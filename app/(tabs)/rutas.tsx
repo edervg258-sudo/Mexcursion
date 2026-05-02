@@ -69,7 +69,7 @@ export default function RutasScreen() {
         <TopActionHeader
           title={t('tab_rutas')}
           showInlineLogo={false}
-          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
+          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES), 0)}
         />
 
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
@@ -127,7 +127,7 @@ export default function RutasScreen() {
               ) : (
                 <TouchableOpacity
                   style={[es.btnNuevo, { backgroundColor: tema.primario }]}
-                  onPress={() => router.push(RUTAS_APP.PERFIL as never)}
+                  onPress={() => router.push(RUTAS_APP.PERFIL)}
                   activeOpacity={0.85}
                 >
                   <Text style={es.btnNuevoTxt}>{t('rut_ir')}</Text>
@@ -147,7 +147,7 @@ export default function RutasScreen() {
                 <Text style={[es.vacioTexto, { color: tema.textoSecundario }]}>{t('rut_sin_itis_msg')}</Text>
                 <TouchableOpacity
                   style={[es.btnExplorar, { borderColor: tema.primario }]}
-                  onPress={() => router.push('/(tabs)/menu' as never)}
+                  onPress={() => router.push('/(tabs)/menu')}
                   activeOpacity={0.85}
                 >
                   <Text style={[es.btnExplorarTxt, { color: tema.primario }]}>{t('rut_explorar')}</Text>

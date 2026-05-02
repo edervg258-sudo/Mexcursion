@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useQuery } from '@tanstack/react-query';
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DestinoCard } from '../../components/DestinoCard';
 import { SkeletonLista } from './skeletonloader';
@@ -151,7 +151,7 @@ export default function MenuScreen() {
     staleTime: 1000 * 60 * 10,
   });
 
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
+  const navegarPestana = (ruta: Href) => router.replace(ruta);
 
   const estaActiva = (ruta: string) => {
     const segmento = ruta.replace('/(tabs)', '');
@@ -215,7 +215,7 @@ export default function MenuScreen() {
                 borderColor: isDark ? tema.borde : tema.bordeInput,
               },
             ]}
-            onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)}
+            onPress={() => router.push(RUTAS_APP.NOTIFICACIONES)}
           >
             <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
           </TouchableOpacity>

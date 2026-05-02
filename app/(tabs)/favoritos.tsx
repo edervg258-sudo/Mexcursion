@@ -158,7 +158,7 @@ export default function FavoritosScreen() {
   // ── Contenido ──────────────────────────────────────────────────────────
   const Contenido = () => (
     <View style={{ flex: 1 }}>
-      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)} />
+      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES), 0)} />
 
       <View style={s.contenedorCentrado}>
         {cargando ? (
@@ -168,7 +168,7 @@ export default function FavoritosScreen() {
             <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />
             <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('fav_vacios')}</Text>
             <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('fav_vacios2')}</Text>
-            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu'), 0)}>
               <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
           </View>
@@ -183,7 +183,7 @@ export default function FavoritosScreen() {
                   idx={index}
                   t={t}
                   onPress={(it: FavoritoItem) => setTimeout(() => router.push({
-                    pathname: '/(tabs)/detalle' as never,
+                    pathname: '/(tabs)/detalle',
                     params: { nombre: it.nombre, categoria: it.categoria },
                   }), 0)}
                   onRemove={quitarFavorito}

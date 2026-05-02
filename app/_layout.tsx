@@ -5,7 +5,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
-import { router, Stack } from 'expo-router';
+import { router, Stack, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
@@ -176,9 +176,9 @@ export default function RootLayout() {
     notifListener.current = Notifications.addNotificationReceivedListener(() => {});
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       if (response.notification.request.content.data?.ruta) {
-        setTimeout(() => router.push(response.notification.request.content.data.ruta as never), 0);
+        setTimeout(() => router.push(response.notification.request.content.data.ruta as Href), 0);
       } else if (response.notification.request.content.data?.notificacion_id) {
-        setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0);
+        setTimeout(() => router.push('/(tabs)/notificaciones' as Href), 0);
       }
     });
     return () => {

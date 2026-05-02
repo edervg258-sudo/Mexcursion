@@ -178,7 +178,7 @@ export default function MisReservasScreen() {
     const estado = destinosDB.find(e => e.nombre === item.destino)
       || TODOS_LOS_ESTADOS.find(e => e.nombre === item.destino);
     setTimeout(() => router.push({
-      pathname: '/(tabs)/detalle' as never,
+      pathname: '/(tabs)/detalle',
       params: { nombre: item.destino, categoria: estado?.categoria ?? 'Cultura' },
     }), 0);
   };
@@ -211,7 +211,7 @@ export default function MisReservasScreen() {
 
   const volverAReservar = (item: Reserva) => {
     setTimeout(() => router.push({
-      pathname: '/(tabs)/reserva' as never,
+      pathname: '/(tabs)/reserva',
       params: {
         nombre: item.destino,
         paquete: item.paquete,
@@ -400,7 +400,7 @@ export default function MisReservasScreen() {
       {filtro === 'todas' && (
         <TouchableOpacity
           style={es.btnExplorar}
-          onPress={() => router.replace('/(tabs)/menu' as never)}
+          onPress={() => router.replace('/(tabs)/menu')}
           activeOpacity={0.85}
         >
           <Text style={es.txtExplorar}>Explorar destinos →</Text>
@@ -433,7 +433,7 @@ export default function MisReservasScreen() {
     <TabChrome
       esPC={esPC}
       title={t('res_titulo')}
-      onBack={() => setTimeout(() => router.replace('/(tabs)/perfil' as never), 0)}
+      onBack={() => setTimeout(() => router.replace('/(tabs)/perfil'), 0)}
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >

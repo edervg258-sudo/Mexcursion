@@ -1,5 +1,7 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
+import { logger } from './logger';
+import { validarEmail } from './validaciones';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
 import { addBreadcrumb, captureApiError } from './sentry';
 
@@ -77,7 +79,7 @@ export async function registrarUsuario(
     const email = (correo ?? '').trim().toLowerCase();
 
     // Validación rápida antes de llamar a Supabase
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!validarEmail(email)) {
       return { exito: false, error: 'Ingresa un correo electrónico válido.' };
     }
 
@@ -130,24 +132,18 @@ export async function iniciarSesion(
     });
 
     if (error) {
-      console.log('❌ Error de login:', error.message);
-      
-      // Manejar específicamente errores de refresh token
+      logger.error(error, { feature: 'auth', action: 'iniciarSesion' });
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
       }
-      
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
-    console.log('✅ Login exitoso para:', correo);
-    
-    // Obtener usuario activo inmediatamente
+    logger.debug('iniciarSesion exitoso', { feature: 'auth' });
     const usuario = await obtenerUsuarioActivo();
-    
     return { exito: true, usuario: usuario ?? undefined };
   } catch (error) {
-    console.log('❌ Error inesperado en login:', error);
+    logger.error(error, { feature: 'auth', action: 'iniciarSesion' });
     return { exito: false, error: 'Error al iniciar sesión.' };
   }
 }
@@ -250,7 +246,7 @@ export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
 export async function buscarUsuarioPorCorreo(correo: string): Promise<any | null> {
   try {
     const email = (correo ?? '').trim().toLowerCase();
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!validarEmail(email)) {
       return null;
     }
     return { email };
@@ -265,7 +261,7 @@ export async function solicitarRecuperacionContrasena(
 ): Promise<{ exito: boolean; error?: string }> {
   try {
     const email = (correo ?? '').trim().toLowerCase();
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!validarEmail(email)) {
       return { exito: false, error: 'Ingresa un correo electrónico válido.' };
     }
 
