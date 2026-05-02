@@ -38,6 +38,8 @@ if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync();
 }
 
+const IONICONS_CDN = 'https://unpkg.com/@expo/vector-icons@15.0.3/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf';
+
 // Parches web globales
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   const style = document.createElement('style');
@@ -111,7 +113,7 @@ export default function RootLayout() {
 
   const [fontsLoaded] = useFonts({
     Ionicons: Platform.OS === 'web'
-      ? { uri: 'https://unpkg.com/@expo/vector-icons@15.0.3/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' }
+      ? { uri: IONICONS_CDN }
       : require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
   });
 
