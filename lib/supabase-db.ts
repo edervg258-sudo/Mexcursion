@@ -624,74 +624,43 @@ export async function guardarReserva(
       ? fecha.split('/').reverse().join('-')
       : fecha;
 
-    // Idempotencia: si el folio ya existe para este usuario, consideramos éxito.
-    const { data: existente } = await supabase
-      .from('reservas')
-      .select('id')
-      .eq('usuario_id', usuario_id)
-      .eq('folio', folioNormalizado)
-      .maybeSingle();
-    if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
-      return 'idempotent';
-    }
+    // Delega a la Edge Function: valida, inserta atómicamente, crea notificación y envía email
+    const { data, error } = await supabase.functions.invoke<{ resultado: string; error?: string }>(
+      'confirmar-reserva',
+      {
+        body: {
+          folio:    folioNormalizado,
+          destino:  destino.trim(),
+          paquete:  paquete.trim(),
+          fecha:    fechaISO,
+          personas,
+          total,
+          metodo:   metodo.toLowerCase(),
+          estado:   estado.toLowerCase(),
+          notas:    notas?.trim() ?? '',
+        },
+      },
+    );
 
-    const fila: Record<string, any> = {
-      usuario_id,
-      folio: folioNormalizado,
-      destino: destino.trim(),
-      paquete: paquete.trim(),
-      fecha: fechaISO,
-      personas,
-      total,
-      metodo: metodo.toLowerCase(),
-      estado: estado.toLowerCase(),
-    };
-    if (notas?.trim()) fila.notas = notas.trim();
-
-    const { error } = await supabase.from('reservas').insert(fila);
     if (error) {
-      // 23505: unique_violation (folio duplicado). Es un caso idempotente.
-      if ((error as { code?: string }).code === '23505') {
-        return 'idempotent';
-      }
       if (isNetworkLikeError(error)) {
+        // Sin red: encolar para reintentar offline
         await enqueueOfflineOperation({
           type: 'CREAR_RESERVA',
-          payload: fila,
+          payload: { usuario_id, folio: folioNormalizado, destino, paquete, fecha: fechaISO, personas, total, metodo, estado, notas },
         });
         return 'queued_offline';
       }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+      captureApiError({ feature: 'reservas', action: 'insert', error, metadata: { usuario_id, folio: folioNormalizado } });
       return 'failed';
     }
-    // Enviar correo de confirmación — pasamos los datos directamente para evitar
-    // problemas de RLS al leer el ID recién insertado
-    supabase.functions
-      .invoke('enviar-email-reserva', {
-        body: {
-          tipo: 'nueva',
-          folio:   folioNormalizado,
-          destino: fila.destino,
-          paquete: fila.paquete,
-          fecha:   fila.fecha,
-          personas: fila.personas,
-          total:   fila.total,
-          metodo:  fila.metodo,
-          estado:  fila.estado,
-          usuario_id,
-        },
-      })
-      .catch(e => console.warn('email invoke failed:', e));
+
+    const resultado = data?.resultado;
+    if (resultado === 'idempotent') {
+      addBreadcrumb({ category: 'booking', message: 'guardarReserva idempotent hit', data: { usuario_id, folio: folioNormalizado } });
+      return 'idempotent';
+    }
+    if (resultado !== 'saved') return 'failed';
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);

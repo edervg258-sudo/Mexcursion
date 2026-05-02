@@ -187,8 +187,8 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Mexcursión <reservas@mexcursion.mx>',
-          to: [correo],
+          from: 'onboarding@resend.dev',
+          to: ['edervg258@gmail.com'],
           subject: asunto,
           html,
         }),
