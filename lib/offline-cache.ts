@@ -20,6 +20,8 @@ const CACHE_KEYS = {
 // Tiempo de expiración del cache (24 horas)
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000;
 
+const MAX_QUEUE_SIZE = 100;
+
 // Estado de conectividad
 let isOnline = true;
 
@@ -126,6 +128,10 @@ class OfflineQueue {
 
   static async add(operation: OfflineOperation): Promise<void> {
     try {
+      if (this.queue.length >= MAX_QUEUE_SIZE) {
+        console.warn('Offline queue llena, descartando operación más antigua');
+        this.queue.shift();
+      }
       const op: OfflineOperation = { ...operation, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: Date.now(), attempts: operation.attempts ?? 0 };
       this.queue.push(op);
       await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(this.queue));
