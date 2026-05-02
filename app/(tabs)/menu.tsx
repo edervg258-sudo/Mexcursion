@@ -39,15 +39,15 @@ type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
 type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
 
+const BREAKPOINT_PC = 768;
+const HEADER_HEIGHT = 72;
+
 export default function MenuScreen() {
   const { width } = useWindowDimensions();
-  const esPC = width >= 768;
+  const esPC = width >= BREAKPOINT_PC;
   const { tema, isDark } = useTemaContext();
   const { t } = useIdioma();
   const { bottom: bottomInset } = useSafeAreaInsets();
-
-  // Ajusta este valor si tu header tiene otra altura real
-  const HEADER_HEIGHT = 72;
 
   const [estados, setEstados] = useState(() =>
     TODOS_LOS_ESTADOS.map((e) => ({ ...e, favorito: false }))
