@@ -76,7 +76,7 @@ export function VistaDetalleItinerario({
         justifyContent: 'center',
         elevation: 2,
       }}
-      onPress={() => setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0)}
+      onPress={() => setTimeout(() => router.push('/(tabs)/notificaciones'), 0)}
     >
       <ExpoImage
         source={require('../../assets/images/notificaciones.png')}

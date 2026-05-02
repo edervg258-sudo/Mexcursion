@@ -50,11 +50,11 @@ export default function OnboardingScreen() {
       scrollRef.current?.scrollTo({ x: W * nuevo, animated: true });
       setIndice(nuevo);
     } else {
-      router.push('/registro' as never);
+      router.push('/registro');
     }
   };
 
-  const saltar = () => router.push('/registro' as never);
+  const saltar = () => router.push('/registro');
 
   const slide = SLIDES[indice];
 
@@ -130,7 +130,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
 
           {indice === SLIDES.length - 1 && (
-            <TouchableOpacity onPress={() => router.push('/login' as never)} style={s.btnYaTengo}>
+            <TouchableOpacity onPress={() => router.push('/login')} style={s.btnYaTengo}>
               <Text style={s.txtYaTengo}>Ya tengo cuenta → Iniciar sesión</Text>
             </TouchableOpacity>
           )}

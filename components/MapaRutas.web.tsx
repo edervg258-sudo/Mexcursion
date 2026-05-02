@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Estado } from '../lib/tipos';
+import { MapaRutasProps as Props } from './MapaRutas.types';
 
 // ── Inyectar CSS de Leaflet desde CDN (solo una vez) ─────────────────────────
 if (typeof document !== 'undefined') {
@@ -41,19 +41,6 @@ function FitBounds({ coords }: { coords: [number, number][] }) {
     }
   }, [coords, map]);
   return null;
-}
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-interface Props {
-  rutaColor: string;
-  rutaNombre: string;
-  estadosRuta: Estado[];
-  polylineCoords: { latitude: number; longitude: number }[];
-  favoritos: number[];
-  isDark: boolean;
-  tema: Record<string, string>;
-  onToggleFav: (id: number) => void;
-  onIrADetalle: (estado: Estado) => void;
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────

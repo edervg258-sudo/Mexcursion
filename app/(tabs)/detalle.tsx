@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams, usePathname } from 'expo-router';
+import { router, useLocalSearchParams, usePathname, type Href } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert, Animated,
@@ -132,7 +132,7 @@ export default function DetalleScreen() {
   }, [paqueteAnims]);
 
   const claveRuta  = (nivel: string) => `${nombre}|${nivel}`;
-  const navegarPestana = useCallback((ruta: string) => setTimeout(() => router.replace(ruta as never), 0), []);
+  const navegarPestana = useCallback((ruta: Href) => setTimeout(() => router.replace(ruta), 0), []);
   const estaActiva = useCallback((ruta: string) => rutaActual.endsWith(ruta.replace('/(tabs)', '')), [rutaActual]);
 
   const estaEnRuta = (nivel: string) => {
@@ -180,11 +180,11 @@ export default function DetalleScreen() {
   };
 
   const irAReserva = (paquete: Paquete) => {
-    setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
+    setTimeout(() => router.push({ pathname: '/(tabs)/reserva', params: { nombre, precio: extraerPrecio(paquete.precioTotal), paquete: t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
   };
 
   const irAResenas = () => {
-    setTimeout(() => router.push({ pathname:'/(tabs)/resenas' as never, params:{ nombre } }), 0);
+    setTimeout(() => router.push({ pathname: '/(tabs)/resenas', params: { nombre } }), 0);
   };
 
   // ── Contenido ──────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ export default function DetalleScreen() {
         subtitle={String(categoria ?? '')}
         showInlineLogo={!esPC}
         onBackPress={() => router.back()}
-        onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
+        onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES), 0)}
         maxWidth={800}
       />
 

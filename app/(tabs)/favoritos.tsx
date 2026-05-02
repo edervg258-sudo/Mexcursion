@@ -32,20 +32,27 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
   const entradaAnim = useRef(new Animated.Value(0)).current;
   const escalaCard  = useRef(new Animated.Value(1)).current;
   const escalaFav   = useRef(new Animated.Value(1)).current;
+  const mounted     = useRef(true);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Animated.spring as any)(entradaAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 55, friction: 10, delay: idx * 65 }).start();
+    mounted.current = true;
+    const anim = Animated.sequence([
+      Animated.delay(idx * 65),
+      Animated.spring(entradaAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 55, friction: 10 }),
+    ]);
+    anim.start();
+    return () => { mounted.current = false; anim.stop(); };
   }, [entradaAnim, idx]);
 
   const pressIn  = () => Animated.spring(escalaCard, { toValue: 0.96, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start();
   const pressOut = () => Animated.spring(escalaCard, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start();
 
   const handleRemove = () => {
-    Animated.sequence([
+    const seq = Animated.sequence([
       Animated.spring(escalaFav, { toValue: 1.38, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 8 }),
       Animated.spring(escalaFav, { toValue: 0,    useNativeDriver: Platform.OS !== 'web', speed: 30, bounciness: 0 }),
-    ]).start(() => onRemove(item.id));
+    ]);
+    seq.start(({ finished }) => { if (finished && mounted.current) onRemove(item.id); });
   };
 
   return (
@@ -158,7 +165,7 @@ export default function FavoritosScreen() {
   // ── Contenido ──────────────────────────────────────────────────────────
   const Contenido = () => (
     <View style={{ flex: 1 }}>
-      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)} />
+      <TopActionHeader title={t('fav_titulo')} showInlineLogo={!esPC} onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES), 0)} />
 
       <View style={s.contenedorCentrado}>
         {cargando ? (
@@ -168,7 +175,7 @@ export default function FavoritosScreen() {
             <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />
             <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('fav_vacios')}</Text>
             <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('fav_vacios2')}</Text>
-            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu'), 0)}>
               <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
           </View>
@@ -177,13 +184,16 @@ export default function FavoritosScreen() {
             <FlatList
               data={estadosFavoritos}
               keyExtractor={item => String(item.id)}
+              removeClippedSubviews={Platform.OS !== 'web'}
+              maxToRenderPerBatch={8}
+              initialNumToRender={6}
               renderItem={({ item, index }) => (
                 <FavCard
                   item={item}
                   idx={index}
                   t={t}
                   onPress={(it: FavoritoItem) => setTimeout(() => router.push({
-                    pathname: '/(tabs)/detalle' as never,
+                    pathname: '/(tabs)/detalle',
                     params: { nombre: it.nombre, categoria: it.categoria },
                   }), 0)}
                   onRemove={quitarFavorito}

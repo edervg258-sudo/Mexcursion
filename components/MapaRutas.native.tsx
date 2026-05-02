@@ -1,31 +1,10 @@
 // MapaRutas.native.tsx — Leaflet embebido en WebView
 // Usa OpenStreetMap (sin API key). Funciona en Expo Go y builds de producción.
 import React, { useMemo } from 'react';
-import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import { Image as ExpoImage } from 'expo-image';
-import { Estado } from '../lib/tipos';
-
-interface Punto {
-  lat: number;
-  lon: number;
-  nombre: string;
-  categoria: string;
-  precio: number;
-  numero: number;
-}
-
-interface Props {
-  rutaColor: string;
-  rutaNombre: string;
-  estadosRuta: Estado[];
-  polylineCoords: { latitude: number; longitude: number }[];
-  favoritos: number[];
-  isDark: boolean;
-  tema: Record<string, string>;
-  onToggleFav: (id: number) => void;
-  onIrADetalle: (estado: Estado) => void;
-}
+import { MapaRutasProps as Props, Punto } from './MapaRutas.types';
 
 // ── HTML con Leaflet embebido ─────────────────────────────────────────────────
 const generarHtml = (puntos: Punto[], color: string, isDark: boolean): string => {

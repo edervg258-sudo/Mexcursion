@@ -129,7 +129,7 @@ export default function ConfirmacionScreen() {
 
           <TouchableOpacity
             style={es.btnPrimario}
-            onPress={() => router.replace('/(tabs)/menu' as never)}
+            onPress={() => router.replace('/(tabs)/menu')}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Explorar más destinos"
@@ -139,7 +139,7 @@ export default function ConfirmacionScreen() {
 
           <TouchableOpacity
             style={[es.btnSecundario, { borderColor: '#3AB7A5' }]}
-            onPress={() => router.replace('/(tabs)/mis_reservas' as never)}
+            onPress={() => router.replace('/(tabs)/mis_reservas')}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Ir a mis reservas"

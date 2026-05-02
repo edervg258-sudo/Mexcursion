@@ -247,7 +247,7 @@ export default function ResenasScreen() {
     <TabChrome
       esPC={esPC}
       title={t('rsn_titulo')}
-      onBack={() => router.replace('/(tabs)/perfil' as never)}
+      onBack={() => router.replace('/(tabs)/perfil')}
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >

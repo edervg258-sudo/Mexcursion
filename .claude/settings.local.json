@@ -22,7 +22,8 @@
       "Read(//c/Users/usuario/AppData/Local/Programs/**)",
       "Read(//c/Program Files/**)",
       "Read(//c/Users/usuario/**)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(grep -rn \"\\\\\\\\\\\\\\\\S+@\\\\\\\\\\\\\\\\S+\\\\\\\\.\\\\\\\\\\\\\\\\S+\" --include=\"*.tsx\" --include=\"*.ts\" .)"
     ]
   }
 }

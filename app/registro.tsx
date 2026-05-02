@@ -10,6 +10,7 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { obtenerUsuarioActivo, registrarUsuario } from '../lib/supabase-db';
+import { validarEmail } from '../lib/validaciones';
 
 type FormType = {
   nombre: string; nombre_usuario: string;
@@ -48,7 +49,7 @@ export default function RegistroScreen() {
       {nuevos.nombre_usuario = 'Solo letras, números y guión bajo';}
     if (!form.correo.trim())
       {nuevos.correo = 'Ingresa tu correo electrónico';}
-    else if (!/\S+@\S+\.\S+/.test(form.correo))
+    else if (!validarEmail(form.correo))
       {nuevos.correo = 'Ingresa un correo válido';}
     if (!form.telefono.trim())
       {nuevos.telefono = 'Ingresa tu número de teléfono';}

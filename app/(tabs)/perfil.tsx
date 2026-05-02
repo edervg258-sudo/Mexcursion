@@ -110,7 +110,7 @@ export default function PerfilScreen() {
         );
     if (!confirmar) { return; }
     await cerrarSesion();
-    setTimeout(() => router.replace('/login' as never), 0);
+    setTimeout(() => router.replace('/login'), 0);
   };
 
   const handleGuardarPerfil = async () => {
@@ -152,8 +152,8 @@ export default function PerfilScreen() {
   };
 
   const ACCESOS_RAPIDOS: { etiqueta: string; icono: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
-    { etiqueta: t('prf_mis_reservas'), icono: 'calendar-outline', onPress: () => setTimeout(() => router.push(RUTAS_APP.MIS_RESERVAS as never), 0) },
-    { etiqueta: t('prf_historial'),    icono: 'time-outline',     onPress: () => setTimeout(() => router.push(RUTAS_APP.HISTORIAL as never), 0) },
+    { etiqueta: t('prf_mis_reservas'), icono: 'calendar-outline', onPress: () => setTimeout(() => router.push(RUTAS_APP.MIS_RESERVAS), 0) },
+    { etiqueta: t('prf_historial'),    icono: 'time-outline',     onPress: () => setTimeout(() => router.push(RUTAS_APP.HISTORIAL), 0) },
   ];
 
   const SECCIONES = [
@@ -278,7 +278,7 @@ export default function PerfilScreen() {
         <TopActionHeader
           title={t('prf_titulo')}
           showInlineLogo={!esPC}
-          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES as never), 0)}
+          onNotificationsPress={() => setTimeout(() => router.push(RUTAS_APP.NOTIFICACIONES), 0)}
         />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
@@ -353,7 +353,7 @@ export default function PerfilScreen() {
               style={estilos.botonAdmin}
               onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
               onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start()}
-              onPress={() => setTimeout(() => router.push(RUTAS_APP.ADMIN as never), 0)}
+              onPress={() => setTimeout(() => router.push(RUTAS_APP.ADMIN), 0)}
               activeOpacity={1}
             >
               <Animated.View style={{ transform: [{ scale: adminAnim }] }}>

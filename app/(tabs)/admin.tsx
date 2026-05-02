@@ -113,7 +113,7 @@ export default function AdminScreen() {
       if (!sesion || sesion.tipo !== 'admin') {
         setEsAdmin(false);
         // replace en vez de back: impide que el usuario vuelva a esta pantalla
-        router.replace('/(tabs)/menu' as never);
+        router.replace('/(tabs)/menu');
         return;
       }
       setEsAdmin(true);
