@@ -624,56 +624,43 @@ export async function guardarReserva(
       ? fecha.split('/').reverse().join('-')
       : fecha;
 
-    // Idempotencia: si el folio ya existe para este usuario, consideramos éxito.
-    const { data: existente } = await supabase
-      .from('reservas')
-      .select('id')
-      .eq('usuario_id', usuario_id)
-      .eq('folio', folioNormalizado)
-      .maybeSingle();
-    if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
-      return 'idempotent';
-    }
+    // Delega a la Edge Function: valida, inserta atómicamente, crea notificación y envía email
+    const { data, error } = await supabase.functions.invoke<{ resultado: string; error?: string }>(
+      'confirmar-reserva',
+      {
+        body: {
+          folio:    folioNormalizado,
+          destino:  destino.trim(),
+          paquete:  paquete.trim(),
+          fecha:    fechaISO,
+          personas,
+          total,
+          metodo:   metodo.toLowerCase(),
+          estado:   estado.toLowerCase(),
+          notas:    notas?.trim() ?? '',
+        },
+      },
+    );
 
-    const fila: Record<string, any> = {
-      usuario_id,
-      folio: folioNormalizado,
-      destino: destino.trim(),
-      paquete: paquete.trim(),
-      fecha: fechaISO,
-      personas,
-      total,
-      metodo: metodo.toLowerCase(),
-      estado: estado.toLowerCase(),
-    };
-    if (notas?.trim()) fila.notas = notas.trim();
-
-    const { error } = await supabase.from('reservas').insert(fila);
     if (error) {
-      // 23505: unique_violation (folio duplicado). Es un caso idempotente.
-      if ((error as { code?: string }).code === '23505') {
-        return 'idempotent';
-      }
       if (isNetworkLikeError(error)) {
+        // Sin red: encolar para reintentar offline
         await enqueueOfflineOperation({
           type: 'CREAR_RESERVA',
-          payload: fila,
+          payload: { usuario_id, folio: folioNormalizado, destino, paquete, fecha: fechaISO, personas, total, metodo, estado, notas },
         });
         return 'queued_offline';
       }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+      captureApiError({ feature: 'reservas', action: 'insert', error, metadata: { usuario_id, folio: folioNormalizado } });
       return 'failed';
     }
+
+    const resultado = data?.resultado;
+    if (resultado === 'idempotent') {
+      addBreadcrumb({ category: 'booking', message: 'guardarReserva idempotent hit', data: { usuario_id, folio: folioNormalizado } });
+      return 'idempotent';
+    }
+    if (resultado !== 'saved') return 'failed';
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
@@ -720,10 +707,23 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   }
 }
 
-export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+export async function actualizarEstadoReserva(id: number, estado: string): Promise<{ exito: boolean; error?: string }> {
   try {
-    await supabase.from('reservas').update({ estado }).eq('id', id);
-  } catch (err) { console.error('actualizarEstadoReserva error:', err); }
+    const { error } = await supabase.from('reservas').update({ estado }).eq('id', id);
+    if (error) {
+      console.error('actualizarEstadoReserva error:', error.message);
+      return { exito: false, error: error.message };
+    }
+    if (estado === 'confirmada' || estado === 'cancelada') {
+      supabase.functions
+        .invoke('enviar-email-reserva', { body: { reserva_id: id, tipo: estado } })
+        .catch(e => console.warn('email invoke failed:', e));
+    }
+    return { exito: true };
+  } catch (err) {
+    console.error('actualizarEstadoReserva exception:', err);
+    return { exito: false, error: String(err) };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -839,10 +839,11 @@ export async function agregarHistorial(
   detalle: string
 ): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from('historial')
-      .insert({ usuario_id, tipo, titulo, detalle, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('agregarHistorial error:', err); }
+      .insert({ usuario_id, tipo, titulo, detalle });
+    if (error) console.warn('agregarHistorial warn:', error.message);
+  } catch (err) { console.warn('agregarHistorial error (ignorado):', err); }
 }
 
 export async function cargarHistorial(usuario_id: string, limite = 30, offset = 0): Promise<any[]> {
@@ -866,16 +867,12 @@ export async function cargarHistorial(usuario_id: string, limite = 30, offset = 
 // ══════════════════════════════════════════════════════════════════════════
 
 export async function crearNotificacion(
-  usuario_id: string,
-  tipo: string,
-  titulo: string,
-  mensaje: string
+  _usuario_id: string,
+  _tipo: string,
+  _titulo: string,
+  _mensaje: string
 ): Promise<void> {
-  try {
-    await supabase
-      .from('notificaciones')
-      .insert({ usuario_id, tipo, titulo, mensaje, leida: false, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('crearNotificacion error:', err); }
+  // Las notificaciones se crean server-side en la Edge Function confirmar-reserva
 }
 
 export async function cargarNotificaciones(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {
