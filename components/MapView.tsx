@@ -43,6 +43,9 @@ export function MapaInteractivo({
     );
   }
 
+  const htmlEscape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
   // Generar HTML para mapa simple con Leaflet (OpenStreetMap - sin API key)
   const generateMapHTML = () => `
     <!DOCTYPE html>
@@ -70,7 +73,7 @@ export function MapaInteractivo({
 
           L.marker([${latitude}, ${longitude}])
             .addTo(map)
-            .bindPopup('<b>${title || 'Destino'}</b><br>${description || ''}');
+            .bindPopup('<b>${htmlEscape(title || 'Destino')}</b><br>${htmlEscape(description || '')}');
         } catch (error) {
           document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Error cargando mapa</div>';
         }

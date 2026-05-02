@@ -1,6 +1,7 @@
 // ============================================================
 //  lib/tipos/index.ts  —  Definiciones de tipos TypeScript
 // ============================================================
+import { ImageSourcePropType } from 'react-native';
 
 // ===========================
 //  TIPOS PRINCIPALES
@@ -52,15 +53,15 @@ export interface Estado {
   nombre: string;
   categoria: CategoriaEstado;
   descripcion: string;
-  imagen: any;
+  imagen: ImageSourcePropType;
   precio: number;
   latitude: number;
   longitude: number;
 }
 
 export interface Pestana {
-  iconoGris: any;
-  iconoRojo: any;
+  iconoGris: ImageSourcePropType;
+  iconoRojo: ImageSourcePropType;
   etiqueta: string;
   ruta: string;
 }
