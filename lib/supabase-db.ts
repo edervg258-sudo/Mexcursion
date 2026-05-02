@@ -674,6 +674,24 @@ export async function guardarReserva(
       });
       return 'failed';
     }
+    // Enviar correo de confirmación — pasamos los datos directamente para evitar
+    // problemas de RLS al leer el ID recién insertado
+    supabase.functions
+      .invoke('enviar-email-reserva', {
+        body: {
+          tipo: 'nueva',
+          folio:   folioNormalizado,
+          destino: fila.destino,
+          paquete: fila.paquete,
+          fecha:   fila.fecha,
+          personas: fila.personas,
+          total:   fila.total,
+          metodo:  fila.metodo,
+          estado:  fila.estado,
+          usuario_id,
+        },
+      })
+      .catch(e => console.warn('email invoke failed:', e));
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
@@ -720,10 +738,23 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   }
 }
 
-export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+export async function actualizarEstadoReserva(id: number, estado: string): Promise<{ exito: boolean; error?: string }> {
   try {
-    await supabase.from('reservas').update({ estado }).eq('id', id);
-  } catch (err) { console.error('actualizarEstadoReserva error:', err); }
+    const { error } = await supabase.from('reservas').update({ estado }).eq('id', id);
+    if (error) {
+      console.error('actualizarEstadoReserva error:', error.message);
+      return { exito: false, error: error.message };
+    }
+    if (estado === 'confirmada' || estado === 'cancelada') {
+      supabase.functions
+        .invoke('enviar-email-reserva', { body: { reserva_id: id, tipo: estado } })
+        .catch(e => console.warn('email invoke failed:', e));
+    }
+    return { exito: true };
+  } catch (err) {
+    console.error('actualizarEstadoReserva exception:', err);
+    return { exito: false, error: String(err) };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -839,10 +870,11 @@ export async function agregarHistorial(
   detalle: string
 ): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from('historial')
-      .insert({ usuario_id, tipo, titulo, detalle, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('agregarHistorial error:', err); }
+      .insert({ usuario_id, tipo, titulo, detalle });
+    if (error) console.warn('agregarHistorial warn:', error.message);
+  } catch (err) { console.warn('agregarHistorial error (ignorado):', err); }
 }
 
 export async function cargarHistorial(usuario_id: string, limite = 30, offset = 0): Promise<any[]> {
@@ -866,16 +898,12 @@ export async function cargarHistorial(usuario_id: string, limite = 30, offset = 
 // ══════════════════════════════════════════════════════════════════════════
 
 export async function crearNotificacion(
-  usuario_id: string,
-  tipo: string,
-  titulo: string,
-  mensaje: string
+  _usuario_id: string,
+  _tipo: string,
+  _titulo: string,
+  _mensaje: string
 ): Promise<void> {
-  try {
-    await supabase
-      .from('notificaciones')
-      .insert({ usuario_id, tipo, titulo, mensaje, leida: false, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('crearNotificacion error:', err); }
+  // Las notificaciones se crean server-side en la Edge Function confirmar-reserva
 }
 
 export async function cargarNotificaciones(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {
