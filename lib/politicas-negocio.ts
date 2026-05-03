@@ -100,7 +100,7 @@ export const calcularPrecioDinamico = (
   }
 
   return {
-    precioFinal: Math.round(precioBase * factor),
+    precioFinal: Math.round(precioBase * factor * 100) / 100,
     factor,
     razon: razones.length > 0 ? razones.join(' + ') : 'Precio estándar',
   };
