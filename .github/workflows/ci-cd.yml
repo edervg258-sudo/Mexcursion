@@ -131,6 +131,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Fix gradlew permissions
+        run: chmod +x android/gradlew
+
       - name: Build E2E app
         run: npm run build:e2e
 
