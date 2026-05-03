@@ -15,7 +15,16 @@ import * as secureStorageModule from './secure-storage';
 import * as supabaseDbModule from './supabase-db';
 
 // Mocks
-jest.mock('./supabase');
+jest.mock('./supabase', () => ({
+  supabase: {
+    from: jest.fn(),
+    auth: {
+      getUser: jest.fn(),
+      signInWithPassword: jest.fn(),
+      signOut: jest.fn(),
+    },
+  },
+}));
 jest.mock('./secure-storage');
 jest.mock('./supabase-db');
 
