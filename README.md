@@ -5,7 +5,7 @@ Una aplicación móvil para descubrir y reservar viajes por México, construida 
 ## 🚀 Características
 
 - **Descubrimiento de destinos**: Explora playas, cultura, aventura y gastronomía en México
-- **Reservas en tiempo real**: Sistema completo de reservas con pagos integrados
+- **Reservas en tiempo real**: Sistema completo de reservas con pagos simulados (tarjeta, SPEI/OXXO)
 - **Experiencias personalizadas**: Paquetes económicos, medios y premium
 - **Favoritos y reseñas**: Guarda destinos favoritos y lee/comparte reseñas
 - **Notificaciones push**: Alertas de ofertas y actualizaciones
@@ -95,11 +95,10 @@ npm run lint          # Linting con ESLint
 ## 🏗️ Arquitectura
 
 ```
-src/
-├── app/                 # Páginas (file-based routing)
+├── app/                 # Páginas (file-based routing con Expo Router)
 │   ├── (tabs)/         # Navegación por pestañas
 │   ├── login.tsx       # Autenticación
-│   └── ...
+│   └── _layout.tsx     # Layout raíz
 ├── components/         # Componentes reutilizables
 ├── lib/                # Utilidades y configuración
 │   ├── constantes/     # Constantes organizadas
@@ -107,6 +106,8 @@ src/
 │   ├── estilos/        # Estilos compartidos
 │   ├── supabase-db.ts  # Funciones de BD
 │   └── ...
+├── supabase/
+│   └── migrations/     # Migraciones SQL versionadas
 ├── assets/             # Imágenes y recursos
 └── ...
 ```
