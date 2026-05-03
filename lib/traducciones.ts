@@ -184,6 +184,7 @@ const T: Record<string, Traducible> = {
   conf_total:           { es: 'Total pagado',                 en: 'Total paid'                 },
   conf_notas:           { es: '📝 Notas del viaje',           en: '📝 Trip notes'              },
   conf_aviso:           { es: '📱  Guarda este folio — lo necesitarás al presentarte en el destino.', en: '📱  Save this reference — you will need it at your destination.' },
+  conf_compartir:       { es: 'Compartir reserva',             en: 'Share booking'              },
   conf_explorar:        { es: 'Explorar más destinos',        en: 'Explore more destinations'  },
   conf_mis_reservas:    { es: 'Ver mis reservas',             en: 'View my bookings'           },
 
@@ -243,6 +244,7 @@ const T: Record<string, Traducible> = {
   rsn_publicando:       { es: 'Publicando...',                en: 'Publishing...'              },
   rsn_publicar:         { es: 'Publicar reseña',              en: 'Post review'                },
   rsn_de_viajeros:      { es: 'Reseñas de viajeros',          en: 'Traveler reviews'           },
+  rsn_ya_reseno:        { es: '¡Ya dejaste tu reseña de este destino! Gracias por tu opinión.', en: 'You have already reviewed this destination! Thanks for your feedback.' },
 
   // ── Perfil / Configuración ────────────────────────────────
   prf_titulo:           { es: 'Configuración',                en: 'Settings'                   },
@@ -271,6 +273,9 @@ const T: Record<string, Traducible> = {
   prf_ph_nombre:        { es: 'Tu nombre',                    en: 'Your name'                  },
   prf_ph_usuario:       { es: 'Tu usuario',                   en: 'Your username'              },
   prf_ph_telefono:      { es: '10 dígitos',                   en: '10 digits'                  },
+  prf_foto_cambia:      { es: 'Cambiar foto',                 en: 'Change photo'               },
+  prf_foto_error_perm:  { es: 'Se necesita permiso para acceder a la galería.', en: 'Gallery permission is required.' },
+  prf_foto_error:       { es: 'Error al subir la foto.',      en: 'Failed to upload photo.'    },
   prf_guardar:          { es: 'Guardar cambios',              en: 'Save changes'               },
   prf_err_nombre:       { es: 'Nombre y usuario son obligatorios', en: 'Name and username are required' },
   prf_perfil_ok:        { es: 'Perfil actualizado correctamente', en: 'Profile updated successfully' },

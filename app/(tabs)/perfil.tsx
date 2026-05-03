@@ -13,11 +13,13 @@ import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
+import * as ImagePicker from 'expo-image-picker';
 import {
     actualizarPerfil, actualizarPreferencias,
     cambiarContrasena,
     cerrarSesion,
     obtenerUsuarioActivo,
+    subirFotoAvatar,
 } from '../../lib/supabase-db';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { SkeletonPerfil } from './skeletonloader';
@@ -70,6 +72,7 @@ export default function PerfilScreen() {
   const [passNueva, setPassNueva]           = useState('');
   const [passConfirmar, setPassConfirmar]   = useState('');
   const [notificaciones, setNotificaciones] = useState(true);
+  const [subiendoFoto, setSubiendoFoto]     = useState(false);
 
   useFocusEffect(useCallback(() => {
     fadeAnim.setValue(0);
@@ -139,6 +142,35 @@ export default function PerfilScreen() {
     setNotificaciones(valor);
     if (sesion?.id) {
       await actualizarPreferencias(sesion.id, { notificaciones: valor ? 1 : 0 });
+    }
+  };
+
+  const handleCambiarFoto = async () => {
+    if (!sesion?.id) { return; }
+    try {
+      const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permiso.granted) {
+        mensaje(t('prf_foto_error_perm'));
+        return;
+      }
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (resultado.canceled || !resultado.assets[0]) { return; }
+      setSubiendoFoto(true);
+      const r = await subirFotoAvatar(sesion.id, resultado.assets[0].uri);
+      if (!r.exito) {
+        mensaje(r.error ?? t('prf_foto_error'));
+      } else {
+        setSesion(ant => ant ? { ...ant, foto_url: r.url ?? ant.foto_url } : null);
+      }
+    } catch {
+      mensaje(t('prf_foto_error'));
+    } finally {
+      setSubiendoFoto(false);
     }
   };
 
@@ -283,9 +315,18 @@ export default function PerfilScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
             <View style={[estilos.infoUsuario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
-                <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
-              </Animated.View>
+              <TouchableOpacity onPress={handleCambiarFoto} disabled={subiendoFoto} activeOpacity={0.82}>
+                <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
+                  {sesion.foto_url ? (
+                    <Image source={{ uri: sesion.foto_url }} style={estilos.avatarFoto} />
+                  ) : (
+                    <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
+                  )}
+                  <View style={estilos.avatarCamara}>
+                    <Text style={{ fontSize: 10 }}>{subiendoFoto ? '⏳' : '📷'}</Text>
+                  </View>
+                </Animated.View>
+              </TouchableOpacity>
               <View>
                 <Text style={[estilos.nombreUsuario, { color: tema.texto }]}>{sesion.nombre}</Text>
                 {!!sesion.nombre_usuario && (
@@ -406,7 +447,9 @@ const estilos = StyleSheet.create({
   botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   iconoEncabezado:       { width: 28, height: 28 },
   infoUsuario:           { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, width: '100%', maxWidth: 900, alignSelf: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E7ECEB', marginBottom: 10 },
-  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  avatarUsuario:         { width: 60, height: 60, borderRadius: 30, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  avatarFoto:            { width: 60, height: 60, borderRadius: 30 },
+  avatarCamara:          { position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
   inicialUsuario:        { fontSize: 22, fontWeight: '700', color: '#fff' },
   nombreUsuario:         { fontSize: 16, fontWeight: '700', color: '#333' },
   usernameUsuario:       { fontSize: 13, color: '#3AB7A5', fontWeight: '600', marginTop: 1 },

@@ -122,7 +122,7 @@ export async function registrarUsuario(
 export async function iniciarSesion(
   correo: string,
   contrasena: string
-): Promise<{ exito: boolean; usuario?: Usuario; error?: string }> {
+): Promise<{ exito: boolean; usuario?: Usuario; error?: string; sinConfirmar?: boolean }> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: correo,
@@ -131,20 +131,27 @@ export async function iniciarSesion(
 
     if (error) {
       console.log('❌ Error de login:', error.message);
-      
-      // Manejar específicamente errores de refresh token
+
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
       }
-      
+      if (error.message?.includes('Email not confirmed')) {
+        return { exito: false, error: 'Debes confirmar tu correo antes de ingresar. Revisa tu bandeja de entrada.', sinConfirmar: true };
+      }
+
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
+    // Verificar si el email fue confirmado (cuando Supabase tiene require_email_confirmation)
+    if (data?.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return { exito: false, error: 'Debes confirmar tu correo antes de ingresar. Revisa tu bandeja de entrada.', sinConfirmar: true };
+    }
+
     console.log('✅ Login exitoso para:', correo);
-    
-    // Obtener usuario activo inmediatamente
+
     const usuario = await obtenerUsuarioActivo();
-    
+
     return { exito: true, usuario: usuario ?? undefined };
   } catch (error) {
     console.log('❌ Error inesperado en login:', error);
@@ -269,7 +276,9 @@ export async function solicitarRecuperacionContrasena(
       return { exito: false, error: 'Ingresa un correo electrónico válido.' };
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'mexcursion://nueva-contrasena',
+    });
     if (error) {
       return { exito: false, error: 'No se pudo enviar el correo de recuperación.' };
     }
@@ -313,6 +322,50 @@ export async function actualizarPerfil(
   } catch (err) {
     console.error('actualizarPerfil error:', err);
     return { exito: false, error: 'Error al actualizar perfil.' };
+  }
+}
+
+export async function subirFotoAvatar(
+  usuario_id: string,
+  imageUri: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const extension = (imageUri.split('.').pop() ?? 'jpg').toLowerCase().split('?')[0];
+    const mime = extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg';
+    const ruta = `${usuario_id}/avatar.${extension}`;
+
+    // En web el uri puede ser un blob: o data: URL; en nativo es un file:// path
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatares')
+      .upload(ruta, blob, { upsert: true, contentType: mime });
+
+    if (uploadError) {
+      console.error('subirFotoAvatar upload:', uploadError);
+      return { exito: false, error: 'Error al subir la foto.' };
+    }
+
+    const { data } = supabase.storage.from('avatares').getPublicUrl(ruta);
+    // cache-busting: evitar que se muestre la imagen anterior
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from('usuarios')
+      .update({ foto_url: url })
+      .eq('id', usuario_id);
+
+    if (updateError) {
+      console.error('subirFotoAvatar update:', updateError);
+      return { exito: false, error: 'Error al guardar la foto.' };
+    }
+
+    invalidarSesionCache();
+    return { exito: true, url };
+  } catch (err) {
+    console.error('subirFotoAvatar error:', err);
+    return { exito: false, error: 'Error al subir la foto.' };
   }
 }
 
@@ -806,13 +859,35 @@ export async function cargarResumenResenas(destinos: string[]): Promise<Record<s
   }
 }
 
+export async function verificarResenaExistente(
+  usuario_id: string,
+  destino: string
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('resenas')
+      .select('id')
+      .eq('usuario_id', usuario_id)
+      .eq('destino', destino)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
 export async function guardarResena(
   usuario_id: string,
   destino: string,
   calificacion: number,
   comentario: string
-): Promise<{ exito: boolean; error?: string }> {
+): Promise<{ exito: boolean; error?: string; yaReseno?: boolean }> {
   try {
+    const yaExiste = await verificarResenaExistente(usuario_id, destino);
+    if (yaExiste) {
+      return { exito: false, error: 'Ya dejaste una reseña para este destino.', yaReseno: true };
+    }
+
     const { error } = await supabase
       .from('resenas')
       .insert({ usuario_id, destino, calificacion, comentario });

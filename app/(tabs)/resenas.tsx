@@ -13,6 +13,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import {
   cargarResenasPaginadas,
   guardarResena,
+  verificarResenaExistente,
   obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
@@ -48,6 +49,7 @@ export default function ResenasScreen() {
   const [miTexto, setMiTexto]         = useState('');
   const [enviando, setEnviando]       = useState(false);
   const [enviado, setEnviado]         = useState(false);
+  const [yaReseno, setYaReseno]       = useState(false);
 
   const cargarPagina = useCallback(async (offset: number, append = false) => {
     if (!nombre) return;
@@ -64,12 +66,18 @@ export default function ResenasScreen() {
     const cargar = async () => {
       setCargando(true);
       const usuario = await obtenerUsuarioActivo();
-      if (usuario) { setUsuarioId(usuario.id); }
+      if (usuario) {
+        setUsuarioId(usuario.id);
+        if (nombre) {
+          const ya = await verificarResenaExistente(usuario.id, nombre);
+          setYaReseno(ya);
+        }
+      }
       await cargarPagina(0, false);
       setCargando(false);
     };
     cargar();
-  }, [cargarPagina]));
+  }, [cargarPagina, nombre]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -95,10 +103,13 @@ export default function ResenasScreen() {
     setEnviando(false);
     if (resultado.exito) {
       setEnviado(true);
+      setYaReseno(true);
       setMiEstrellas(0);
       setMiTexto('');
       await cargarPagina(0, false);
       setTimeout(() => setEnviado(false), 2500);
+    } else if (resultado.yaReseno) {
+      setYaReseno(true);
     }
   };
 
@@ -180,27 +191,36 @@ export default function ResenasScreen() {
       {/* Formulario */}
       <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
         <Text style={[es.formTitulo, { color: tema.texto }]}>{t('rsn_deja_resena')}</Text>
-        <Estrellas valor={miEstrellas} tamaño={32} seleccionable onSelect={setMiEstrellas} />
-        <TextInput
-          style={[es.inputResena, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]}
-          value={miTexto}
-          onChangeText={setMiTexto}
-          placeholder={t('rsn_placeholder')}
-          placeholderTextColor={tema.textoMuted}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
-        {enviado ? (
-          <View style={es.enviado}><Text style={es.textoEnviado}>{t('rsn_gracias')}</Text></View>
+        {yaReseno ? (
+          <View style={es.yaResenoBox}>
+            <Text style={es.yaResenoEmoji}>⭐</Text>
+            <Text style={es.yaResenoTexto}>{t('rsn_ya_reseno')}</Text>
+          </View>
         ) : (
-          <TouchableOpacity
-            style={[es.btnEnviar, (miEstrellas === 0 || !miTexto.trim() || enviando) && { opacity: 0.5 }]}
-            onPress={enviarResena}
-            disabled={miEstrellas === 0 || !miTexto.trim() || enviando}
-          >
-            <Text style={es.textoEnviar}>{enviando ? t('rsn_publicando') : t('rsn_publicar')}</Text>
-          </TouchableOpacity>
+          <>
+            <Estrellas valor={miEstrellas} tamaño={32} seleccionable onSelect={setMiEstrellas} />
+            <TextInput
+              style={[es.inputResena, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]}
+              value={miTexto}
+              onChangeText={setMiTexto}
+              placeholder={t('rsn_placeholder')}
+              placeholderTextColor={tema.textoMuted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            {enviado ? (
+              <View style={es.enviado}><Text style={es.textoEnviado}>{t('rsn_gracias')}</Text></View>
+            ) : (
+              <TouchableOpacity
+                style={[es.btnEnviar, (miEstrellas === 0 || !miTexto.trim() || enviando) && { opacity: 0.5 }]}
+                onPress={enviarResena}
+                disabled={miEstrellas === 0 || !miTexto.trim() || enviando}
+              >
+                <Text style={es.textoEnviar}>{enviando ? t('rsn_publicando') : t('rsn_publicar')}</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
 
@@ -280,6 +300,9 @@ const es = StyleSheet.create({
   textoEnviar:         { color: '#fff', fontWeight: '700', fontSize: 14 },
   enviado:             { backgroundColor: '#e8f8f5', borderRadius: 10, padding: 12, alignItems: 'center' },
   textoEnviado:        { color: '#3AB7A5', fontWeight: '700' },
+  yaResenoBox:         { alignItems: 'center', paddingVertical: 16, gap: 6 },
+  yaResenoEmoji:       { fontSize: 32 },
+  yaResenoTexto:       { fontSize: 14, color: '#3AB7A5', fontWeight: '700', textAlign: 'center' },
 
   seccion:             { fontSize: 15, fontWeight: '700', marginBottom: 4 },
 

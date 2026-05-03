@@ -21,6 +21,7 @@ export default function LoginScreen() {
   // Errores por campo
   const [errorCorreo, setErrorCorreo] = useState('');
   const [errorContrasena, setErrorContrasena] = useState('');
+  const [avisoVerificacion, setAvisoVerificacion] = useState('');
   // FIX #1: Estado de error separado para el modal de recuperación
   const [errorCorreoRecup, setErrorCorreoRecup] = useState('');
   const [verContrasena, setVerContrasena] = useState(false);
@@ -62,13 +63,16 @@ export default function LoginScreen() {
 
     if (!resultado.exito) {
       const msg = resultado.error ?? 'Error al iniciar sesión';
-      if (msg.toLowerCase().includes('contraseña')) {
+      if (resultado.sinConfirmar) {
+        setAvisoVerificacion(msg);
+      } else if (msg.toLowerCase().includes('contraseña')) {
         setErrorContrasena(msg);
       } else {
         setErrorCorreo(msg);
       }
       return;
     }
+    setAvisoVerificacion('');
     router.replace('/(tabs)/menu');
   };
 
@@ -152,6 +156,12 @@ export default function LoginScreen() {
                 </View>
                 {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
               </View>
+
+              {avisoVerificacion ? (
+                <View style={estilos.bannerVerificacion}>
+                  <Text style={estilos.bannerVerificacionTexto}>📧 {avisoVerificacion}</Text>
+                </View>
+              ) : null}
 
               <TouchableOpacity
                 style={estilos.enlaceOlvide}
@@ -239,5 +249,7 @@ const estilos = StyleSheet.create({
   tarjetaModal:     { width: '100%', maxWidth: 380, backgroundColor: '#fff', borderRadius: 20, padding: 24, elevation: 8 },
   tituloModal:      { fontSize: 20, fontWeight: '700', color: '#222', marginBottom: 6, textAlign: 'center' },
   subtituloModal:   { fontSize: 13, color: '#666', marginBottom: 16, textAlign: 'center' },
-  botonOjo:         { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
+  botonOjo:            { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
+  bannerVerificacion:  { backgroundColor: '#e8f7f5', borderRadius: 12, padding: 12, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#3AB7A5' },
+  bannerVerificacionTexto: { color: '#2a8a7e', fontSize: 13, lineHeight: 20 },
 });
