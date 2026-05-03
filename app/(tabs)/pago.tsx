@@ -11,7 +11,7 @@ import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { addBreadcrumb, captureApiError } from '../../lib/sentry';
-import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { agregarHistorial, crearNotificacion, enviarEmailReserva, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { estadoReservaPorMetodo, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
 
@@ -120,6 +120,20 @@ export default function PagoScreen() {
             pagoPendiente ? `Pago pendiente con ${metodo} - Folio: ${folio}` : `Pago realizado con ${metodo} - Folio: ${folio}`,
             JSON.stringify({ folio, metodo, monto: totalReserva, estado: estadoReserva })
           );
+          if (usuario.correo) {
+            void enviarEmailReserva({
+              to: usuario.correo,
+              nombre: _nombre_viajero || usuario.nombre || '',
+              folio: folio ?? '',
+              destino: nombre ?? '',
+              paquete: paquete ?? '',
+              fecha: fecha ?? '',
+              personas: totalPersonas,
+              total: totalReserva,
+              estado: estadoReserva,
+              metodo,
+            });
+          }
         })(),
         timeoutPromise,
       ]);

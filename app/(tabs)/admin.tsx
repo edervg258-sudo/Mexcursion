@@ -205,7 +205,17 @@ export default function AdminScreen() {
           style: esCancelacion ? 'destructive' : 'default',
           onPress: async () => {
             setReservas(r => r.map(x => x.id === reserva.id ? { ...x, estado: nuevo_estado } : x));
-            await actualizarEstadoReserva(reserva.id, nuevo_estado);
+            await actualizarEstadoReserva(reserva.id, nuevo_estado, {
+              to: reserva.correo_usuario,
+              nombre: reserva.nombre_usuario,
+              folio: reserva.folio,
+              destino: reserva.destino,
+              paquete: reserva.paquete,
+              fecha: reserva.fecha,
+              personas: reserva.personas,
+              total: reserva.total,
+              metodo: reserva.metodo,
+            });
           },
         },
       ]
