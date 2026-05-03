@@ -139,7 +139,7 @@ export const setUserId = async (userId: string) => {
 export const setUserProperties = async (properties: Record<string, string>) => {
   if (mixpanelInstance && currentUserId) {
     try {
-      await mixpanelInstance.setUserProperties(properties);
+      await (mixpanelInstance as any).setUserProperties(properties);
     } catch {
       // no-op
     }

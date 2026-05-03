@@ -18,15 +18,16 @@ jest.mock('react-native', () => {
   return RN;
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockDestino = {
   id: 1,
   nombre: 'Cancún',
   categoria: 'Playa',
   descripcion: '天堂 tropical con ruinas mayas',
   precio: 1500,
-  imagen: { uri: 'https://example.com/cancun.jpg' } as unknown as ReturnType<typeof require>,
+  imagen: { uri: 'https://example.com/cancun.jpg' },
   favorito: false,
-};
+} as any;
 
 describe('DestinoCard', () => {
   const mockFadeAnim = { interpolate: jest.fn(() => ({ translateY: jest.fn() })) } as unknown as Animated.Value;
