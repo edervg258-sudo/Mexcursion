@@ -92,7 +92,6 @@ export default function MapaRutas({
             </Text>
           </View>
         ) : (
-          {/* @ts-ignore — MapContainer usa props de React DOM, no de RN */}
           <MapContainer
             center={centro}
             zoom={5}
