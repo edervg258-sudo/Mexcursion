@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
@@ -97,7 +98,7 @@ export async function registrarUsuario(
     // Guardamos el perfil si hay usuario (con o sin sesión activa)
     // Sin sesión = email pendiente de confirmación, pero el row se crea igualmente
     if (data?.user) {
-      await supabase.from('usuarios').insert({
+      const { error: insertError } = await supabase.from('usuarios').insert({
         id: data.user.id,
         email,
         nombre,
@@ -108,6 +109,10 @@ export async function registrarUsuario(
         tipo: 'normal',
         activo: 1,
       });
+      if (insertError && (insertError as { code?: string }).code !== '23505') {
+        console.error('registrarUsuario perfil insert error:', insertError.message);
+        return { exito: false, error: 'Error al crear perfil de usuario.' };
+      }
       if (data.session) return { exito: true };
       return { exito: true, confirmar: true };
     }
@@ -787,19 +792,21 @@ export async function cargarResumenResenas(destinos: string[]): Promise<Record<s
       return {};
     }
 
-    return data.reduce((acc: Record<string, { promedio: number; total: number; suma?: number }>, item: any) => {
+    const sumas: Record<string, { total: number; suma: number }> = {};
+    for (const item of data) {
       const destino = String(item.destino ?? '');
-      if (!destino) {
-        return acc;
-      }
-
-      const actual = acc[destino] ?? { promedio: 0, total: 0, suma: 0 };
-      actual.total += 1;
-      actual.suma = (actual.suma ?? 0) + Number(item.calificacion ?? 0);
-      actual.promedio = actual.total > 0 ? actual.suma / actual.total : 0;
-      acc[destino] = actual;
-      return acc;
-    }, {});
+      if (!destino) continue;
+      const entry = sumas[destino] ?? { total: 0, suma: 0 };
+      entry.total += 1;
+      entry.suma += Number(item.calificacion ?? 0);
+      sumas[destino] = entry;
+    }
+    return Object.fromEntries(
+      Object.entries(sumas).map(([destino, { total, suma }]) => [
+        destino,
+        { total, promedio: total > 0 ? suma / total : 0 },
+      ])
+    );
   } catch (err) {
     console.error('cargarResumenResenas error:', err);
     return {};
@@ -884,7 +891,7 @@ export async function cargarNotificaciones(usuario_id: string, limite = 20, offs
       .from('notificaciones')
       .select('*')
       .eq('usuario_id', usuario_id)
-      .order('created_at', { ascending: false })
+      .order('creado_en', { ascending: false })
       .range(offset, offset + limite - 1);
     if (error) return [];
     // Mapear leida boolean → 0/1 para compatibilidad con las pantallas
