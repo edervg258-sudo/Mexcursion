@@ -63,8 +63,6 @@ const IGNORED_WARNINGS = [
   'Require cycle:',
   '"shadow*" style props are deprecated',
   '"textShadow*" style props are deprecated',
-  'Invalid Refresh Token',
-  'Refresh Token Not Found',
 ];
 
 LogBox.ignoreLogs(IGNORED_WARNINGS);
