@@ -48,15 +48,11 @@ describe('Performance Module', () => {
 
   describe('preloadCriticalResources', () => {
     it('should preload critical images without throwing', () => {
-      // Mock require to avoid actual image loading
-      const originalRequire = require;
-      jest.spyOn(global, 'require' as any).mockImplementation(() => ({}));
-
+      // jest.spyOn(global, 'require') no funciona en Jest/Node; simplemente
+      // verificamos que la función no lanza con los mocks de módulo existentes.
       expect(() => {
         Performance.preloadCriticalResources();
       }).not.toThrow();
-
-      (global.require as unknown as jest.Mock).mockRestore();
     });
   });
 

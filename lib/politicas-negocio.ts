@@ -16,7 +16,7 @@ export const POLITICAS_CANCELACION = {
     nombre: 'Cancelación Flexible',
     descripcion: 'Cancelación gratuita hasta 24 horas antes',
     costoCancelacion: (diasAntes: number, precioTotal: number): number => {
-      if (diasAntes >= 1) return 0;
+      if (diasAntes > 1) return 0;   // >1 día = gratis; <=1 día (<24h) = 10%
       return precioTotal * 0.1;
     },
   },

@@ -176,8 +176,13 @@ describe('Input Validation & Security', () => {
 
     it('debería rechazar contraseñas débiles', () => {
       weakPasswords.forEach(password => {
-        const hasLength = password.length >= 8;
-        expect(hasLength).toBe(false);
+        // Una contraseña fuerte requiere longitud, mayúscula, minúscula y número.
+        const isStrong =
+          password.length >= 8 &&
+          /[A-Z]/.test(password) &&
+          /[a-z]/.test(password) &&
+          /\d/.test(password);
+        expect(isStrong).toBe(false);
       });
     });
   });
