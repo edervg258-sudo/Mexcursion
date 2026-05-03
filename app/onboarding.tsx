@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
@@ -5,6 +6,8 @@ import {
     StatusBar, StyleSheet, Text, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+export const ONBOARDING_KEY = '@mexcursion_onboarding_visto';
 
 const { width: W } = Dimensions.get('window');
 
@@ -44,17 +47,24 @@ export default function OnboardingScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
 
+  const marcarVisto = () =>
+    AsyncStorage.setItem(ONBOARDING_KEY, '1').catch(() => {});
+
   const siguiente = () => {
     if (indice < SLIDES.length - 1) {
       const nuevo = indice + 1;
       scrollRef.current?.scrollTo({ x: W * nuevo, animated: true });
       setIndice(nuevo);
     } else {
+      marcarVisto();
       router.push('/registro' as never);
     }
   };
 
-  const saltar = () => router.push('/registro' as never);
+  const saltar = () => {
+    marcarVisto();
+    router.push('/registro' as never);
+  };
 
   const slide = SLIDES[indice];
 

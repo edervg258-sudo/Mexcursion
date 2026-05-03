@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated, Platform, ScrollView,
+  Animated, Platform, ScrollView, Share,
   StyleSheet, Text, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
@@ -35,6 +35,23 @@ export default function ConfirmacionScreen() {
       ]),
     ]).start();
   }, [escala, opacidad, slideY]);
+
+  const compartirReserva = async () => {
+    try {
+      await Share.share({
+        title: `Reserva ${folio} — Mexcursión`,
+        message:
+          `🌮 ¡Reservé en Mexcursión!\n\n` +
+          `📍 Destino: ${nombre}\n` +
+          `🎒 Paquete: ${paquete}\n` +
+          `📋 Folio: ${folio}\n` +
+          `📅 Fecha: ${fecha}\n` +
+          `👥 Personas: ${personas}\n` +
+          `💰 Total: $${parseInt(precio ?? '0').toLocaleString()} MXN\n\n` +
+          `¡Descubre México con Mexcursión! 🇲🇽`,
+      });
+    } catch { /* silencioso */ }
+  };
 
   const etiquetaMetodo: Record<string, string> = {
     tarjeta: t('pago_metodo_tarjeta'),
@@ -128,6 +145,16 @@ export default function ConfirmacionScreen() {
           )}
 
           <TouchableOpacity
+            style={es.btnCompartir}
+            onPress={compartirReserva}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Compartir reserva"
+          >
+            <Text style={es.textoBtnCompartir}>📤 {t('conf_compartir')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={es.btnPrimario}
             onPress={() => router.replace('/(tabs)/menu' as never)}
             activeOpacity={0.85}
@@ -189,6 +216,8 @@ const es = StyleSheet.create({
   cajaNotaTitulo:     { fontSize: 12, fontWeight: '700', color: '#3AB7A5', marginBottom: 4 },
   cajaNotaTexto:      { fontSize: 13, lineHeight: 20 },
 
+  btnCompartir:       { width: '100%', borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  textoBtnCompartir:  { color: '#3AB7A5', fontSize: 15, fontWeight: '700' },
   btnPrimario:        { width: '100%', backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginBottom: 10, ...sombra({ color: '#DD331D', opacity: 0.35, radius: 8, offsetY: 4, elevation: 5 }) },
   textoBtnPrimario:   { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
   btnSecundario:      { width: '100%', borderWidth: 1.5, borderRadius: 25, paddingVertical: 14, alignItems: 'center' },

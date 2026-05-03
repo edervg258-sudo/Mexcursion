@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated, FlatList, Image, ImageSourcePropType, LayoutAnimation, Platform,
-    RefreshControl, StyleSheet, Text,
+    RefreshControl, StyleSheet, Text, TextInput,
     TouchableOpacity, UIManager, View, useWindowDimensions,
 } from 'react-native';
 import { TabChrome } from '../../components/TabChrome';
@@ -95,7 +95,16 @@ export default function FavoritosScreen() {
   const [usuarioId, setUsuarioId]       = useState<string | null>(null);
   const [cargando, setCargando]   = useState(true);
   const [recargando, setRecargando] = useState(false);
+  const [busqueda, setBusqueda]   = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const favoritosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) { return estadosFavoritos; }
+    const q = busqueda.toLowerCase();
+    return estadosFavoritos.filter(
+      item => item.nombre.toLowerCase().includes(q) || item.categoria.toLowerCase().includes(q)
+    );
+  }, [estadosFavoritos, busqueda]);
 
   const totalCategorias = useMemo(
     () => new Set(estadosFavoritos.map(item => item.categoria)).size,
@@ -174,8 +183,25 @@ export default function FavoritosScreen() {
           </View>
         ) : (
           <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+            {/* Barra de búsqueda */}
+            <View style={[s.barraBusqueda, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+              <Text style={s.iconoBusqueda}>🔍</Text>
+              <TextInput
+                style={[s.inputBusqueda, { color: tema.texto }]}
+                value={busqueda}
+                onChangeText={setBusqueda}
+                placeholder="Buscar en favoritos..."
+                placeholderTextColor={tema.textoMuted}
+                clearButtonMode="while-editing"
+              />
+              {busqueda.length > 0 && (
+                <TouchableOpacity onPress={() => setBusqueda('')} activeOpacity={0.7}>
+                  <Text style={s.limpiarBusqueda}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <FlatList
-              data={estadosFavoritos}
+              data={favoritosFiltrados}
               keyExtractor={item => String(item.id)}
               renderItem={({ item, index }) => (
                 <FavCard
@@ -265,4 +291,10 @@ const s = StyleSheet.create({
   subtituloVacio:        { fontSize: 14, textAlign: 'center' },
   botonIr:               { marginTop: 6, backgroundColor: '#DD331D', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25, elevation: 4 },
   textoBotonIr:          { color: '#fff', fontWeight: '600', fontSize: 15 },
+
+  // Búsqueda
+  barraBusqueda:         { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 25, borderWidth: 1.5, gap: 8 },
+  iconoBusqueda:         { fontSize: 14 },
+  inputBusqueda:         { flex: 1, fontSize: 14 },
+  limpiarBusqueda:       { fontSize: 13, color: '#aaa', paddingHorizontal: 4 },
 });

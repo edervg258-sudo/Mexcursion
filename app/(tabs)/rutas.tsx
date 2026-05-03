@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Animated, Modal, Platform, ScrollView,
+  Alert, Animated, Modal, Platform, ScrollView, Share,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
@@ -230,6 +230,21 @@ export default function RutasScreen() {
     setTabPorItinerario(prev => ({ ...prev, [itinerarioId]: tab }));
   }, []);
 
+  const compartirItinerario = useCallback(async (itinerario: (typeof itinerariosResumen)[0]) => {
+    try {
+      const destinos = itinerario.destinos.map((d, i) => `  ${i + 1}. ${d.estado} (${d.nivel})`).join('\n');
+      await Share.share({
+        title: `Mi viaje: ${itinerario.nombre} — Mexcursión`,
+        message:
+          `🗺️ *${itinerario.nombre}*\n\n` +
+          `📍 Destinos:\n${destinos || '  (Sin destinos aún)'}\n\n` +
+          `📅 ${itinerario.diasEstimados} días estimados\n` +
+          `💰 Presupuesto estimado: $${itinerario.totalEstimado.toLocaleString('es-MX')} MXN\n\n` +
+          `¡Planea tu viaje con Mexcursión! 🇲🇽`,
+      });
+    } catch { /* silencioso */ }
+  }, []);
+
   // Estados disponibles para agregar al itinerario activo
   const itinerarioActivoParaAgregar = useMemo(() => {
     if (!modalAgregarDestino) {return null;}
@@ -424,6 +439,13 @@ export default function RutasScreen() {
                         <Text style={[es.btnSecundarioTxt, { color: tema.texto }]}>
                           {expandido ? t('rut_cancelar') : t('rut_ver_itinerario')}
                         </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[es.btnCompartir, { borderColor: tema.primario }]}
+                        onPress={() => compartirItinerario(itinerario)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[es.btnCompartirTxt, { color: tema.primario }]}>📤</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={es.btnEliminar}
@@ -671,6 +693,8 @@ const es = StyleSheet.create({
   itinerarioAcciones: { flexDirection: 'row', gap: 10 },
   btnSecundario:    { flex: 1, borderWidth: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
   btnSecundarioTxt: { fontSize: 13, fontWeight: '800' },
+  btnCompartir:     { borderWidth: 1, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11, alignItems: 'center', justifyContent: 'center' },
+  btnCompartirTxt:  { fontSize: 15 },
   btnEliminar:      { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center', backgroundColor: '#FFECEB' },
   btnEliminarTxt:   { fontSize: 13, fontWeight: '800', color: '#DD331D' },
   itinerarioDetalle:{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, gap: 12 },

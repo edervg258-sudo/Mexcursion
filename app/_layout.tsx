@@ -1,6 +1,7 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { ONBOARDING_KEY } from './onboarding';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -129,6 +130,17 @@ export default function RootLayout() {
       preloadCriticalResources();
       if (flags.enablePerfTracking) { initPerformanceMonitoring(); }
       if (flags.enableRealtimeAnalytics) { await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' }); }
+
+      // Si no hay sesión activa y el onboarding ya fue visto, ir directo al login
+      const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      if (!session) {
+        const onboardingVisto = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null);
+        if (onboardingVisto) {
+          setTimeout(() => router.replace('/login'), 0);
+        } else {
+          setTimeout(() => router.replace('/registro'), 0);
+        }
+      }
     };
     initRuntime();
   }, []);
@@ -137,6 +149,11 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'TOKEN_REFRESHED' && !session) {
         supabase.auth.signOut().catch(() => {});
+        return;
+      }
+      if (event === 'PASSWORD_RECOVERY') {
+        // El usuario llegó por el link del email de recuperación
+        setTimeout(() => router.push('/nueva-contrasena'), 0);
         return;
       }
       if (event === 'SIGNED_OUT') {
