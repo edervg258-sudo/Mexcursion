@@ -20,7 +20,7 @@ type AnalyticsEvent = {
 
 let currentUserId: string | null = null;
 let flushing = false;
-let mixpanelInstance: ReturnType<typeof Mixpanel> | null = null;
+let mixpanelInstance: InstanceType<typeof Mixpanel> | null = null;
 
 const initMixpanel = async () => {
   try {

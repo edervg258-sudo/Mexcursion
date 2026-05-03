@@ -56,7 +56,7 @@ describe('Performance Module', () => {
         Performance.preloadCriticalResources();
       }).not.toThrow();
 
-      (global.require as jest.Mock).mockRestore();
+      (global.require as unknown as jest.Mock).mockRestore();
     });
   });
 
