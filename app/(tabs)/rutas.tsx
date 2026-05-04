@@ -227,10 +227,14 @@ export default function RutasScreen() {
             setGuardandoAccion(true);
             try {
               const actualizados = await eliminarItinerario(usuarioId, itinerario.id);
+              // Si el item sigue en la lista, la operación falló silenciosamente
+              if (actualizados.some(it => it.id === itinerario.id)) {
+                throw new Error('No se pudo eliminar. Intenta de nuevo.');
+              }
               setItinerarios(actualizados);
               if (itinerarioExpandidoId === itinerario.id) setItinerarioExpandidoId(null);
-            } catch {
-              Alert.alert('Error', 'No se pudo eliminar el itinerario.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message ?? 'No se pudo eliminar el itinerario.');
             } finally {
               setGuardandoAccion(false);
             }
