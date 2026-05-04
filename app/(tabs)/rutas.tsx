@@ -341,8 +341,9 @@ export default function RutasScreen() {
   }, [busquedaModal]);
 
   const todosAgotadosEnModal = useMemo(() => {
+    if (estadosFiltradosModal.length === 0) return true;
     const niveles: ('economico' | 'medio' | 'premium')[] = ['economico', 'medio', 'premium'];
-    return estadosFiltradosModal.length > 0 && estadosFiltradosModal.every(estado =>
+    return estadosFiltradosModal.every(estado =>
       niveles.every(n => clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n)))
     );
   }, [estadosFiltradosModal, clavesYaIncluidas]);
@@ -759,7 +760,10 @@ export default function RutasScreen() {
                                     rutaNombre={itinerario.nombre}
                                     estadosRuta={itinerario.destinos
                                       .map(d => d.estadoCompleto)
-                                      .filter((e): e is Estado => !!e)}
+                                      .filter((e): e is Estado => e != null)}
+                                    numerosEstados={itinerario.destinos
+                                      .map((d, i) => d.estadoCompleto != null ? i + 1 : null)
+                                      .filter((n): n is number => n != null)}
                                     polylineCoords={polylineCoords}
                                     favoritos={favoritos}
                                     isDark={isDark}

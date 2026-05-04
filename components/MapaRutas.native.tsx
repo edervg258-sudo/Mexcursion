@@ -20,6 +20,7 @@ interface Props {
   rutaNombre: string;
   estadosRuta: Estado[];
   polylineCoords: { latitude: number; longitude: number }[];
+  numerosEstados?: number[];
   favoritos: number[];
   isDark: boolean;
   tema: Record<string, string>;
@@ -114,21 +115,22 @@ const generarHtml = (puntos: Punto[], color: string, isDark: boolean): string =>
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function MapaRutas({
   rutaColor, rutaNombre, estadosRuta, polylineCoords,
-  favoritos, isDark, tema, onToggleFav, onIrADetalle,
+  numerosEstados, favoritos, isDark, tema, onToggleFav, onIrADetalle,
 }: Props) {
   const puntos: Punto[] = useMemo(
     () =>
       estadosRuta
-        .filter(e => e.latitude && e.longitude)
-        .map((e, i) => ({
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => e.latitude != null && e.longitude != null)
+        .map(({ e, i }) => ({
           lat: e.latitude!,
           lon: e.longitude!,
           nombre: e.nombre,
           categoria: e.categoria,
           precio: e.precio,
-          numero: i + 1,
+          numero: numerosEstados?.[i] ?? i + 1,
         })),
-    [estadosRuta],
+    [estadosRuta, numerosEstados],
   );
 
   const html = useMemo(
@@ -185,7 +187,7 @@ export default function MapaRutas({
                   cachePolicy="memory-disk"
                 />
                 <View style={[s.destinoChipOverlay, { backgroundColor: rutaColor + 'CC' }]}>
-                  <Text style={s.destinoChipNum}>{i + 1}</Text>
+                  <Text style={s.destinoChipNum}>{numerosEstados?.[i] ?? i + 1}</Text>
                 </View>
                 <Text style={[s.destinoChipNombre, { color: tema.texto as string }]} numberOfLines={1}>
                   {estado.nombre}
