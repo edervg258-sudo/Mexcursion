@@ -79,6 +79,8 @@ export default function RutasScreen() {
   const [cargandoPantalla, setCargandoPantalla] = useState(true);
   const [guardandoAccion,  setGuardandoAccion]  = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  // IDs de favoritos con petición en vuelo — evita doble tap
+  const favoritosEnVuelo = useRef(new Set<number>());
 
   // ─── Carga inicial ────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
@@ -112,12 +114,26 @@ export default function RutasScreen() {
 
   // ─── Favoritos ────────────────────────────────────────────────────────────
   const toggleFavorito = useCallback(async (estadoId: number) => {
-    if (!usuarioId) return;
+    if (!usuarioId || favoritosEnVuelo.current.has(estadoId)) return;
+    favoritosEnVuelo.current.add(estadoId);
+
+    const yaEraFavorito = favoritos.includes(estadoId);
+    // Actualización optimista
     setFavoritos(prev =>
-      prev.includes(estadoId) ? prev.filter(id => id !== estadoId) : [...prev, estadoId]
+      yaEraFavorito ? prev.filter(id => id !== estadoId) : [...prev, estadoId]
     );
-    await alternarFavorito(usuarioId, estadoId);
-  }, [usuarioId]);
+    try {
+      await alternarFavorito(usuarioId, estadoId);
+    } catch {
+      // Revertir si el servidor falló
+      setFavoritos(prev =>
+        yaEraFavorito ? [...prev, estadoId] : prev.filter(id => id !== estadoId)
+      );
+      Alert.alert('Error', 'No se pudo actualizar favoritos.');
+    } finally {
+      favoritosEnVuelo.current.delete(estadoId);
+    }
+  }, [usuarioId, favoritos]);
 
   const irADetalle = useCallback((estado: Estado) => {
     router.push({ pathname: '/(tabs)/detalle', params: { nombre: estado.nombre, categoria: estado.categoria } } as never);
@@ -162,10 +178,12 @@ export default function RutasScreen() {
     const nombre = nuevoNombre.trim();
     const err    = validarNombre(nombre);
     if (err) { Alert.alert('Nombre inválido', err); return; }
+    const idsPrevios = new Set(itinerarios.map(it => it.id));
     setGuardandoAccion(true);
     try {
       const actualizados = await crearItinerario(usuarioId, nombre);
-      const creado = actualizados.find(it => it.nombre === nombre) ?? actualizados[0];
+      // Buscar por ID nuevo — evita ambigüedad cuando ya existe un itinerario con el mismo nombre
+      const creado = actualizados.find(it => !idsPrevios.has(it.id));
       if (!creado) throw new Error('No se recibió confirmación del servidor.');
       setItinerarios(actualizados);
       setItinerarioExpandidoId(creado.id);
