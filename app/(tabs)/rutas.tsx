@@ -340,13 +340,14 @@ export default function RutasScreen() {
     );
   }, [busquedaModal]);
 
-  const todosAgotadosEnModal = useMemo(() => {
-    if (estadosFiltradosModal.length === 0) return true;
+  const sinResultadosEnModal = estadosFiltradosModal.length === 0;
+  const todosYaAgregadosEnModal = useMemo(() => {
+    if (sinResultadosEnModal) return false;
     const niveles: ('economico' | 'medio' | 'premium')[] = ['economico', 'medio', 'premium'];
     return estadosFiltradosModal.every(estado =>
       niveles.every(n => clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n)))
     );
-  }, [estadosFiltradosModal, clavesYaIncluidas]);
+  }, [sinResultadosEnModal, estadosFiltradosModal, clavesYaIncluidas]);
 
   const cerrarModal = useCallback(() => {
     setModalAgregarDestino(null);
@@ -851,10 +852,15 @@ export default function RutasScreen() {
                 );
               })}
 
-              {todosAgotadosEnModal && (
+              {sinResultadosEnModal && (
+                <Text style={[es.modalSubtitulo, { textAlign: 'center', marginTop: 16, color: tema.textoSecundario }]}>
+                  Sin resultados para esa búsqueda.
+                </Text>
+              )}
+              {todosYaAgregadosEnModal && (
                 <Text style={[es.modalSubtitulo, { textAlign: 'center', marginTop: 16, color: tema.textoSecundario }]}>
                   {busquedaModal.trim()
-                    ? 'Sin resultados para esa búsqueda.'
+                    ? 'Ya tienes todos los destinos que coinciden con esa búsqueda.'
                     : 'Ya agregaste todos los destinos disponibles.'}
                 </Text>
               )}
