@@ -49,6 +49,7 @@ interface Props {
   rutaNombre: string;
   estadosRuta: Estado[];
   polylineCoords: { latitude: number; longitude: number }[];
+  numerosEstados?: number[];
   favoritos: number[];
   isDark: boolean;
   tema: Record<string, string>;
@@ -59,7 +60,7 @@ interface Props {
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function MapaRutas({
   rutaColor, rutaNombre, estadosRuta, polylineCoords,
-  favoritos, tema, onToggleFav, onIrADetalle,
+  numerosEstados, favoritos, tema, onToggleFav, onIrADetalle,
 }: Props) {
   const latLons: [number, number][] = polylineCoords.map(c => [c.latitude, c.longitude]);
 
@@ -112,14 +113,15 @@ export default function MapaRutas({
               />
             )}
 
-            {/* Marcadores numerados */}
+            {/* Marcadores numerados — usa el índice original del timeline */}
             {estadosRuta.map((estado, i) => {
-              if (!estado.latitude || !estado.longitude) { return null; }
+              if (estado.latitude == null || estado.longitude == null) return null;
+              const numero = numerosEstados?.[i] ?? i + 1;
               return (
                 <Marker
                   key={estado.id}
                   position={[estado.latitude, estado.longitude]}
-                  icon={crearIcono(i + 1, rutaColor)}
+                  icon={crearIcono(numero, rutaColor)}
                 >
                   <Popup>
                     <div style={{ minWidth: 160 }}>
@@ -165,7 +167,7 @@ export default function MapaRutas({
                 />
                 <View style={[s.caminoOverlay, { backgroundColor: rutaColor + '99' }]} />
                 <View style={[s.caminoNum, { backgroundColor: rutaColor }]}>
-                  <Text style={s.caminoNumTxt}>{i + 1}</Text>
+                  <Text style={s.caminoNumTxt}>{numerosEstados?.[i] ?? i + 1}</Text>
                 </View>
                 <TouchableOpacity
                   style={s.caminoFav}
