@@ -194,7 +194,7 @@ export default function RutasScreen() {
     } finally {
       setGuardandoAccion(false);
     }
-  }, [nuevoNombre, usuarioId, guardandoAccion]);
+  }, [nuevoNombre, usuarioId, guardandoAccion, itinerarios]);
 
   // ─── Editar nombre ────────────────────────────────────────────────────────
   const iniciarEdicion = useCallback((itinerario: Itinerario) => {
