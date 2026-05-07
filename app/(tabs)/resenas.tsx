@@ -50,7 +50,7 @@ export default function ResenasScreen() {
   const [enviado, setEnviado]         = useState(false);
 
   const cargarPagina = useCallback(async (offset: number, append = false) => {
-    if (!nombre) return;
+    if (!nombre) { return; }
     const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
     if (append) {
       setResenas(prev => [...prev, ...result.resenas]);
@@ -78,7 +78,7 @@ export default function ResenasScreen() {
   };
 
   const cargarMas = async () => {
-    if (cargandoMas || resenas.length >= totalResenas) return;
+    if (cargandoMas || resenas.length >= totalResenas) { return; }
     setCargandoMas(true);
     await cargarPagina(resenas.length, true);
     setCargandoMas(false);
