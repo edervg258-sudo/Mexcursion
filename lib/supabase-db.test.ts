@@ -24,7 +24,14 @@ import {
   crearNotificacion,
 } from './supabase-db';
 
+// jest.mock is hoisted before variable declarations, so the factory must not
+// reference outer const/let variables. We declare mockInvoke via jest.requireMock
+// in beforeEach after the module system has settled.
+let mockInvoke: jest.Mock;
+
 beforeEach(() => {
+  const { supabase: mocked } = jest.requireMock('./supabase') as any;
+  mockInvoke = mocked.functions.invoke as jest.Mock;
   invalidarSesionCache();
   jest.clearAllMocks();
 });
@@ -53,6 +60,9 @@ jest.mock('./supabase', () => ({
       range: jest.fn().mockReturnThis(),
       single: jest.fn().mockReturnThis(),
     })),
+    functions: {
+      invoke: jest.fn(),
+    },
   },
 }));
 
@@ -284,59 +294,86 @@ describe('obtenerRutasSugeridas', () => {
 });
 
 describe('guardarReserva', () => {
-  it('debe guardar reserva exitosamente', async () => {
-    (supabase.from as jest.Mock)
-      // llamada 1: búsqueda por folio para idempotencia
-      .mockReturnValueOnce({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-            }),
-          }),
-        }),
-      })
-      // llamada 2: insert real
-      .mockReturnValueOnce({
-        insert: jest.fn().mockResolvedValue({ error: null }),
-      });
+  it('debe guardar reserva exitosamente (saved)', async () => {
+    mockInvoke.mockResolvedValue({ data: { resultado: 'saved' }, error: null });
 
     const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
     expect(result).toBe('saved');
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'confirmar-reserva',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          folio: 'FOLIO',
+          destino: 'Destino',
+          paquete: 'Paquete',
+          personas: 2,
+          total: 1000,
+          metodo: 'tarjeta',
+        }),
+      })
+    );
   });
 
-  it('debe tratar folio repetido como idempotente', async () => {
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            maybeSingle: jest.fn().mockResolvedValue({ data: { id: 99 }, error: null }),
-          }),
-        }),
-      }),
-    });
+  it('debe retornar idempotent cuando la función Edge lo indica', async () => {
+    mockInvoke.mockResolvedValue({ data: { resultado: 'idempotent' }, error: null });
 
     const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
     expect(result).toBe('idempotent');
   });
 
   it('debe marcar queued_offline cuando falla por red', async () => {
-    (supabase.from as jest.Mock)
-      .mockReturnValueOnce({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-            }),
-          }),
-        }),
-      })
-      .mockReturnValueOnce({
-        insert: jest.fn().mockResolvedValue({ error: { message: 'Network request failed' } }),
-      });
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'Network request failed' } });
 
     const result = await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
     expect(result).toBe('queued_offline');
+  });
+
+  it('debe normalizar fecha DD/MM/AAAA a YYYY-MM-DD antes de invocar', async () => {
+    mockInvoke.mockResolvedValue({ data: { resultado: 'saved' }, error: null });
+
+    await guardarReserva('user123', 'FOLIO', 'Destino', 'Paquete', '15/06/2024', 2, 1000, 'tarjeta');
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'confirmar-reserva',
+      expect.objectContaining({
+        body: expect.objectContaining({ fecha: '2024-06-15' }),
+      })
+    );
+  });
+
+  it('debe retornar failed con folio vacío sin llamar a Supabase', async () => {
+    const result = await guardarReserva('user123', '', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar failed con folio muy corto sin llamar a Supabase', async () => {
+    const result = await guardarReserva('user123', 'AB', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar failed con método de pago inválido', async () => {
+    const result = await guardarReserva('user123', 'FOLIO123', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'bitcoin');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar failed con estado inválido', async () => {
+    const result = await guardarReserva('user123', 'FOLIO123', 'Destino', 'Paquete', '2024-01-01', 2, 1000, 'tarjeta', 'aprobada');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar failed con personas < 1', async () => {
+    const result = await guardarReserva('user123', 'FOLIO123', 'Destino', 'Paquete', '2024-01-01', 0, 1000, 'tarjeta');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar failed con total negativo', async () => {
+    const result = await guardarReserva('user123', 'FOLIO123', 'Destino', 'Paquete', '2024-01-01', 2, -1, 'tarjeta');
+    expect(result).toBe('failed');
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 });
 
