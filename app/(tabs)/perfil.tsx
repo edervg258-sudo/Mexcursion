@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
-    Alert, Animated, Image, Modal, Platform, ScrollView,
+    ActivityIndicator, Alert, Animated, Image, Modal, Platform, ScrollView,
     StyleSheet, Switch, Text, TextInput,
     TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
@@ -18,6 +18,7 @@ import {
     cambiarContrasena,
     cerrarSesion,
     obtenerUsuarioActivo,
+    uploadFotoPerfil,
 } from '../../lib/supabase-db';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { SkeletonPerfil } from './skeletonloader';
@@ -70,6 +71,8 @@ export default function PerfilScreen() {
   const [passNueva, setPassNueva]           = useState('');
   const [passConfirmar, setPassConfirmar]   = useState('');
   const [notificaciones, setNotificaciones] = useState(true);
+  const [fotoUrl, setFotoUrl]               = useState<string | null>(null);
+  const [subiendoFoto, setSubiendoFoto]     = useState(false);
 
   useFocusEffect(useCallback(() => {
     fadeAnim.setValue(0);
@@ -84,6 +87,7 @@ export default function PerfilScreen() {
       setUsuario(u.nombre_usuario ?? '');
       setTelefono(u.telefono ?? '');
       setNotificaciones(u.notificaciones === 1);
+      setFotoUrl(u.foto_url ?? null);
       const lang = (u.idioma ?? 'es') as 'es' | 'en';
       await cambiarIdioma(lang);
       Animated.parallel([
@@ -97,6 +101,43 @@ export default function PerfilScreen() {
 
   const cerrarModal    = () => setModalActivo(null);
   const mensaje        = (txt: string) => Alert.alert('', txt);
+
+  const handleCambiarFoto = async () => {
+    if (!sesion?.id) return;
+
+    // expo-image-picker no disponible en web
+    if (Platform.OS === 'web') {
+      return mensaje('La subida de foto no está disponible en la versión web.');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ImagePicker = require('expo-image-picker') as {
+      requestMediaLibraryPermissionsAsync: () => Promise<{ status: string }>;
+      launchImageLibraryAsync: (opts: Record<string, unknown>) => Promise<{ canceled: boolean; assets?: Array<{ uri: string }> }>;
+    };
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return mensaje('Se necesita permiso para acceder a la galería.');
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images' as any,
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    setSubiendoFoto(true);
+    const r = await uploadFotoPerfil(sesion.id, result.assets[0].uri);
+    setSubiendoFoto(false);
+
+    if (!r.exito) return mensaje(r.error ?? 'Error al subir foto.');
+    setFotoUrl(r.url ?? null);
+    setSesion(ant => ant ? { ...ant, foto_url: r.url ?? null } : null);
+  };
 
   const handleCerrarSesion = async () => {
     // Alert.alert no funciona con callbacks en web; usar confirm del navegador
@@ -283,9 +324,20 @@ export default function PerfilScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
             <View style={[estilos.infoUsuario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
-                <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
-              </Animated.View>
+              <TouchableOpacity onPress={handleCambiarFoto} activeOpacity={0.8} disabled={subiendoFoto}>
+                <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
+                  {fotoUrl ? (
+                    <Image source={{ uri: fotoUrl }} style={estilos.avatarImagen} />
+                  ) : (
+                    <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
+                  )}
+                  <View style={estilos.avatarCamaraOverlay}>
+                    {subiendoFoto
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Ionicons name="camera" size={12} color="#fff" />}
+                  </View>
+                </Animated.View>
+              </TouchableOpacity>
               <View>
                 <Text style={[estilos.nombreUsuario, { color: tema.texto }]}>{sesion.nombre}</Text>
                 {!!sesion.nombre_usuario && (
@@ -406,7 +458,9 @@ const estilos = StyleSheet.create({
   botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   iconoEncabezado:       { width: 28, height: 28 },
   infoUsuario:           { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, width: '100%', maxWidth: 900, alignSelf: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E7ECEB', marginBottom: 10 },
-  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImagen:          { width: 52, height: 52, borderRadius: 26 },
+  avatarCamaraOverlay:   { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: '#3AB7A5', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   inicialUsuario:        { fontSize: 22, fontWeight: '700', color: '#fff' },
   nombreUsuario:         { fontSize: 16, fontWeight: '700', color: '#333' },
   usernameUsuario:       { fontSize: 13, color: '#3AB7A5', fontWeight: '600', marginTop: 1 },

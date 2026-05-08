@@ -316,6 +316,40 @@ export async function actualizarPerfil(
   }
 }
 
+export async function uploadFotoPerfil(
+  usuarioId: string,
+  uri: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const ext = uri.split('.').pop()?.toLowerCase().replace('jpeg', 'jpg') ?? 'jpg';
+    const path = `${usuarioId}.${ext}`;
+    const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatares')
+      .upload(path, blob, { upsert: true, contentType });
+
+    if (uploadError) return { exito: false, error: 'Error al subir imagen.' };
+
+    const { data } = supabase.storage.from('avatares').getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from('usuarios')
+      .update({ foto_url: url })
+      .eq('id', usuarioId);
+
+    if (updateError) return { exito: false, error: 'Error al guardar URL de foto.' };
+    invalidarSesionCache();
+    return { exito: true, url };
+  } catch (err) {
+    console.error('uploadFotoPerfil error:', err);
+    return { exito: false, error: 'Error al procesar imagen.' };
+  }
+}
+
 export async function actualizarPreferencias(
   usuario_id: string,
   campos: { idioma?: string; notificaciones?: number }
@@ -573,10 +607,36 @@ export async function actualizarDestino(id: number, destino: { nombre: string; c
 
 export const toggleActivoDestinoAdmin  = (id: number)          => toggleActivo('estados', 'id', id);
 
-export async function eliminarDestino(id: number): Promise<void> {
+export async function eliminarDestino(
+  id: number
+): Promise<{ exito: boolean; bloqueado?: boolean; reservasActivas?: number; error?: string }> {
   try {
-    await supabase.from('estados').delete().eq('id', id);
-  } catch (err) { console.error('eliminarDestino error:', err); }
+    // Obtener nombre del destino para buscar reservas (destino se guarda como TEXT)
+    const { data: dest } = await supabase
+      .from('estados')
+      .select('nombre')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (dest?.nombre) {
+      const { count } = await supabase
+        .from('reservas')
+        .select('*', { count: 'exact', head: true })
+        .eq('destino', dest.nombre)
+        .in('estado', ['pendiente', 'confirmada']);
+
+      if (count && count > 0) {
+        return { exito: false, bloqueado: true, reservasActivas: count };
+      }
+    }
+
+    const { error } = await supabase.from('estados').delete().eq('id', id);
+    if (error) return { exito: false, error: error.message };
+    return { exito: true };
+  } catch (err) {
+    console.error('eliminarDestino error:', err);
+    return { exito: false, error: 'Error al eliminar destino.' };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -875,6 +935,11 @@ export async function crearNotificacion(
     await supabase
       .from('notificaciones')
       .insert({ usuario_id, tipo, titulo, mensaje, leida: false, creado_en: new Date().toISOString() });
+
+    // Enviar push real via Edge Function (fire-and-forget)
+    supabase.functions
+      .invoke('send-push', { body: { usuario_id, titulo, cuerpo: mensaje } })
+      .catch((err: unknown) => console.warn('[push] Edge Function error:', err));
   } catch (err) { console.error('crearNotificacion error:', err); }
 }
 
