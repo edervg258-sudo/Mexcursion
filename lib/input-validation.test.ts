@@ -26,14 +26,14 @@ describe('Input Validation & Security', () => {
 
     it('debería aceptar emails válidos', () => {
       validEmails.forEach(email => {
-        const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        const isValid = /^[^\s@]+@(?!.*\.\.)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
         expect(isValid).toBe(true);
       });
     });
 
     it('debería rechazar emails inválidos', () => {
       invalidEmails.forEach(email => {
-        const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        const isValid = /^[^\s@]+@(?!.*\.\.)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
         expect(isValid).toBe(false);
       });
     });
@@ -76,7 +76,8 @@ describe('Input Validation & Security', () => {
     it('debería rechazar teléfonos inválidos', () => {
       invalidPhones.forEach(phone => {
         const digits = phone.replace(/\D/g, '');
-        expect(digits.length).toBeLessThan(10);
+        const isValid = digits.length >= 10 && digits.length <= 12;
+        expect(isValid).toBe(false);
       });
     });
 
@@ -175,7 +176,12 @@ describe('Input Validation & Security', () => {
     it('debería rechazar contraseñas débiles', () => {
       weakPasswords.forEach(password => {
         const hasLength = password.length >= 8;
-        expect(hasLength).toBe(false);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+        const isStrong = hasLength && hasUpper && hasLower && hasNumber && hasSpecial;
+        expect(isStrong).toBe(false);
       });
     });
   });

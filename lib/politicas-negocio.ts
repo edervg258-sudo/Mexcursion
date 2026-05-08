@@ -16,7 +16,7 @@ export const POLITICAS_CANCELACION = {
     nombre: 'Cancelación Flexible',
     descripcion: 'Cancelación gratuita hasta 24 horas antes',
     costoCancelacion: (diasAntes: number, precioTotal: number): number => {
-      if (diasAntes >= 1) return 0;
+      if (diasAntes > 1) return 0;
       return precioTotal * 0.1;
     },
   },
@@ -99,8 +99,9 @@ export const calcularPrecioDinamico = (
     razones.push('Día festivo');
   }
 
+  const precioFinal = Math.round((precioBase * factor) * 100) / 100;
   return {
-    precioFinal: Math.round(precioBase * factor),
+    precioFinal,
     factor,
     razon: razones.length > 0 ? razones.join(' + ') : 'Precio estándar',
   };
