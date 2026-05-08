@@ -16,11 +16,19 @@ export function OfflineBanner() {
       accessibilityLabel="Sin conexión a internet"
       style={[styles.container, { backgroundColor: isDark ? '#3F201D' : '#FBEAE7' }]}
     >
-      <Text style={[styles.text, { color: isDark ? '#FFD9D2' : '#8A2A1E' }]}>
-        Sin conexión. Algunas acciones se sincronizarán cuando vuelva el internet.
+      <Text style={[styles.title, { color: isDark ? '#FFD9D2' : '#8A2A1E' }]}>
+        Sin conexión a internet
+      </Text>
+      <Text style={[styles.detail, { color: isDark ? '#E8B4AE' : '#A03A2E' }]}>
+        Favoritos y reservas se guardan para sincronizar. Itinerarios y búsquedas no disponibles.
       </Text>
     </View>
   );
+}
+
+export function useIsOffline(): boolean {
+  const { isConnected, isInternetReachable } = useNetworkStatus();
+  return !isConnected || !isInternetReachable;
 }
 
 const styles = StyleSheet.create({
@@ -35,10 +43,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
   },
-  text: {
+  title: {
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '700',
+  },
+  detail: {
+    textAlign: 'center',
+    fontSize: 11,
+    marginTop: 2,
   },
 });
 

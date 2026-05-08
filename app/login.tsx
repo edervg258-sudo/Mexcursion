@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } from '../lib/supabase-db';
+import { validarEmail } from '../lib/validaciones';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function LoginScreen() {
     if (!correo.trim()) {
       setErrorCorreo('Ingresa tu correo electrónico');
       valido = false;
-    } else if (!/\S+@\S+\.\S+/.test(correo)) {
+    } else if (!validarEmail(correo)) {
       setErrorCorreo('Ingresa un correo válido');
       valido = false;
     } else { setErrorCorreo(''); }
@@ -78,7 +79,7 @@ export default function LoginScreen() {
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(correoRecup.trim())) {
+    if (!validarEmail(correoRecup.trim())) {
       setErrorCorreoRecup('Ingresa un correo válido');
       return;
     }

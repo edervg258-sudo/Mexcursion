@@ -31,6 +31,7 @@ import {
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { Estado } from '../../lib/tipos';
+import { extraerMonto } from '../../lib/validaciones';
 import { SkeletonFilas } from './skeletonloader';
 
 // ─── Constantes visuales ───────────────────────────────────────────────────
@@ -41,11 +42,6 @@ const NIVEL_COLOR: Record<string, string> = {
 };
 
 const COLOR_RUTA = '#3AB7A5'; // color base para itinerarios personalizados
-
-const extraerMonto = (precio: string) => {
-  const match = String(precio ?? '').replace(/,/g, '').match(/\d+/);
-  return match ? Number(match[0]) : 0;
-};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PANTALLA PRINCIPAL — Mis Itinerarios
