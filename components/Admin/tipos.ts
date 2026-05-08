@@ -11,6 +11,7 @@ export type Destino = {
   precio: number;
   descripcion: string;
   activo: boolean;
+  imagen_url?: string | null;
 };
 
 export type Reserva = {

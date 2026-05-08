@@ -559,15 +559,19 @@ export async function obtenerTodosLosDestinos(): Promise<any[]> {
   }
 }
 
-export async function crearDestino(destino: { nombre: string; categoria: string; descripcion: string; precio: number }): Promise<void> {
+export async function crearDestino(destino: { nombre: string; categoria: string; descripcion: string; precio: number; imagen_url?: string }): Promise<void> {
   try {
-    await supabase.from('estados').insert({ ...destino, activo: 1 });
+    const fila: Record<string, any> = { ...destino, activo: 1 };
+    if (!fila.imagen_url) delete fila.imagen_url;
+    await supabase.from('estados').insert(fila);
   } catch (err) { console.error('crearDestino error:', err); }
 }
 
-export async function actualizarDestino(id: number, destino: { nombre: string; categoria: string; descripcion: string; precio: number }): Promise<void> {
+export async function actualizarDestino(id: number, destino: { nombre: string; categoria: string; descripcion: string; precio: number; imagen_url?: string }): Promise<void> {
   try {
-    await supabase.from('estados').update(destino).eq('id', id);
+    const fila: Record<string, any> = { ...destino };
+    if (fila.imagen_url === '') fila.imagen_url = null;
+    await supabase.from('estados').update(fila).eq('id', id);
   } catch (err) { console.error('actualizarDestino error:', err); }
 }
 

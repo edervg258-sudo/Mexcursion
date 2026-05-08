@@ -28,6 +28,7 @@ import {
     alternarFavorito as alternarFavoritoBD,
     cargarResumenResenas,
     cargarFavoritos,
+    obtenerTodosLosDestinos,
     obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
 import { sombraBarraInferior, sombraBarraInferiorOscura, Tema } from '../../lib/tema';
@@ -35,7 +36,44 @@ import { useTemaContext } from '../../lib/TemaContext';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 
-type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
+// Mapa local de imágenes como fallback cuando imagen_url no está definida en DB
+const LOCAL_IMG: Record<number, any> = {
+   1: require('../../assets/images/aguascalientes.png'),
+   2: require('../../assets/images/baja_california.png'),
+   3: require('../../assets/images/baja_california_sur.png'),
+   4: require('../../assets/images/campeche.png'),
+   5: require('../../assets/images/chiapas.png'),
+   6: require('../../assets/images/chihuahua.png'),
+   7: require('../../assets/images/cdmx.png'),
+   8: require('../../assets/images/coahuila.png'),
+   9: require('../../assets/images/colima.png'),
+  10: require('../../assets/images/durango.png'),
+  11: require('../../assets/images/estado_mex.png'),
+  12: require('../../assets/images/guanajuato.png'),
+  13: require('../../assets/images/guerrero.png'),
+  14: require('../../assets/images/hidalgo.png'),
+  15: require('../../assets/images/jalisco.png'),
+  16: require('../../assets/images/michoacan.png'),
+  17: require('../../assets/images/morelos.png'),
+  18: require('../../assets/images/nayarit.png'),
+  19: require('../../assets/images/nuevo_leon.png'),
+  20: require('../../assets/images/oaxaca.png'),
+  21: require('../../assets/images/puebla.png'),
+  22: require('../../assets/images/queretaro.png'),
+  23: require('../../assets/images/quintana_roo.png'),
+  24: require('../../assets/images/san_luis_potosi.png'),
+  25: require('../../assets/images/sinaloa.png'),
+  26: require('../../assets/images/sonora.png'),
+  27: require('../../assets/images/tabasco.png'),
+  28: require('../../assets/images/tamaulipas.png'),
+  29: require('../../assets/images/tlaxcala.png'),
+  30: require('../../assets/images/veracruz.png'),
+  31: require('../../assets/images/yucatan.png'),
+  32: require('../../assets/images/zacatecas.png'),
+};
+
+type EstadoDB = { id: number; nombre: string; categoria: string; descripcion: string; precio: number; imagen_url?: string | null; activo?: number; latitude?: number; longitude?: number };
+type Estado = EstadoDB & { imagen: any; favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
 type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
 
@@ -49,9 +87,25 @@ export default function MenuScreen() {
   // Ajusta este valor si tu header tiene otra altura real
   const HEADER_HEIGHT = 72;
 
-  const [estados, setEstados] = useState(() =>
-    TODOS_LOS_ESTADOS.map((e) => ({ ...e, favorito: false }))
+  const { data: destinosDB = [], isLoading: cargandoDestinos } = useQuery({
+    queryKey: ['destinos'],
+    queryFn: obtenerTodosLosDestinos,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const [favIds, setFavIds] = useState<Set<number>>(new Set());
+
+  const estados: Estado[] = React.useMemo(() =>
+    (destinosDB as EstadoDB[])
+      .filter((d) => d.activo !== 0)
+      .map((d) => ({
+        ...d,
+        imagen: d.imagen_url ? { uri: d.imagen_url } : (LOCAL_IMG[d.id] ?? LOCAL_IMG[1]),
+        favorito: favIds.has(d.id),
+      })),
+    [destinosDB, favIds]
   );
+
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState<TipoOrden>('az');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
@@ -102,7 +156,7 @@ export default function MenuScreen() {
           setUsuarioId(usuario.id);
           setNombreUsuario(usuario.nombre?.split(' ')[0] ?? '');
           const idsFav = await cargarFavoritos(usuario.id);
-          setEstados((ant) => ant.map((e) => ({ ...e, favorito: idsFav.includes(e.id) })));
+          setFavIds(new Set(idsFav));
         }
         setCargando(false);
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: false }).start();
@@ -115,7 +169,7 @@ export default function MenuScreen() {
     setRefreshing(true);
     if (usuarioId) {
       const idsFav = await cargarFavoritos(usuarioId);
-      setEstados(ant => ant.map(e => ({ ...e, favorito: idsFav.includes(e.id) })));
+      setFavIds(new Set(idsFav));
     }
     setRefreshing(false);
   }, [usuarioId]);
@@ -130,7 +184,7 @@ export default function MenuScreen() {
     ]).start();
     try {
       const idsActualizados = await alternarFavoritoBD(usuarioId, id);
-      setEstados((ant) => ant.map((e) => ({ ...e, favorito: idsActualizados.includes(e.id) })));
+      setFavIds(new Set(idsActualizados));
     } catch {
       // silencioso — el estado local no se actualiza y el usuario puede reintentar
     }
@@ -145,9 +199,13 @@ export default function MenuScreen() {
       return a.nombre.localeCompare(b.nombre);
     });
 
+  const nombresDestinos = React.useMemo(
+    () => (destinosDB as EstadoDB[]).map(d => d.nombre),
+    [destinosDB]
+  );
   const { data: resumenesResenas = {} } = useQuery({
-    queryKey: ['resumen-resenas-menu'],
-    queryFn: () => cargarResumenResenas(TODOS_LOS_ESTADOS.map(estado => estado.nombre)),
+    queryKey: ['resumen-resenas-menu', nombresDestinos.length],
+    queryFn: () => cargarResumenResenas(nombresDestinos.length ? nombresDestinos : TODOS_LOS_ESTADOS.map(e => e.nombre)),
     staleTime: 1000 * 60 * 10,
   });
 
@@ -323,7 +381,7 @@ export default function MenuScreen() {
           />
         )}
 
-        {cargando ? (
+        {(cargando || cargandoDestinos) ? (
           <SkeletonLista cantidad={4} />
         ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>

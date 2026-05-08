@@ -86,6 +86,7 @@ export default function AdminScreen() {
   const [formCategoria, setFormCategoria] = useState('');
   const [formPrecio, setFormPrecio]       = useState('');
   const [formDesc, setFormDesc]           = useState('');
+  const [formImagenUrl, setFormImagenUrl] = useState('');
   const [formErrores, setFormErrores]     = useState<Record<string, string | undefined>>({});
 
   // Filtros y búsqueda — destinos
@@ -141,13 +142,14 @@ export default function AdminScreen() {
   // ── CRUD destinos ─────────────────────────────────────────────────────
   const abrirFormNuevo = () => {
     setModoForm('nuevo'); setDestinoEdit(null);
-    setFormNombre(''); setFormCategoria(''); setFormPrecio(''); setFormDesc('');
+    setFormNombre(''); setFormCategoria(''); setFormPrecio(''); setFormDesc(''); setFormImagenUrl('');
     setFormErrores({});
   };
   const abrirFormEditar = (d: Destino) => {
     setModoForm('editar'); setDestinoEdit(d);
     setFormNombre(d.nombre); setFormCategoria(d.categoria);
     setFormPrecio(String(d.precio)); setFormDesc(d.descripcion);
+    setFormImagenUrl(d.imagen_url ?? '');
     setFormErrores({});
   };
   const guardarDestino = async () => {
@@ -160,10 +162,15 @@ export default function AdminScreen() {
     }
     if (Object.keys(errores).length > 0) { setFormErrores(errores); return; }
     setFormErrores({});
+    const datos = {
+      nombre: formNombre.trim(), categoria: formCategoria.trim(),
+      descripcion: formDesc.trim(), precio: precioNum,
+      imagen_url: formImagenUrl.trim() || undefined,
+    };
     if (modoForm === 'nuevo') {
-      await crearDestino({ nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
+      await crearDestino(datos);
     } else if (destinoEdit) {
-      await actualizarDestino(destinoEdit.id, { nombre: formNombre.trim(), categoria: formCategoria.trim(), descripcion: formDesc.trim(), precio: precioNum });
+      await actualizarDestino(destinoEdit.id, { ...datos, imagen_url: formImagenUrl.trim() });
     }
     setModoForm(null);
     setDestinos(await obtenerTodosLosDestinos() as Destino[]);
@@ -361,7 +368,7 @@ export default function AdminScreen() {
       destinos={destinos}
       destinosFiltrados={destinosFiltrados}
       modoForm={modoForm}
-      form={{ nombre: formNombre, categoria: formCategoria, precio: formPrecio, desc: formDesc, errores: formErrores }}
+      form={{ nombre: formNombre, categoria: formCategoria, precio: formPrecio, desc: formDesc, imagen_url: formImagenUrl, errores: formErrores }}
       busqueda={busquedaDestino}
       filtroCategoria={filtroCategoria}
       ordenDestinos={ordenDestinos}
@@ -370,10 +377,11 @@ export default function AdminScreen() {
       onCancelarForm={() => setModoForm(null)}
       onGuardar={guardarDestino}
       onSetForm={(campo, val) => {
-        if (campo === 'nombre')    {setFormNombre(val);}
-        if (campo === 'categoria') {setFormCategoria(val);}
-        if (campo === 'precio')    {setFormPrecio(val);}
-        if (campo === 'desc')      {setFormDesc(val);}
+        if (campo === 'nombre')     {setFormNombre(val);}
+        if (campo === 'categoria')  {setFormCategoria(val);}
+        if (campo === 'precio')     {setFormPrecio(val);}
+        if (campo === 'desc')       {setFormDesc(val);}
+        if (campo === 'imagen_url') {setFormImagenUrl(val);}
       }}
       onLimpiarError={campo => setFormErrores(e => ({ ...e, [campo]: undefined }))}
       onEliminar={handleEliminarDestino}

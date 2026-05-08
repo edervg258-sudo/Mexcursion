@@ -9,13 +9,47 @@ import {
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
-import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonLista } from './skeletonloader';
+
+const LOCAL_IMG_FAV: Record<number, any> = {
+   1: require('../../assets/images/aguascalientes.png'),
+   2: require('../../assets/images/baja_california.png'),
+   3: require('../../assets/images/baja_california_sur.png'),
+   4: require('../../assets/images/campeche.png'),
+   5: require('../../assets/images/chiapas.png'),
+   6: require('../../assets/images/chihuahua.png'),
+   7: require('../../assets/images/cdmx.png'),
+   8: require('../../assets/images/coahuila.png'),
+   9: require('../../assets/images/colima.png'),
+  10: require('../../assets/images/durango.png'),
+  11: require('../../assets/images/estado_mex.png'),
+  12: require('../../assets/images/guanajuato.png'),
+  13: require('../../assets/images/guerrero.png'),
+  14: require('../../assets/images/hidalgo.png'),
+  15: require('../../assets/images/jalisco.png'),
+  16: require('../../assets/images/michoacan.png'),
+  17: require('../../assets/images/morelos.png'),
+  18: require('../../assets/images/nayarit.png'),
+  19: require('../../assets/images/nuevo_leon.png'),
+  20: require('../../assets/images/oaxaca.png'),
+  21: require('../../assets/images/puebla.png'),
+  22: require('../../assets/images/queretaro.png'),
+  23: require('../../assets/images/quintana_roo.png'),
+  24: require('../../assets/images/san_luis_potosi.png'),
+  25: require('../../assets/images/sinaloa.png'),
+  26: require('../../assets/images/sonora.png'),
+  27: require('../../assets/images/tabasco.png'),
+  28: require('../../assets/images/tamaulipas.png'),
+  29: require('../../assets/images/tlaxcala.png'),
+  30: require('../../assets/images/veracruz.png'),
+  31: require('../../assets/images/yucatan.png'),
+  32: require('../../assets/images/zacatecas.png'),
+};
 
 type FavoritoItem = { id: number; nombre: string; categoria: string; precio: number; imagen: ImageSourcePropType };
 
@@ -120,13 +154,13 @@ export default function FavoritosScreen() {
 
       const mapeados = destinosDB
         .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-        .map((d: Record<string, unknown>) => {
-          const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-          return {
-            id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
-            precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
-          };
-        });
+        .map((d: Record<string, unknown>) => ({
+          id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
+          precio: d.precio as number,
+          imagen: (d.imagen_url as string | null | undefined)
+            ? { uri: d.imagen_url as string }
+            : (LOCAL_IMG_FAV[d.id as number] ?? LOCAL_IMG_FAV[1]),
+        }));
       setEstadosFavoritos(mapeados);
       setCargando(false);
       Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
@@ -140,10 +174,13 @@ export default function FavoritosScreen() {
     const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
     const mapeados = destinosDB
       .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-      .map((d: Record<string, unknown>) => {
-        const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-        return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
-      });
+      .map((d: Record<string, unknown>) => ({
+        id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
+        precio: d.precio as number,
+        imagen: (d.imagen_url as string | null | undefined)
+          ? { uri: d.imagen_url as string }
+          : (LOCAL_IMG_FAV[d.id as number] ?? LOCAL_IMG_FAV[1]),
+      }));
     setEstadosFavoritos(mapeados);
     setRecargando(false);
   }, [usuarioId]);
