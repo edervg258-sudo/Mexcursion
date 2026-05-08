@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Alert, Animated, Modal, Platform, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -33,41 +34,37 @@ import { useTemaContext } from '../../lib/TemaContext';
 import { Estado } from '../../lib/tipos';
 import { SkeletonFilas } from './skeletonloader';
 
-// ─── Constantes visuales ───────────────────────────────────────────────────
 const NIVEL_COLOR: Record<string, string> = {
   economico: '#3AB7A5',
-  medio: '#e9c46a',
-  premium: '#DD331D',
+  medio:     '#e9c46a',
+  premium:   '#DD331D',
 };
 
-const COLOR_RUTA = '#3AB7A5'; // color base para itinerarios personalizados
+const COLOR_RUTA = '#3AB7A5';
 
 const extraerMonto = (precio: string) => {
   const match = String(precio ?? '').replace(/,/g, '').match(/\d+/);
   return match ? Number(match[0]) : 0;
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PANTALLA PRINCIPAL — Mis Itinerarios
-// ═══════════════════════════════════════════════════════════════════════════════
 export default function RutasScreen() {
   const { width }        = useWindowDimensions();
   const esPC             = width >= 768;
   const { t }            = useIdioma();
   const { tema, isDark } = useTemaContext();
 
-  const [usuarioId,  setUsuarioId]  = useState<string | null>(null);
-  const [favoritos,  setFavoritos]  = useState<number[]>([]);
-  const [itinerarios, setItinerarios] = useState<Itinerario[]>([]);
+  const [usuarioId,             setUsuarioId]             = useState<string | null>(null);
+  const [favoritos,             setFavoritos]             = useState<number[]>([]);
+  const [itinerarios,           setItinerarios]           = useState<Itinerario[]>([]);
   const [itinerarioExpandidoId, setItinerarioExpandidoId] = useState<number | null>(null);
-  const [tabPorItinerario, setTabPorItinerario] = useState<Record<number, 'destinos' | 'mapa'>>({});
-  const [modalAgregarDestino, setModalAgregarDestino] = useState<{ itinerarioId: number } | null>(null);
-  const [creandoNuevo, setCreandoNuevo] = useState(false);
-  const [nuevoNombre, setNuevoNombre] = useState('');
-  const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [nombreEditado, setNombreEditado] = useState('');
-  const [cargando,   setCargando]   = useState(true);
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const [tabPorItinerario,      setTabPorItinerario]      = useState<Record<number, 'destinos' | 'mapa'>>({});
+  const [modalAgregarDestino,   setModalAgregarDestino]   = useState<{ itinerarioId: number } | null>(null);
+  const [creandoNuevo,          setCreandoNuevo]          = useState(false);
+  const [nuevoNombre,           setNuevoNombre]           = useState('');
+  const [editandoId,            setEditandoId]            = useState<number | null>(null);
+  const [nombreEditado,         setNombreEditado]         = useState('');
+  const [cargando,              setCargando]              = useState(true);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
@@ -107,50 +104,44 @@ export default function RutasScreen() {
     router.push({ pathname: '/(tabs)/detalle', params: { nombre: estado.nombre, categoria: estado.categoria } } as never);
   }, []);
 
-  // Procesar itinerarios para vista
   const itinerariosResumen = useMemo(() =>
     itinerarios.map(itinerario => {
       const destinos = (itinerario.items ?? []).map(clave => {
         const { estado, nivel } = parsearClaveRuta(clave);
-        const info = resolverInfoRuta(clave);
-        const estadoEncontrado = TODOS_LOS_ESTADOS.find(item => item.nombre === estado);
-        const paquete = (PAQUETES_POR_ESTADO[estado] ?? PAQUETES_POR_ESTADO.default ?? []).find(item => item.nivel === nivel);
+        const info              = resolverInfoRuta(clave);
+        const estadoEncontrado  = TODOS_LOS_ESTADOS.find(item => item.nombre === estado);
+        const paquete           = (PAQUETES_POR_ESTADO[estado] ?? PAQUETES_POR_ESTADO.default ?? []).find(item => item.nivel === nivel);
         return {
           clave,
           estado,
           nivel,
-          titulo: info.titulo,
-          precioTotal: info.precioTotal,
-          diasRecomendados: info.diasRecomendados,
-          categoria: estadoEncontrado?.categoria ?? '',
-          descripcion: estadoEncontrado?.descripcion ?? '',
-          color: paquete?.color ?? NIVEL_COLOR[nivel] ?? COLOR_RUTA,
-          latitude: estadoEncontrado?.latitude,
-          longitude: estadoEncontrado?.longitude,
-          estadoCompleto: estadoEncontrado,
+          titulo:          info.titulo,
+          precioTotal:     info.precioTotal,
+          diasRecomendados:info.diasRecomendados,
+          categoria:       estadoEncontrado?.categoria ?? '',
+          descripcion:     estadoEncontrado?.descripcion ?? '',
+          color:           paquete?.color ?? NIVEL_COLOR[nivel] ?? COLOR_RUTA,
+          latitude:        estadoEncontrado?.latitude,
+          longitude:       estadoEncontrado?.longitude,
+          estadoCompleto:  estadoEncontrado,
         };
       });
-
       return {
         ...itinerario,
         destinos,
-        totalDestinos: destinos.length,
-        diasEstimados: destinos.reduce((suma, destino) => suma + destino.diasRecomendados, 0),
-        totalEstimado: destinos.reduce((suma, destino) => suma + extraerMonto(destino.precioTotal), 0),
+        totalDestinos:  destinos.length,
+        diasEstimados:  destinos.reduce((suma, d) => suma + d.diasRecomendados, 0),
+        totalEstimado:  destinos.reduce((suma, d) => suma + extraerMonto(d.precioTotal), 0),
       };
     }),
   [itinerarios]);
 
   const crearNuevoItinerario = useCallback(async () => {
-    if (!usuarioId || !nuevoNombre.trim()) {
-      return;
-    }
+    if (!usuarioId || !nuevoNombre.trim()) { return; }
     const actualizados = await crearItinerario(usuarioId, nuevoNombre.trim());
     setItinerarios(actualizados);
     const creado = actualizados[0];
-    if (creado) {
-      setItinerarioExpandidoId(creado.id);
-    }
+    if (creado) { setItinerarioExpandidoId(creado.id); }
     setNuevoNombre('');
     setCreandoNuevo(false);
   }, [nuevoNombre, usuarioId]);
@@ -174,9 +165,7 @@ export default function RutasScreen() {
   }, []);
 
   const borrarItinerario = useCallback((itinerario: Itinerario) => {
-    if (!usuarioId) {
-      return;
-    }
+    if (!usuarioId) { return; }
     Alert.alert(
       t('rut_eliminar_viaje'),
       t('rut_confirmar_borrar', { nombre: itinerario.nombre }),
@@ -188,9 +177,7 @@ export default function RutasScreen() {
           onPress: async () => {
             const actualizados = await eliminarItinerario(usuarioId, itinerario.id);
             setItinerarios(actualizados);
-            if (itinerarioExpandidoId === itinerario.id) {
-              setItinerarioExpandidoId(null);
-            }
+            if (itinerarioExpandidoId === itinerario.id) { setItinerarioExpandidoId(null); }
           },
         },
       ]
@@ -205,14 +192,14 @@ export default function RutasScreen() {
 
   const agregarDestinoAItinerario = useCallback(async (itinerarioId: number, estadoNombre: string, nivel: 'economico' | 'medio' | 'premium') => {
     if (!usuarioId) { return; }
-    const clave = generarClaveRuta(estadoNombre, nivel);
+    const clave        = generarClaveRuta(estadoNombre, nivel);
     const actualizados = await alternarDestinoItinerario(usuarioId, itinerarioId, clave);
     setItinerarios(actualizados);
     setModalAgregarDestino(null);
   }, [usuarioId]);
 
   const abrirDetalleDesdeClave = useCallback((clave: string) => {
-    const { estado } = parsearClaveRuta(clave);
+    const { estado }       = parsearClaveRuta(clave);
     const estadoEncontrado = TODOS_LOS_ESTADOS.find(item => item.nombre === estado);
     router.push({
       pathname: '/(tabs)/detalle',
@@ -221,8 +208,8 @@ export default function RutasScreen() {
   }, []);
 
   const obtenerEtiquetaNivel = useCallback((nivel: string) => {
-    if (nivel === 'economico') {return t('rut_economico');}
-    if (nivel === 'premium') {return t('rut_premium');}
+    if (nivel === 'economico') { return t('rut_economico'); }
+    if (nivel === 'premium')   { return t('rut_premium'); }
     return t('rut_medio');
   }, [t]);
 
@@ -230,9 +217,8 @@ export default function RutasScreen() {
     setTabPorItinerario(prev => ({ ...prev, [itinerarioId]: tab }));
   }, []);
 
-  // Estados disponibles para agregar al itinerario activo
   const itinerarioActivoParaAgregar = useMemo(() => {
-    if (!modalAgregarDestino) {return null;}
+    if (!modalAgregarDestino) { return null; }
     return itinerariosResumen.find(it => it.id === modalAgregarDestino.itinerarioId);
   }, [modalAgregarDestino, itinerariosResumen]);
 
@@ -257,12 +243,17 @@ export default function RutasScreen() {
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={es.misRutasScroll}
+            contentContainerStyle={es.scroll}
           >
-            {/* Hero "Mis viajes" */}
-            <View style={[es.heroMisViajes, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Text style={[es.heroMisViajesTitulo, { color: tema.texto }]}>{t('rut_mis_viajes_hero')}</Text>
-              <Text style={[es.heroMisViajesSubtitulo, { color: tema.textoSecundario }]}>
+            {/* ── Hero ── */}
+            <View style={[es.hero, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+              <View style={es.heroIconRow}>
+                <View style={[es.heroIconBox, { backgroundColor: tema.primarioSuave }]}>
+                  <Ionicons name="map-outline" size={22} color="#3AB7A5" />
+                </View>
+              </View>
+              <Text style={[es.heroTitulo, { color: tema.texto }]}>{t('rut_mis_viajes_hero')}</Text>
+              <Text style={[es.heroSubtitulo, { color: tema.textoSecundario }]}>
                 {t('rut_mis_viajes_hero_sub')}
               </Text>
 
@@ -275,7 +266,7 @@ export default function RutasScreen() {
                       placeholder={t('rut_ph_nuevo_iti')}
                       placeholderTextColor={tema.textoMuted}
                       autoFocus
-                      style={[es.inputInline, { backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto }]}
+                      style={[es.inputInline, { backgroundColor: tema.superficie, borderColor: tema.primario, color: tema.texto }]}
                     />
                     <View style={es.creacionInlineBtns}>
                       <TouchableOpacity
@@ -286,7 +277,7 @@ export default function RutasScreen() {
                         <Text style={[es.btnInlineCancelarTxt, { color: tema.textoMuted }]}>{t('rut_cancelar')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[es.btnInlineCrear, { backgroundColor: tema.primario }, !nuevoNombre.trim() && es.modalBtnDisabled]}
+                        style={[es.btnInlineCrear, { backgroundColor: tema.primario }, !nuevoNombre.trim() && es.btnDisabled]}
                         onPress={crearNuevoItinerario}
                         disabled={!nuevoNombre.trim()}
                         activeOpacity={0.85}
@@ -302,7 +293,8 @@ export default function RutasScreen() {
                     onPress={() => setCreandoNuevo(true)}
                     activeOpacity={0.85}
                   >
-                    <Text style={es.btnCrearViajeTxt}>+ {t('rut_nuevo_viaje_btn')}</Text>
+                    <Ionicons name="add" size={18} color="#fff" />
+                    <Text style={es.btnCrearViajeTxt}>{t('rut_nuevo_viaje_btn')}</Text>
                   </TouchableOpacity>
                 )
               ) : (
@@ -316,13 +308,16 @@ export default function RutasScreen() {
               )}
             </View>
 
+            {/* ── Estado vacío ── */}
             {!usuarioId ? (
               <View style={[es.estadoVacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+                <Ionicons name="person-outline" size={36} color={tema.textoMuted} style={{ marginBottom: 12 }} />
                 <Text style={[es.estadoVacioTitulo, { color: tema.texto }]}>{t('rut_sesion_requerida')}</Text>
                 <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario }]}>{t('rut_sesion_msg')}</Text>
               </View>
             ) : itinerariosResumen.length === 0 ? (
               <View style={[es.estadoVacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+                <Ionicons name="briefcase-outline" size={36} color={tema.textoMuted} style={{ marginBottom: 12 }} />
                 <Text style={[es.estadoVacioTitulo, { color: tema.texto }]}>{t('rut_sin_itis_aun')}</Text>
                 <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario }]}>{t('rut_sin_itis_msg')}</Text>
                 <TouchableOpacity
@@ -330,13 +325,14 @@ export default function RutasScreen() {
                   onPress={() => router.push('/(tabs)/menu' as never)}
                   activeOpacity={0.85}
                 >
+                  <Ionicons name="compass-outline" size={15} color={tema.primario} />
                   <Text style={[es.btnExplorarTxt, { color: tema.primario }]}>{t('rut_explorar')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               itinerariosResumen.map(itinerario => {
-                const expandido = itinerarioExpandidoId === itinerario.id;
-                const tabActivo = tabPorItinerario[itinerario.id] ?? 'destinos';
+                const expandido    = itinerarioExpandidoId === itinerario.id;
+                const tabActivo    = tabPorItinerario[itinerario.id] ?? 'destinos';
                 const polylineCoords = itinerario.destinos
                   .filter(d => d.latitude && d.longitude)
                   .map(d => ({ latitude: d.latitude!, longitude: d.longitude! }));
@@ -344,9 +340,10 @@ export default function RutasScreen() {
                 return (
                   <View
                     key={itinerario.id}
-                    style={[es.itinerarioCard, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}
+                    style={[es.card, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}
                   >
-                    <View style={es.itinerarioHeader}>
+                    {/* ── Cabecera de la tarjeta ── */}
+                    <View style={es.cardHeader}>
                       <View style={{ flex: 1 }}>
                         {editandoId === itinerario.id ? (
                           <View style={es.edicionInline}>
@@ -365,126 +362,140 @@ export default function RutasScreen() {
                                 disabled={!nombreEditado.trim()}
                                 activeOpacity={0.85}
                               >
-                                <Text style={es.edicionBtnGuardarTxt}>✓</Text>
+                                <Ionicons name="checkmark" size={18} color="#fff" />
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={[es.edicionBtnCancelar, { borderColor: tema.borde }]}
                                 onPress={cancelarEdicion}
                                 activeOpacity={0.85}
                               >
-                                <Text style={[es.edicionBtnCancelarTxt, { color: tema.textoMuted }]}>✕</Text>
+                                <Ionicons name="close" size={16} color={tema.textoMuted} />
                               </TouchableOpacity>
                             </View>
                           </View>
                         ) : (
                           <TouchableOpacity onPress={() => iniciarEdicion(itinerario)} activeOpacity={0.7}>
                             <View style={es.nombreFila}>
-                              <Text style={[es.itinerarioNombre, { color: tema.texto }]}>{itinerario.nombre}</Text>
-                              <Text style={[es.iconoEditar, { color: tema.textoMuted }]}>✏️</Text>
+                              <Text style={[es.cardNombre, { color: tema.texto }]} numberOfLines={1}>{itinerario.nombre}</Text>
+                              <Ionicons name="pencil-outline" size={13} color={tema.textoMuted} />
                             </View>
                           </TouchableOpacity>
                         )}
-                        <Text style={[es.itinerarioMeta, { color: tema.textoMuted }]}>
-                          {itinerario.totalDestinos} {t(itinerario.totalDestinos === 1 ? 'rut_destino' : 'rut_destinos')} · {itinerario.diasEstimados} {t(itinerario.diasEstimados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}
+                        <Text style={[es.cardMeta, { color: tema.textoMuted }]}>
+                          {itinerario.totalDestinos} {t(itinerario.totalDestinos === 1 ? 'rut_destino' : 'rut_destinos')}
+                          {' · '}
+                          {itinerario.diasEstimados} {t(itinerario.diasEstimados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}
                         </Text>
                       </View>
-                      <View style={[es.itinerarioTotal, { backgroundColor: tema.primarioSuave }]}>
-                        <Text style={[es.itinerarioTotalLabel, { color: tema.primario }]}>{t('rut_presupuesto')}</Text>
-                        <Text style={[es.itinerarioTotalValor, { color: tema.texto }]}>${itinerario.totalEstimado.toLocaleString('es-MX')} MXN</Text>
+
+                      <View style={[es.presupuestoBox, { backgroundColor: tema.primarioSuave }]}>
+                        <Text style={[es.presupuestoLabel, { color: tema.primario }]}>{t('rut_presupuesto')}</Text>
+                        <Text style={[es.presupuestoValor, { color: tema.texto }]}>
+                          ${itinerario.totalEstimado.toLocaleString('es-MX')}
+                        </Text>
+                        <Text style={[es.presupuestoMoneda, { color: tema.textoMuted }]}>MXN</Text>
                       </View>
                     </View>
 
-                    <View style={es.destinosPreview}>
+                    {/* ── Chips de destinos ── */}
+                    <View style={es.chipsRow}>
                       {itinerario.destinos.slice(0, 3).map(destino => (
                         <View
                           key={destino.clave}
-                          style={[es.destinoPreviewChip, { backgroundColor: `${destino.color}18`, borderColor: `${destino.color}55` }]}
+                          style={[es.chip, { backgroundColor: `${destino.color}18`, borderColor: `${destino.color}55` }]}
                         >
-                          <Text style={[es.destinoPreviewTxt, { color: destino.color }]}>{destino.estado}</Text>
+                          <View style={[es.chipDot, { backgroundColor: destino.color }]} />
+                          <Text style={[es.chipTxt, { color: destino.color }]}>{destino.estado}</Text>
                         </View>
                       ))}
-                      {itinerario.totalDestinos > 3 ? (
-                        <View style={[es.destinoPreviewChip, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
-                          <Text style={[es.destinoPreviewTxt, { color: tema.textoMuted }]}>+{itinerario.totalDestinos - 3}</Text>
+                      {itinerario.totalDestinos > 3 && (
+                        <View style={[es.chip, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
+                          <Text style={[es.chipTxt, { color: tema.textoMuted }]}>+{itinerario.totalDestinos - 3}</Text>
                         </View>
-                      ) : null}
-                      {itinerario.totalDestinos === 0 ? (
-                        <View style={[es.destinoPreviewChip, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
-                          <Text style={[es.destinoPreviewTxt, { color: tema.textoMuted }]}>{t('rut_sin_destinos_aun')}</Text>
+                      )}
+                      {itinerario.totalDestinos === 0 && (
+                        <View style={[es.chip, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
+                          <Text style={[es.chipTxt, { color: tema.textoMuted }]}>{t('rut_sin_destinos_aun')}</Text>
                         </View>
-                      ) : null}
+                      )}
                     </View>
 
-                    <View style={es.itinerarioAcciones}>
+                    {/* ── Acciones ── */}
+                    <View style={es.cardAcciones}>
                       <TouchableOpacity
-                        style={[es.btnSecundario, { borderColor: tema.borde }]}
+                        style={[es.btnVer, { borderColor: tema.primario }]}
                         onPress={() => setItinerarioExpandidoId(expandido ? null : itinerario.id)}
                         activeOpacity={0.85}
                       >
-                        <Text style={[es.btnSecundarioTxt, { color: tema.texto }]}>
+                        <Ionicons
+                          name={expandido ? 'chevron-up-outline' : 'list-outline'}
+                          size={15}
+                          color={tema.primario}
+                        />
+                        <Text style={[es.btnVerTxt, { color: tema.primario }]}>
                           {expandido ? t('rut_cancelar') : t('rut_ver_itinerario')}
                         </Text>
                       </TouchableOpacity>
+
                       <TouchableOpacity
                         style={es.btnEliminar}
                         onPress={() => borrarItinerario(itinerario)}
                         activeOpacity={0.85}
                       >
+                        <Ionicons name="trash-outline" size={15} color="#DD331D" />
                         <Text style={es.btnEliminarTxt}>{t('rut_eliminar')}</Text>
                       </TouchableOpacity>
                     </View>
 
+                    {/* ── Panel expandido ── */}
                     {expandido && (
-                      <View style={[es.itinerarioDetalle, { borderTopColor: tema.borde }]}>
-                        {/* Tabs Destinos / Mapa */}
-                        <View style={[es.tabsItinerario, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
+                      <View style={[es.panelDetalle, { borderTopColor: tema.borde }]}>
+                        {/* Tabs */}
+                        <View style={[es.tabs, { backgroundColor: tema.superficie, borderColor: tema.borde }]}>
                           <TouchableOpacity
-                            style={[
-                              es.tabItinerarioBtn,
-                              tabActivo === 'destinos' && { backgroundColor: tema.primario },
-                            ]}
+                            style={[es.tab, tabActivo === 'destinos' && { backgroundColor: tema.primario }]}
                             onPress={() => cambiarTabItinerario(itinerario.id, 'destinos')}
                             activeOpacity={0.85}
                           >
-                            <Text style={[
-                              es.tabItinerarioBtnTxt,
-                              { color: tabActivo === 'destinos' ? '#fff' : tema.textoMuted },
-                            ]}>
-                              📍 {t('rut_destinos_tab') || 'Destinos'}
+                            <Ionicons
+                              name="location-outline"
+                              size={14}
+                              color={tabActivo === 'destinos' ? '#fff' : tema.textoMuted}
+                            />
+                            <Text style={[es.tabTxt, { color: tabActivo === 'destinos' ? '#fff' : tema.textoMuted }]}>
+                              {t('rut_destinos_tab')}
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[
-                              es.tabItinerarioBtn,
-                              tabActivo === 'mapa' && { backgroundColor: tema.primario },
-                            ]}
+                            style={[es.tab, tabActivo === 'mapa' && { backgroundColor: tema.primario }]}
                             onPress={() => cambiarTabItinerario(itinerario.id, 'mapa')}
                             activeOpacity={0.85}
                           >
-                            <Text style={[
-                              es.tabItinerarioBtnTxt,
-                              { color: tabActivo === 'mapa' ? '#fff' : tema.textoMuted },
-                            ]}>
-                              🗺️ {t('rut_mapa_tab') || 'Mapa'}
+                            <Ionicons
+                              name="map-outline"
+                              size={14}
+                              color={tabActivo === 'mapa' ? '#fff' : tema.textoMuted}
+                            />
+                            <Text style={[es.tabTxt, { color: tabActivo === 'mapa' ? '#fff' : tema.textoMuted }]}>
+                              {t('rut_mapa_tab')}
                             </Text>
                           </TouchableOpacity>
                         </View>
 
                         {/* Contenido del tab */}
                         {tabActivo === 'destinos' ? (
-                          <View style={{ gap: 10 }}>
+                          <View style={{ gap: 8 }}>
                             {itinerario.destinos.length === 0 ? (
-                              <View style={[es.destinoFila, { backgroundColor: tema.superficie }]}>
-                                <View style={{ flex: 1 }}>
-                                  <Text style={[es.destinoTitulo, { color: tema.texto }]}>{t('rut_sin_destinos_aun')}</Text>
-                                  <Text style={[es.destinoDescripcion, { color: tema.textoSecundario }]}>{t('rut_viaje_vacio_msg')}</Text>
-                                </View>
+                              <View style={[es.destinoVacio, { backgroundColor: tema.superficie }]}>
+                                <Ionicons name="location-outline" size={28} color={tema.textoMuted} style={{ marginBottom: 6 }} />
+                                <Text style={[es.destinoVacioTitulo, { color: tema.texto }]}>{t('rut_sin_destinos_aun')}</Text>
+                                <Text style={[es.destinoVacioTexto, { color: tema.textoSecundario }]}>{t('rut_viaje_vacio_msg')}</Text>
                               </View>
                             ) : (
                               itinerario.destinos.map((destino, index) => (
                                 <View key={destino.clave} style={[es.destinoFila, { backgroundColor: tema.superficie }]}>
-                                  <View style={[es.destinoIndice, { backgroundColor: destino.color }]}>
-                                    <Text style={es.destinoIndiceTxt}>{index + 1}</Text>
+                                  <View style={[es.destinoNumero, { backgroundColor: destino.color }]}>
+                                    <Text style={es.destinoNumeroTxt}>{index + 1}</Text>
                                   </View>
                                   <TouchableOpacity
                                     style={{ flex: 1 }}
@@ -492,45 +503,48 @@ export default function RutasScreen() {
                                     activeOpacity={0.85}
                                   >
                                     <Text style={[es.destinoTitulo, { color: tema.texto }]}>{destino.titulo}</Text>
-                                    <Text style={[es.destinoDescripcion, { color: tema.textoSecundario }]}>
-                                      {destino.estado} · {obtenerEtiquetaNivel(destino.nivel)} · {destino.diasRecomendados} {t(destino.diasRecomendados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}
+                                    <Text style={[es.destinoMeta, { color: tema.textoSecundario }]}>
+                                      {destino.estado}
+                                      {' · '}
+                                      {obtenerEtiquetaNivel(destino.nivel)}
+                                      {' · '}
+                                      {destino.diasRecomendados} {t(destino.diasRecomendados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}
                                     </Text>
                                     <Text style={[es.destinoPrecio, { color: destino.color }]}>{destino.precioTotal}</Text>
                                   </TouchableOpacity>
                                   <TouchableOpacity
-                                    style={es.destinoQuitar}
+                                    style={es.btnQuitar}
                                     onPress={() => quitarDestinoDeItinerario(itinerario.id, destino.clave)}
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                                   >
-                                    <Text style={es.destinoQuitarTxt}>✕</Text>
+                                    <Ionicons name="close" size={14} color="#DD331D" />
                                   </TouchableOpacity>
                                 </View>
                               ))
                             )}
 
-                            {/* Botón agregar destino */}
                             <TouchableOpacity
-                              style={[es.btnAgregarDestino, { borderColor: tema.primario }]}
+                              style={[es.btnAgregar, { borderColor: tema.primario }]}
                               onPress={() => setModalAgregarDestino({ itinerarioId: itinerario.id })}
                               activeOpacity={0.85}
                             >
-                              <Text style={[es.btnAgregarDestinoTxt, { color: tema.primario }]}>
-                                + {t('rut_agregar_destino') || 'Agregar destino'}
+                              <Ionicons name="add-circle-outline" size={16} color={tema.primario} />
+                              <Text style={[es.btnAgregarTxt, { color: tema.primario }]}>
+                                {t('rut_agregar_destino')}
                               </Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
-                          // Tab Mapa
                           <View style={[es.mapaContenedor, { borderColor: tema.borde }]}>
                             {itinerario.destinos.length === 0 ? (
                               <View style={[es.mapaVacio, { backgroundColor: tema.superficie }]}>
-                                <Text style={{ fontSize: 32, marginBottom: 8 }}>🗺️</Text>
-                                <Text style={[es.estadoVacioTitulo, { color: tema.texto, fontSize: 14 }]}>
-                                  {t('rut_mapa_vacio_titulo') || 'Sin destinos'}
+                                <Ionicons name="map-outline" size={42} color={tema.textoMuted} style={{ marginBottom: 10 }} />
+                                <Text style={[es.destinoVacioTitulo, { color: tema.texto }]}>
+                                  {t('rut_mapa_vacio_titulo')}
                                 </Text>
-                                <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario, fontSize: 12 }]}>
-                                  {t('rut_mapa_vacio_msg') || 'Agrega destinos para ver tu ruta en el mapa.'}
+                                <Text style={[es.destinoVacioTexto, { color: tema.textoSecundario }]}>
+                                  {t('rut_mapa_vacio_msg')}
                                 </Text>
                               </View>
                             ) : (
@@ -563,7 +577,7 @@ export default function RutasScreen() {
         </Animated.View>
       </View>
 
-      {/* Modal: agregar destino al itinerario */}
+      {/* ── Modal: agregar destino ── */}
       <Modal
         visible={!!modalAgregarDestino}
         transparent
@@ -572,12 +586,23 @@ export default function RutasScreen() {
       >
         <View style={es.modalOverlay}>
           <View style={[es.modalCard, { backgroundColor: tema.superficieBlanca, maxHeight: '85%' }]}>
-            <Text style={[es.modalTitulo, { color: tema.texto }]}>
-              {t('rut_agregar_destino_titulo') || 'Agregar destino'}
-            </Text>
-            <Text style={[es.modalSubtitulo, { color: tema.textoSecundario }]}>
-              {t('rut_agregar_destino_sub') || 'Elige un estado y un nivel de paquete.'}
-            </Text>
+            <View style={es.modalCabecera}>
+              <View>
+                <Text style={[es.modalTitulo, { color: tema.texto }]}>
+                  {t('rut_agregar_destino_titulo')}
+                </Text>
+                <Text style={[es.modalSubtitulo, { color: tema.textoSecundario }]}>
+                  {t('rut_agregar_destino_sub')}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[es.modalBtnCerrarX, { backgroundColor: tema.superficie, borderColor: tema.borde }]}
+                onPress={() => setModalAgregarDestino(null)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="close" size={16} color={tema.textoMuted} />
+              </TouchableOpacity>
+            </View>
 
             <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
               {TODOS_LOS_ESTADOS.map(estado => {
@@ -588,30 +613,28 @@ export default function RutasScreen() {
                 const nivelesDisponibles = niveles.filter(
                   n => !clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n))
                 );
-
-                if (nivelesDisponibles.length === 0) {return null;}
-
+                if (nivelesDisponibles.length === 0) { return null; }
                 return (
                   <View
                     key={estado.id}
-                    style={[es.estadoPickerFila, { backgroundColor: tema.superficie, borderColor: tema.borde }]}
+                    style={[es.estadoFila, { backgroundColor: tema.superficie, borderColor: tema.borde }]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[es.estadoPickerNombre, { color: tema.texto }]}>{estado.nombre}</Text>
-                      <Text style={[es.estadoPickerCategoria, { color: tema.textoMuted }]}>{estado.categoria}</Text>
+                      <Text style={[es.estadoNombre, { color: tema.texto }]}>{estado.nombre}</Text>
+                      <Text style={[es.estadoCategoria, { color: tema.textoMuted }]}>{estado.categoria}</Text>
                     </View>
-                    <View style={es.estadoPickerNiveles}>
+                    <View style={es.nivelesRow}>
                       {nivelesDisponibles.map(nivel => (
                         <TouchableOpacity
                           key={nivel}
                           style={[
-                            es.estadoPickerNivelBtn,
+                            es.nivelBtn,
                             { backgroundColor: NIVEL_COLOR[nivel] + '22', borderColor: NIVEL_COLOR[nivel] },
                           ]}
                           onPress={() => modalAgregarDestino && agregarDestinoAItinerario(modalAgregarDestino.itinerarioId, estado.nombre, nivel)}
                           activeOpacity={0.85}
                         >
-                          <Text style={[es.estadoPickerNivelTxt, { color: NIVEL_COLOR[nivel] }]}>
+                          <Text style={[es.nivelBtnTxt, { color: NIVEL_COLOR[nivel] }]}>
                             {obtenerEtiquetaNivel(nivel)}
                           </Text>
                         </TouchableOpacity>
@@ -623,11 +646,11 @@ export default function RutasScreen() {
             </ScrollView>
 
             <TouchableOpacity
-              style={es.modalBtnCerrar}
+              style={[es.btnCerrarModal, { borderColor: tema.borde }]}
               onPress={() => setModalAgregarDestino(null)}
               activeOpacity={0.85}
             >
-              <Text style={[es.modalBtnCerrarTxt, { color: tema.textoMuted }]}>{t('rut_cancelar')}</Text>
+              <Text style={[es.btnCerrarModalTxt, { color: tema.textoMuted }]}>{t('rut_cancelar')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -637,92 +660,108 @@ export default function RutasScreen() {
 }
 
 const es = StyleSheet.create({
-  misRutasScroll:   { paddingHorizontal: 14, paddingBottom: 24, paddingTop: 10, gap: 12 },
-  heroMisViajes:    { borderWidth: 1, borderRadius: 18, padding: 18, marginBottom: 14 },
-  heroMisViajesTitulo: { fontSize: 21, fontWeight: '900', marginBottom: 6 },
-  heroMisViajesSubtitulo: { fontSize: 13, lineHeight: 19, marginBottom: 16 },
-  btnCrearViaje:    { borderRadius: 24, paddingVertical: 13, alignItems: 'center' },
-  btnCrearViajeTxt: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  scroll:              { paddingHorizontal: 14, paddingBottom: 24, paddingTop: 10, gap: 12 },
+
+  // Hero
+  hero:                { borderWidth: 1, borderRadius: 18, padding: 20 },
+  heroIconRow:         { marginBottom: 12 },
+  heroIconBox:         { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  heroTitulo:          { fontSize: 22, fontWeight: '800', marginBottom: 6 },
+  heroSubtitulo:       { fontSize: 13, lineHeight: 19, marginBottom: 18 },
+  btnCrearViaje:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 24, paddingVertical: 13 },
+  btnCrearViajeTxt:    { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // Creación inline
-  creacionInline:    { gap: 10 },
-  inputInline:       { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },
-  creacionInlineBtns:{ flexDirection: 'row', gap: 10 },
-  btnInlineCancelar: { flex: 1, borderWidth: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
-  btnInlineCancelarTxt: { fontSize: 13, fontWeight: '800' },
-  btnInlineCrear:    { flex: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
-  btnInlineCrearTxt: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  creacionInline:      { gap: 10 },
+  inputInline:         { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },
+  creacionInlineBtns:  { flexDirection: 'row', gap: 10 },
+  btnInlineCancelar:   { flex: 1, borderWidth: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
+  btnInlineCancelarTxt:{ fontSize: 13, fontWeight: '600' },
+  btnInlineCrear:      { flex: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
+  btnInlineCrearTxt:   { color: '#fff', fontSize: 13, fontWeight: '700' },
+  btnDisabled:         { opacity: 0.4 },
 
-  estadoVacio:      { borderWidth: 1, borderRadius: 18, padding: 20, alignItems: 'center' },
-  estadoVacioTitulo:{ fontSize: 18, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  estadoVacioTexto: { fontSize: 13, lineHeight: 20, textAlign: 'center', marginBottom: 16 },
-  btnExplorar:      { borderWidth: 1.5, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11 },
-  btnExplorarTxt:   { fontSize: 13, fontWeight: '800' },
-  itinerarioCard:   { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12 },
-  itinerarioHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-  itinerarioNombre: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
-  itinerarioMeta:   { fontSize: 12, fontWeight: '600' },
-  itinerarioTotal:  { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, minWidth: 120 },
-  itinerarioTotalLabel: { fontSize: 10, fontWeight: '800', marginBottom: 2 },
-  itinerarioTotalValor: { fontSize: 13, fontWeight: '800' },
-  destinosPreview:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  destinoPreviewChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 },
-  destinoPreviewTxt:{ fontSize: 12, fontWeight: '700' },
-  itinerarioAcciones: { flexDirection: 'row', gap: 10 },
-  btnSecundario:    { flex: 1, borderWidth: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
-  btnSecundarioTxt: { fontSize: 13, fontWeight: '800' },
-  btnEliminar:      { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center', backgroundColor: '#FFECEB' },
-  btnEliminarTxt:   { fontSize: 13, fontWeight: '800', color: '#DD331D' },
-  itinerarioDetalle:{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, gap: 12 },
+  // Estado vacío
+  estadoVacio:         { borderWidth: 1, borderRadius: 18, padding: 28, alignItems: 'center' },
+  estadoVacioTitulo:   { fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  estadoVacioTexto:    { fontSize: 13, lineHeight: 20, textAlign: 'center', marginBottom: 16 },
+  btnExplorar:         { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11 },
+  btnExplorarTxt:      { fontSize: 13, fontWeight: '700' },
 
-  // Tabs Destinos / Mapa
-  tabsItinerario:   { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 4, gap: 4 },
-  tabItinerarioBtn: { flex: 1, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  tabItinerarioBtnTxt: { fontSize: 13, fontWeight: '800' },
+  // Tarjeta itinerario
+  card:                { borderWidth: 1, borderRadius: 18, padding: 16 },
+  cardHeader:          { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
+  nombreFila:          { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 },
+  cardNombre:          { fontSize: 17, fontWeight: '700', flex: 1 },
+  cardMeta:            { fontSize: 12, fontWeight: '500' },
+  presupuestoBox:      { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, minWidth: 110, alignItems: 'flex-end' },
+  presupuestoLabel:    { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, marginBottom: 2 },
+  presupuestoValor:    { fontSize: 14, fontWeight: '800' },
+  presupuestoMoneda:   { fontSize: 10, fontWeight: '600', marginTop: 1 },
 
-  destinoFila:      { flexDirection: 'row', gap: 12, borderRadius: 14, padding: 12, alignItems: 'center' },
-  destinoIndice:    { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  destinoIndiceTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  destinoTitulo:    { fontSize: 14, fontWeight: '800', marginBottom: 2 },
-  destinoDescripcion:{ fontSize: 12, lineHeight: 18, marginBottom: 4 },
-  destinoPrecio:    { fontSize: 12, fontWeight: '800' },
-  destinoQuitar:    { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFECEB', alignItems: 'center', justifyContent: 'center' },
-  destinoQuitarTxt: { color: '#DD331D', fontSize: 14, fontWeight: '800' },
+  // Chips
+  chipsRow:            { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  chip:                { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5 },
+  chipDot:             { width: 6, height: 6, borderRadius: 3 },
+  chipTxt:             { fontSize: 12, fontWeight: '600' },
+
+  // Acciones de tarjeta
+  cardAcciones:        { flexDirection: 'row', gap: 10 },
+  btnVer:              { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1.5, borderRadius: 22, paddingVertical: 10 },
+  btnVerTxt:           { fontSize: 13, fontWeight: '700' },
+  btnEliminar:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFECEB' },
+  btnEliminarTxt:      { fontSize: 13, fontWeight: '700', color: '#DD331D' },
+
+  // Panel expandido
+  panelDetalle:        { marginTop: 16, paddingTop: 16, borderTopWidth: 1, gap: 12 },
+
+  // Tabs
+  tabs:                { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 4, gap: 4 },
+  tab:                 { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 8, paddingVertical: 9 },
+  tabTxt:              { fontSize: 13, fontWeight: '700' },
+
+  // Destino vacío
+  destinoVacio:        { borderRadius: 14, padding: 20, alignItems: 'center' },
+  destinoVacioTitulo:  { fontSize: 14, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
+  destinoVacioTexto:   { fontSize: 12, lineHeight: 18, textAlign: 'center' },
+
+  // Fila de destino
+  destinoFila:         { flexDirection: 'row', gap: 12, borderRadius: 14, padding: 12, alignItems: 'center' },
+  destinoNumero:       { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  destinoNumeroTxt:    { color: '#fff', fontSize: 12, fontWeight: '800' },
+  destinoTitulo:       { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  destinoMeta:         { fontSize: 12, lineHeight: 18, marginBottom: 3 },
+  destinoPrecio:       { fontSize: 12, fontWeight: '700' },
+  btnQuitar:           { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFECEB', alignItems: 'center', justifyContent: 'center' },
 
   // Botón agregar destino
-  btnAgregarDestino:{ borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  btnAgregarDestinoTxt: { fontSize: 13, fontWeight: '800' },
+  btnAgregar:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 13, marginTop: 4 },
+  btnAgregarTxt:       { fontSize: 13, fontWeight: '700' },
+
+  // Edición inline
+  edicionInline:       { gap: 8, marginBottom: 4 },
+  edicionInput:        { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, fontWeight: '700' },
+  edicionBtns:         { flexDirection: 'row', gap: 8 },
+  edicionBtnGuardar:   { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  edicionBtnCancelar:  { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 
   // Mapa
-  mapaContenedor:   { borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
-  mapaVacio:        { padding: 28, alignItems: 'center', justifyContent: 'center' },
+  mapaContenedor:      { borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
+  mapaVacio:           { padding: 32, alignItems: 'center', justifyContent: 'center' },
 
   // Modal agregar destino
-  modalOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard:        { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 22 },
-  modalTitulo:      { fontSize: 18, fontWeight: '800', marginBottom: 6 },
-  modalSubtitulo:   { fontSize: 13, lineHeight: 19, marginBottom: 14 },
-  modalBtnDisabled: { opacity: 0.45 },
-  modalBtnCerrar:   { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  modalBtnCerrarTxt:{ fontSize: 13, fontWeight: '700' },
-
-  // Edición inline de nombre
-  nombreFila:         { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  iconoEditar:        { fontSize: 13 },
-  edicionInline:      { gap: 8, marginBottom: 4 },
-  edicionInput:       { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, fontWeight: '800' },
-  edicionBtns:        { flexDirection: 'row', gap: 8 },
-  edicionBtnGuardar:  { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  edicionBtnGuardarTxt: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  edicionBtnCancelar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  edicionBtnCancelarTxt: { fontSize: 14, fontWeight: '800' },
-  btnDisabled:        { opacity: 0.4 },
-
-  // Picker de estados
-  estadoPickerFila: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
-  estadoPickerNombre: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
-  estadoPickerCategoria: { fontSize: 11, fontWeight: '600' },
-  estadoPickerNiveles: { flexDirection: 'row', gap: 6 },
-  estadoPickerNivelBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1 },
-  estadoPickerNivelTxt: { fontSize: 11, fontWeight: '800' },
+  modalOverlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard:           { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 22 },
+  modalCabecera:       { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  modalTitulo:         { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  modalSubtitulo:      { fontSize: 13, lineHeight: 19 },
+  modalBtnCerrarX:     { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  estadoFila:          { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  estadoNombre:        { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  estadoCategoria:     { fontSize: 11, fontWeight: '500' },
+  nivelesRow:          { flexDirection: 'row', gap: 6 },
+  nivelBtn:            { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1 },
+  nivelBtnTxt:         { fontSize: 11, fontWeight: '800' },
+  btnCerrarModal:      { paddingVertical: 14, alignItems: 'center', marginTop: 8, borderTopWidth: 1 },
+  btnCerrarModalTxt:   { fontSize: 13, fontWeight: '600' },
 });
