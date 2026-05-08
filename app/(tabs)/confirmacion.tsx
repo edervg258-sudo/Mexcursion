@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -42,15 +43,15 @@ export default function ConfirmacionScreen() {
     oxxo:    t('pago_metodo_oxxo'),
   };
 
-  const detalles = [
-    { label: t('conf_viajero'),  valor: nombre_viajero,                              icono: '👤' },
-    { label: t('conf_telefono'), valor: telefono,                                    icono: '📱' },
-    { label: t('conf_destino'),  valor: nombre,                                      icono: '📍' },
-    { label: t('conf_paquete'),  valor: paquete,                                     icono: '🎒' },
-    { label: t('conf_fecha'),    valor: fecha,                                       icono: '📅' },
-    { label: t('conf_personas'), valor: personas,                                    icono: '👥' },
-    { label: t('conf_metodo'),   valor: etiquetaMetodo[metodo ?? ''] ?? metodo,      icono: '💰' },
-    { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: '✅' },
+  const detalles: { label: string; valor: string | undefined; icono: keyof typeof Ionicons.glyphMap }[] = [
+    { label: t('conf_viajero'),  valor: nombre_viajero,                              icono: 'person-outline' },
+    { label: t('conf_telefono'), valor: telefono,                                    icono: 'call-outline' },
+    { label: t('conf_destino'),  valor: nombre,                                      icono: 'location-outline' },
+    { label: t('conf_paquete'),  valor: paquete,                                     icono: 'briefcase-outline' },
+    { label: t('conf_fecha'),    valor: fecha,                                       icono: 'calendar-outline' },
+    { label: t('conf_personas'), valor: personas,                                    icono: 'people-outline' },
+    { label: t('conf_metodo'),   valor: etiquetaMetodo[metodo ?? ''] ?? metodo,      icono: 'card-outline' },
+    { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: 'checkmark-circle-outline' },
   ].filter(d => d.valor);
 
   return (
@@ -64,7 +65,7 @@ export default function ConfirmacionScreen() {
 
         <Animated.View style={[es.circuloCheck, esPendiente && es.circuloPendiente, { transform: [{ scale: escala }] }]}>
           <View style={[es.circuloInterno, esPendiente && es.circuloInternoPendiente]}>
-            <Text style={es.checkIcon}>{esPendiente ? '⏳' : '✓'}</Text>
+            <Ionicons name={esPendiente ? 'time-outline' : 'checkmark'} size={32} color="#fff" />
           </View>
         </Animated.View>
 
@@ -89,7 +90,7 @@ export default function ConfirmacionScreen() {
             <View style={es.folioCuerpo}>
               <Text style={[es.folioNum, { color: tema.texto }]}>{folio}</Text>
               <View style={[es.folioDestino, { backgroundColor: isDark ? tema.primarioSuave : '#f0faf9' }]}>
-                <Text style={es.folioDestinoTexto}>📍 {nombre} · {fecha}</Text>
+                <Text style={es.folioDestinoTexto}>{nombre} · {fecha}</Text>
               </View>
             </View>
           </View>
@@ -101,7 +102,7 @@ export default function ConfirmacionScreen() {
             </View>
             {detalles.map((d, i) => (
               <View key={i} style={[es.filaDetalle, i < detalles.length - 1 && [es.filaDetalleBorde, { borderBottomColor: tema.borde }]]}>
-                <Text style={es.filaIcono}>{d.icono}</Text>
+                <Ionicons name={d.icono} size={16} color={tema.textoMuted} style={es.filaIcono} />
                 <Text style={[es.filaLabel, { color: tema.textoMuted }]}>{d.label}</Text>
                 <Text style={[es.filaValor, { color: tema.texto }]} numberOfLines={1}>{d.valor}</Text>
               </View>
@@ -161,7 +162,7 @@ const es = StyleSheet.create({
   circuloInterno:       { width: 76, height: 76, borderRadius: 38, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', ...sombra({ color: '#3AB7A5', opacity: 0.4, radius: 10, offsetY: 4, elevation: 6 }) },
   circuloPendiente:     { backgroundColor: 'rgba(211,84,0,0.12)' },
   circuloInternoPendiente: { backgroundColor: '#D35400', ...sombra({ color: '#D35400', opacity: 0.35, radius: 10, offsetY: 4, elevation: 6 }) },
-  checkIcon:            { fontSize: 38, color: '#fff', fontWeight: '700', lineHeight: 44 },
+  checkIcon:            { color: '#fff' },
 
   titulo:             { fontSize: 26, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
   subtitulo:          { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 22 },
@@ -179,7 +180,7 @@ const es = StyleSheet.create({
   detalleTitulo:      { fontSize: 13, fontWeight: '700' },
   filaDetalle:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, gap: 10 },
   filaDetalleBorde:   { borderBottomWidth: 1 },
-  filaIcono:          { fontSize: 16, width: 24, textAlign: 'center' },
+  filaIcono:          { width: 24, textAlign: 'center' },
   filaLabel:          { fontSize: 13, flex: 1 },
   filaValor:          { fontSize: 13, fontWeight: '700', maxWidth: '55%', textAlign: 'right' },
 

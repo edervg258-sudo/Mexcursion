@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useQuery } from '@tanstack/react-query';
@@ -327,7 +328,7 @@ export default function MenuScreen() {
           <SkeletonLista cantidad={4} />
         ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>
-            <Text style={estilos.textoVacio}>🗺️</Text>
+            <Ionicons name="map-outline" size={52} color="#ccc" />
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
             <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
@@ -601,7 +602,7 @@ const estilos = StyleSheet.create({
 
   // Vacío
   vacio: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
-  textoVacio: { fontSize: 48 },
+
   tituloVacio: { fontSize: 18, fontWeight: '700', color: Tema.texto },
   subtituloVacio: { fontSize: 13, color: Tema.textoMuted },
   limpiarFiltros: { marginTop: 10, color: Tema.acento, fontWeight: '700', fontSize: 14 },

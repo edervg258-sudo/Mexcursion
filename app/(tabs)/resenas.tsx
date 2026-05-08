@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -121,7 +122,7 @@ export default function ResenasScreen() {
   // Estado vacío rico
   const EmptyComponent = () => (
     <View style={es.vacioCont}>
-      <Text style={es.vacioEmoji}>⭐</Text>
+      <Ionicons name="star-outline" size={44} color="#ccc" />
       <Text style={[es.vacioTitulo, { color: tema.texto }]}>Sin reseñas aún</Text>
       <Text style={[es.vacioSub, { color: tema.textoMuted }]}>
         ¡Sé el primero en compartir tu experiencia en {nombre ?? 'este destino'}!
@@ -294,7 +295,6 @@ const es = StyleSheet.create({
 
   // Vacío
   vacioCont:           { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
-  vacioEmoji:          { fontSize: 44, marginBottom: 4 },
   vacioTitulo:         { fontSize: 18, fontWeight: '800', textAlign: 'center' },
   vacioSub:            { fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
