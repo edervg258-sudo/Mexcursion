@@ -53,6 +53,7 @@ export default function MenuScreen() {
     TODOS_LOS_ESTADOS.map((e) => ({ ...e, favorito: false }))
   );
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaDebounced, setBusquedaDebounced] = useState('');
   const [orden, setOrden] = useState<TipoOrden>('az');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const CATEGORIAS = [
@@ -136,8 +137,13 @@ export default function MenuScreen() {
     }
   };
 
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaDebounced(busqueda), 300);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
   const estadosFiltrados = estados
-    .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+    .filter((e) => e.nombre.toLowerCase().includes(busquedaDebounced.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
     .sort((a, b) => {
       if (orden === 'mas_caro') {return b.precio - a.precio;}

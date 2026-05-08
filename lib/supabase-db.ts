@@ -363,7 +363,8 @@ export async function cargarFavoritos(usuarioId: string): Promise<number[]> {
     const { data, error } = await supabase
       .from('favoritos')
       .select('estado_id')
-      .eq('usuario_id', usuarioId);
+      .eq('usuario_id', usuarioId)
+      .limit(200);
     if (error) return [];
     return data?.map((f: any) => f.estado_id) ?? [];
   } catch (err) {
@@ -573,6 +574,34 @@ export async function actualizarDestino(id: number, destino: { nombre: string; c
 
 export const toggleActivoDestinoAdmin  = (id: number)          => toggleActivo('estados', 'id', id);
 
+export async function buscarDestinos(
+  termino: string,
+  categoria?: string,
+  limite = 50
+): Promise<any[]> {
+  try {
+    let query = supabase
+      .from('estados')
+      .select('*')
+      .order('nombre', { ascending: true })
+      .limit(limite);
+
+    if (termino.trim()) {
+      query = query.ilike('nombre', `%${termino.trim()}%`);
+    }
+    if (categoria && categoria !== 'Todos') {
+      query = query.eq('categoria', categoria);
+    }
+
+    const { data, error } = await query;
+    if (error) return [];
+    return data ?? [];
+  } catch (err) {
+    console.error('buscarDestinos error:', err);
+    return [];
+  }
+}
+
 export async function eliminarDestino(id: number): Promise<void> {
   try {
     await supabase.from('estados').delete().eq('id', id);
@@ -736,7 +765,8 @@ export async function cargarResenas(destino: string): Promise<any[]> {
       .from('resenas')
       .select('*, usuarios(nombre)')
       .eq('destino', destino)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
     if (error) return [];
     return (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' }));
   } catch (err) {
