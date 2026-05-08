@@ -122,7 +122,7 @@ export async function registrarUsuario(
 export async function iniciarSesion(
   correo: string,
   contrasena: string
-): Promise<{ exito: boolean; usuario?: Usuario; error?: string }> {
+): Promise<{ exito: boolean; usuario?: Usuario; error?: string; noConfirmado?: boolean }> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: correo,
@@ -131,12 +131,16 @@ export async function iniciarSesion(
 
     if (error) {
       console.log('❌ Error de login:', error.message);
-      
-      // Manejar específicamente errores de refresh token
+
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
       }
-      
+
+      const msgLower = (error.message ?? '').toLowerCase();
+      if (msgLower.includes('email not confirmed') || msgLower.includes('not confirmed')) {
+        return { exito: false, error: 'Correo o contraseña incorrectos.', noConfirmado: true };
+      }
+
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
@@ -155,6 +159,18 @@ export async function iniciarSesion(
 export async function cerrarSesion(): Promise<void> {
   _sessionCache = null; // invalidar caché al cerrar sesión
   try { await supabase.auth.signOut(); } catch (err) { console.error('cerrarSesion error:', err); }
+}
+
+export async function reenviarConfirmacion(
+  correo: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: correo.trim().toLowerCase() });
+    if (error) return { exito: false, error: 'No se pudo reenviar el correo.' };
+    return { exito: true };
+  } catch {
+    return { exito: false, error: 'Error al reenviar el correo.' };
+  }
 }
 
 // ── Verificación rápida — solo auth, sin query a BD (para routing inicial) ─
@@ -720,10 +736,33 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   }
 }
 
-export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+export async function cargarReservasGuia(limite = 60): Promise<any[]> {
   try {
-    await supabase.from('reservas').update({ estado }).eq('id', id);
-  } catch (err) { console.error('actualizarEstadoReserva error:', err); }
+    const hoy = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('*, usuarios(nombre)')
+      .in('estado', ['confirmada', 'pendiente'])
+      .gte('fecha', hoy)
+      .order('fecha', { ascending: true })
+      .limit(limite);
+    if (error) return [];
+    return (data ?? []).map((r: any) => ({
+      ...r,
+      nombre_usuario: r.usuarios?.nombre ?? 'Pasajero',
+    }));
+  } catch (err) {
+    console.error('cargarReservasGuia error:', err);
+    return [];
+  }
+}
+
+export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+  const { error } = await supabase.from('reservas').update({ estado }).eq('id', id);
+  if (error) {
+    console.error('actualizarEstadoReserva error:', error);
+    throw new Error(error.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════

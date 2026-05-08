@@ -115,6 +115,11 @@ export default function RootLayout() {
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
         setUser({ id: uid, email: session.user.email ?? undefined });
 
+        // Navigate to main app — covers the email-confirmation deep-link case.
+        // For password login the screens already call router.replace themselves,
+        // so this is a harmless no-op for that path.
+        setTimeout(() => router.replace('/(tabs)/menu'), 100);
+
         // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
         const Notifications = getNotifications();
         if (Notifications) {

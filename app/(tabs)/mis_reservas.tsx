@@ -128,11 +128,17 @@ export default function MisReservasScreen() {
     staleTime: 1000 * 60 * 30,
   });
 
+  const [errorCancelacion, setErrorCancelacion] = useState('');
+
   const actualizarEstadoMutation = useMutation({
     mutationFn: ({ id, estado }: { id: number; estado: string }) =>
       actualizarEstadoReserva(id, estado),
     onSuccess: () => {
+      setErrorCancelacion('');
       queryClient.invalidateQueries({ queryKey: ['reservas-usuario'] });
+    },
+    onError: () => {
+      setErrorCancelacion('No se pudo cancelar la reserva. Intenta de nuevo.');
     },
   });
 
@@ -443,6 +449,14 @@ export default function MisReservasScreen() {
         </Text>
       </View>
       {chipsRow}
+      {!!errorCancelacion && (
+        <View style={[es.bannerError, { maxWidth: 700, alignSelf: 'center', width: '100%' }]}>
+          <Text style={es.bannerErrorTexto}>{errorCancelacion}</Text>
+          <TouchableOpacity onPress={() => setErrorCancelacion('')} style={{ marginLeft: 8 }}>
+            <Text style={es.bannerErrorTexto}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {contenido}
 
       <DetalleReservaModal
@@ -508,4 +522,6 @@ const es = StyleSheet.create({
   btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },
   txtExplorar:          { color: '#fff', fontWeight: '700', fontSize: 15 },
   btnIcono:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  bannerError:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fef0f0', borderRadius: 10, marginHorizontal: 16, marginBottom: 4, paddingHorizontal: 14, paddingVertical: 10, borderLeftWidth: 3, borderLeftColor: '#DD331D' },
+  bannerErrorTexto:     { color: '#DD331D', fontSize: 13, fontWeight: '600', flex: 1 },
 });
