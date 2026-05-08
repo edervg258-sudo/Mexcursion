@@ -29,6 +29,7 @@ import {
   obtenerUsuarioActivo,
   renombrarItinerario,
 } from '../../lib/supabase-db';
+import { Ionicons } from '@expo/vector-icons';
 import { useTemaContext } from '../../lib/TemaContext';
 import { Estado } from '../../lib/tipos';
 import { SkeletonFilas } from './skeletonloader';
@@ -450,7 +451,7 @@ export default function RutasScreen() {
                               es.tabItinerarioBtnTxt,
                               { color: tabActivo === 'destinos' ? '#fff' : tema.textoMuted },
                             ]}>
-                              📍 {t('rut_destinos_tab') || 'Destinos'}
+                              {t('rut_destinos_tab') || 'Destinos'}
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
@@ -465,7 +466,7 @@ export default function RutasScreen() {
                               es.tabItinerarioBtnTxt,
                               { color: tabActivo === 'mapa' ? '#fff' : tema.textoMuted },
                             ]}>
-                              🗺️ {t('rut_mapa_tab') || 'Mapa'}
+                              {t('rut_mapa_tab') || 'Mapa'}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -525,7 +526,7 @@ export default function RutasScreen() {
                           <View style={[es.mapaContenedor, { borderColor: tema.borde }]}>
                             {itinerario.destinos.length === 0 ? (
                               <View style={[es.mapaVacio, { backgroundColor: tema.superficie }]}>
-                                <Text style={{ fontSize: 32, marginBottom: 8 }}>🗺️</Text>
+                                <Ionicons name="map-outline" size={32} color="#ccc" style={{ marginBottom: 8 }} />
                                 <Text style={[es.estadoVacioTitulo, { color: tema.texto, fontSize: 14 }]}>
                                   {t('rut_mapa_vacio_titulo') || 'Sin destinos'}
                                 </Text>

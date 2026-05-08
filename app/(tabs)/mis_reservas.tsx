@@ -198,13 +198,13 @@ export default function MisReservasScreen() {
       await Share.share({
         title: `Reserva ${item.folio} — Mexcursión`,
         message:
-          `🌮 *Mi reserva en Mexcursión*\n\n` +
-          `📍 Destino: ${item.destino}\n` +
-          `📋 Folio: ${item.folio}\n` +
-          `📅 Fecha: ${item.fecha.split('T')[0]}\n` +
-          `👥 Personas: ${item.personas}\n` +
-          `💰 Total: $${item.total.toLocaleString()} MXN\n\n` +
-          `¡Descubre México con Mexcursión! 🇲🇽`,
+          `Mi reserva en Mexcursión\n\n` +
+          `Destino: ${item.destino}\n` +
+          `Folio: ${item.folio}\n` +
+          `Fecha: ${item.fecha.split('T')[0]}\n` +
+          `Personas: ${item.personas}\n` +
+          `Total: $${item.total.toLocaleString()} MXN\n\n` +
+          `Descubre México con Mexcursión`,
       });
     } catch { /* silencioso */ }
   };
@@ -390,7 +390,7 @@ export default function MisReservasScreen() {
     <SkeletonFilas cantidad={5} />
   ) : reservasFiltradas.length === 0 ? (
     <Animated.View style={[es.vacio, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      <Text style={es.vacioEmoji}>{filtro === 'todas' ? '🗺️' : '🔍'}</Text>
+      <Ionicons name={filtro === 'todas' ? 'map-outline' : 'search-outline'} size={52} color="#ccc" />
       <Text style={[es.tituloVacio, { color: tema.texto }]}>
         {filtro === 'todas' ? t('res_vacias') : t('res_sin_resultado')}
       </Text>
@@ -502,7 +502,6 @@ const es = StyleSheet.create({
   btnCargarMas:         { marginHorizontal: 16, marginTop: 4, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtCargarMas:         { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },
   vacio:                { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, paddingHorizontal: 32 },
-  vacioEmoji:           { fontSize: 52, marginBottom: 4 },
   tituloVacio:          { fontSize: 20, fontWeight: '800', textAlign: 'center' },
   subtituloVacio:       { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },

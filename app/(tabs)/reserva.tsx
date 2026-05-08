@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -107,7 +108,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
         <Text style={[es.input, { color: fecha ? '#333' : '#bbb', flex: 1 }]}>
           {fecha || 'DD/MM/AAAA'}
         </Text>
-        <Text style={{ fontSize: 18, marginLeft: 8 }}>📅</Text>
+        <Ionicons name="calendar-outline" size={18} color="#888" style={{ marginLeft: 8 }} />
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
