@@ -10,55 +10,45 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { obtenerUsuarioActivo, registrarUsuario } from '../lib/supabase-db';
-
-type FormType = {
-  nombre: string; nombre_usuario: string;
-  correo: string; telefono: string; contrasena: string;
-};
-type ErroresType = Partial<Record<keyof FormType, string>>;
+import { useForm } from '../hooks/use-form';
 
 export default function RegistroScreen() {
-  const [form, setForm]                       = useState<FormType>({ nombre: '', nombre_usuario: '', correo: '', telefono: '', contrasena: '' });
-  const [errores, setErrores]                 = useState<ErroresType>({});
+  const { values: form, errores, cargando, setCargando, setField, setErrors } = useForm({
+    nombre: '', nombre_usuario: '', correo: '', telefono: '', contrasena: '',
+  });
   const [errorGeneral, setErrorGeneral]       = useState('');
   const [mensajeExito, setMensajeExito]       = useState('');
-  const [cargando, setCargando]               = useState(false);
   const [verContrasena, setVerContrasena]     = useState(false);
   const [aceptoTerminos, setAceptoTerminos]   = useState(false);
   const [verTerminos, setVerTerminos]         = useState(false);
 
   useEffect(() => {
-    obtenerUsuarioActivo().then(u => { if (u) {router.replace('/(tabs)/menu');} });
+    obtenerUsuarioActivo().then(u => { if (u) { router.replace('/(tabs)/menu'); } });
   }, []);
 
-  const actualizar = (clave: keyof FormType, valor: string) => {
-    setForm(prev => ({ ...prev, [clave]: valor }));
-    if (errores[clave]) {setErrores(prev => ({ ...prev, [clave]: undefined }));}
-  };
-
   const validar = (): boolean => {
-    const nuevos: ErroresType = {};
+    const nuevos: Partial<Record<'nombre' | 'nombre_usuario' | 'correo' | 'telefono' | 'contrasena', string>> = {};
     if (!form.nombre.trim())
-      {nuevos.nombre = 'Ingresa tu nombre completo';}
+      { nuevos.nombre = 'Ingresa tu nombre completo'; }
     if (!form.nombre_usuario.trim())
-      {nuevos.nombre_usuario = 'Ingresa un nombre de usuario';}
+      { nuevos.nombre_usuario = 'Ingresa un nombre de usuario'; }
     else if (form.nombre_usuario.length < 3)
-      {nuevos.nombre_usuario = 'El usuario debe tener al menos 3 caracteres';}
+      { nuevos.nombre_usuario = 'El usuario debe tener al menos 3 caracteres'; }
     else if (!/^[a-zA-Z0-9_]+$/.test(form.nombre_usuario))
-      {nuevos.nombre_usuario = 'Solo letras, números y guión bajo';}
+      { nuevos.nombre_usuario = 'Solo letras, números y guión bajo'; }
     if (!form.correo.trim())
-      {nuevos.correo = 'Ingresa tu correo electrónico';}
+      { nuevos.correo = 'Ingresa tu correo electrónico'; }
     else if (!/\S+@\S+\.\S+/.test(form.correo))
-      {nuevos.correo = 'Ingresa un correo válido';}
+      { nuevos.correo = 'Ingresa un correo válido'; }
     if (!form.telefono.trim())
-      {nuevos.telefono = 'Ingresa tu número de teléfono';}
+      { nuevos.telefono = 'Ingresa tu número de teléfono'; }
     else if (form.telefono.replace(/\D/g, '').length < 10)
-      {nuevos.telefono = 'El teléfono debe tener al menos 10 dígitos';}
+      { nuevos.telefono = 'El teléfono debe tener al menos 10 dígitos'; }
     if (!form.contrasena.trim())
-      {nuevos.contrasena = 'Ingresa una contraseña';}
+      { nuevos.contrasena = 'Ingresa una contraseña'; }
     else if (form.contrasena.length < 6)
-      {nuevos.contrasena = 'La contraseña debe tener al menos 6 caracteres';}
-    setErrores(nuevos);
+      { nuevos.contrasena = 'La contraseña debe tener al menos 6 caracteres'; }
+    setErrors(nuevos);
     return Object.keys(nuevos).length === 0;
   };
 
@@ -72,9 +62,9 @@ export default function RegistroScreen() {
     setCargando(false);
     if (!resultado.exito) {
       if (resultado.error?.includes('correo')) {
-        setErrores({ correo: resultado.error });
+        setErrors({ correo: resultado.error });
       } else if (resultado.error?.includes('usuario')) {
-        setErrores({ nombre_usuario: resultado.error });
+        setErrors({ nombre_usuario: resultado.error });
       } else {
         setErrorGeneral(resultado.error ?? 'Error al registrar');
       }
@@ -145,7 +135,7 @@ export default function RegistroScreen() {
                   placeholderTextColor="#aaa"
                   style={[estilos.campo, errores.nombre ? estilos.campoError : null]}
                   value={form.nombre}
-                  onChangeText={t => actualizar('nombre', t)}
+                  onChangeText={t => setField('nombre', t)}
                   autoCapitalize="words"
                 />
                 {errores.nombre ? <Text style={estilos.textoError}>⚠ {errores.nombre}</Text> : null}
@@ -158,7 +148,7 @@ export default function RegistroScreen() {
                   placeholderTextColor="#aaa"
                   style={[estilos.campo, errores.nombre_usuario ? estilos.campoError : null]}
                   value={form.nombre_usuario}
-                  onChangeText={t => actualizar('nombre_usuario', t)}
+                  onChangeText={t => setField('nombre_usuario', t)}
                   autoCapitalize="none"
                 />
                 {errores.nombre_usuario ? <Text style={estilos.textoError}>⚠ {errores.nombre_usuario}</Text> : null}
@@ -171,7 +161,7 @@ export default function RegistroScreen() {
                   placeholderTextColor="#aaa"
                   style={[estilos.campo, errores.correo ? estilos.campoError : null]}
                   value={form.correo}
-                  onChangeText={t => actualizar('correo', t)}
+                  onChangeText={t => setField('correo', t)}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -185,7 +175,7 @@ export default function RegistroScreen() {
                   placeholderTextColor="#aaa"
                   style={[estilos.campo, errores.telefono ? estilos.campoError : null]}
                   value={form.telefono}
-                  onChangeText={t => actualizar('telefono', t)}
+                  onChangeText={t => setField('telefono', t)}
                   keyboardType="phone-pad"
                 />
                 {errores.telefono ? <Text style={estilos.textoError}>⚠ {errores.telefono}</Text> : null}
@@ -199,7 +189,7 @@ export default function RegistroScreen() {
                     placeholderTextColor="#aaa"
                     style={estilos.inputOjo}
                     value={form.contrasena}
-                    onChangeText={t => actualizar('contrasena', t)}
+                    onChangeText={t => setField('contrasena', t)}
                     secureTextEntry={!verContrasena}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>

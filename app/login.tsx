@@ -8,64 +8,43 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } from '../lib/supabase-db';
+import { useForm } from '../hooks/use-form';
 
 export default function LoginScreen() {
   const router = useRouter();
-
-  const [correo, setCorreo] = useState('');
-  const [contrasena, setContrasena] = useState('');
+  const { values, errores, cargando, setCargando, setField, setError, setErrors } = useForm({ correo: '', contrasena: '' });
+  const recup = useForm({ correoRecup: '' });
   const [modalRecuperar, setModalRecuperar] = useState(false);
-  const [correoRecup, setCorreoRecup] = useState('');
-  const [cargando, setCargando] = useState(false);
-
-  // Errores por campo
-  const [errorCorreo, setErrorCorreo] = useState('');
-  const [errorContrasena, setErrorContrasena] = useState('');
-  // FIX #1: Estado de error separado para el modal de recuperación
-  const [errorCorreoRecup, setErrorCorreoRecup] = useState('');
   const [verContrasena, setVerContrasena] = useState(false);
 
   useEffect(() => {
     obtenerUsuarioActivo().then(u => {
-      if (u) {router.replace('/(tabs)/menu');}
+      if (u) { router.replace('/(tabs)/menu'); }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const validar = (): boolean => {
-    let valido = true;
-    if (!correo.trim()) {
-      setErrorCorreo('Ingresa tu correo electrónico');
-      valido = false;
-    } else if (!/\S+@\S+\.\S+/.test(correo)) {
-      setErrorCorreo('Ingresa un correo válido');
-      valido = false;
-    } else { setErrorCorreo(''); }
-
-    if (!contrasena.trim()) {
-      setErrorContrasena('Ingresa tu contraseña');
-      valido = false;
-    } else if (contrasena.length < 6) {
-      setErrorContrasena('La contraseña debe tener al menos 6 caracteres');
-      valido = false;
-    } else { setErrorContrasena(''); }
-
-    return valido;
+    const nuevos: Partial<Record<'correo' | 'contrasena', string>> = {};
+    if (!values.correo.trim()) nuevos.correo = 'Ingresa tu correo electrónico';
+    else if (!/\S+@\S+\.\S+/.test(values.correo)) nuevos.correo = 'Ingresa un correo válido';
+    if (!values.contrasena.trim()) nuevos.contrasena = 'Ingresa tu contraseña';
+    else if (values.contrasena.length < 6) nuevos.contrasena = 'La contraseña debe tener al menos 6 caracteres';
+    setErrors(nuevos);
+    return Object.keys(nuevos).length === 0;
   };
 
   const handleLogin = async () => {
     if (!validar()) { return; }
-
     setCargando(true);
-    const resultado = await iniciarSesion(correo.trim(), contrasena);
+    const resultado = await iniciarSesion(values.correo.trim(), values.contrasena);
     setCargando(false);
-
     if (!resultado.exito) {
       const msg = resultado.error ?? 'Error al iniciar sesión';
       if (msg.toLowerCase().includes('contraseña')) {
-        setErrorContrasena(msg);
+        setError('contrasena', msg);
       } else {
-        setErrorCorreo(msg);
+        setError('correo', msg);
       }
       return;
     }
@@ -73,25 +52,21 @@ export default function LoginScreen() {
   };
 
   const handleRecuperar = async () => {
-    if (!correoRecup.trim()) {
-      setErrorCorreoRecup('Ingresa tu correo');
+    if (!recup.values.correoRecup.trim()) {
+      recup.setError('correoRecup', 'Ingresa tu correo');
       return;
     }
-
-    if (!/\S+@\S+\.\S+/.test(correoRecup.trim())) {
-      setErrorCorreoRecup('Ingresa un correo válido');
+    if (!/\S+@\S+\.\S+/.test(recup.values.correoRecup.trim())) {
+      recup.setError('correoRecup', 'Ingresa un correo válido');
       return;
     }
-
-    setCargando(true);
-    const resultado = await solicitarRecuperacionContrasena(correoRecup.trim());
-    setCargando(false);
-
+    recup.setCargando(true);
+    const resultado = await solicitarRecuperacionContrasena(recup.values.correoRecup.trim());
+    recup.setCargando(false);
     if (!resultado.exito) {
-      setErrorCorreoRecup(resultado.error ?? 'No se pudo enviar el correo de recuperación');
+      recup.setError('correoRecup', resultado.error ?? 'No se pudo enviar el correo de recuperación');
       return;
     }
-
     cerrarModal();
     Alert.alert(
       'Revisa tu correo',
@@ -99,11 +74,9 @@ export default function LoginScreen() {
     );
   };
 
-  // FIX #3: Función de cierre del modal que limpia el estado
   const cerrarModal = () => {
     setModalRecuperar(false);
-    setCorreoRecup('');
-    setErrorCorreoRecup('');
+    recup.reset();
   };
 
   return (
@@ -125,37 +98,37 @@ export default function LoginScreen() {
                   testID="login-email-input"
                   placeholder="Correo electrónico"
                   placeholderTextColor="#aaa"
-                  style={[estilos.campo, errorCorreo ? estilos.campoError : null]}
+                  style={[estilos.campo, errores.correo ? estilos.campoError : null]}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  value={correo}
-                  onChangeText={t => { setCorreo(t); if (errorCorreo) {setErrorCorreo('');} }}
+                  value={values.correo}
+                  onChangeText={t => setField('correo', t)}
                 />
-                {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
+                {errores.correo ? <Text style={estilos.textoError}>⚠ {errores.correo}</Text> : null}
               </View>
 
               {/* Contraseña */}
               <View style={estilos.grupoCampo}>
-                <View style={[estilos.campoContenedor, errorContrasena ? estilos.campoError : null]}>
+                <View style={[estilos.campoContenedor, errores.contrasena ? estilos.campoError : null]}>
                   <TextInput
                     testID="login-password-input"
                     placeholder="Contraseña"
                     placeholderTextColor="#aaa"
                     style={estilos.campoInterno}
                     secureTextEntry={!verContrasena}
-                    value={contrasena}
-                    onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
+                    value={values.contrasena}
+                    onChangeText={t => setField('contrasena', t)}
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
-                {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
+                {errores.contrasena ? <Text style={estilos.textoError}>⚠ {errores.contrasena}</Text> : null}
               </View>
 
               <TouchableOpacity
                 style={estilos.enlaceOlvide}
-                onPress={() => { setErrorCorreo(''); setModalRecuperar(true); }}
+                onPress={() => { setErrors({}); setModalRecuperar(true); }}
               >
                 <Text style={estilos.textoOlvide}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
@@ -184,22 +157,21 @@ export default function LoginScreen() {
             <Text style={estilos.tituloModal}>Recuperar contraseña</Text>
             <Text style={estilos.subtituloModal}>Ingresa tu correo registrado</Text>
 
-            {/* FIX #1: Usa errorCorreoRecup en lugar del errorCorreo del login */}
             <View style={estilos.grupoCampo}>
               <TextInput
-                style={[estilos.campo, errorCorreoRecup ? estilos.campoError : null]}
+                style={[estilos.campo, recup.errores.correoRecup ? estilos.campoError : null]}
                 placeholder="Correo electrónico"
                 placeholderTextColor="#aaa"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                value={correoRecup}
-                onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) {setErrorCorreoRecup('');} }}
+                value={recup.values.correoRecup}
+                onChangeText={t => recup.setField('correoRecup', t)}
               />
-              {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
+              {recup.errores.correoRecup ? <Text style={estilos.textoError}>⚠ {recup.errores.correoRecup}</Text> : null}
             </View>
 
-            <TouchableOpacity style={estilos.boton} onPress={handleRecuperar}>
-              <Text style={estilos.textoBoton}>Enviar</Text>
+            <TouchableOpacity style={estilos.boton} onPress={handleRecuperar} disabled={recup.cargando}>
+              <Text style={estilos.textoBoton}>{recup.cargando ? 'Enviando...' : 'Enviar'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={estilos.enlace} onPress={cerrarModal}>
               <Text style={[estilos.textoOlvide, { textAlign: 'center' }]}>Cancelar</Text>
