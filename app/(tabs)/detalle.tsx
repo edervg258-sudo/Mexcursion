@@ -17,7 +17,7 @@ import { ModalSeleccionItinerario } from '../../components/ModalSeleccionItinera
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Estrellas } from '../../components/Estrellas';
 import { TopActionHeader } from '../../components/TopActionHeader';
-import { MapaInteractivo } from '../../components/MapView';
+import MapaRutas from '../../components/MapaRutas';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
@@ -26,6 +26,7 @@ import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
 import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { Estado } from '../../lib/tipos';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = Math.min(W, 800);
@@ -377,14 +378,19 @@ export default function DetalleScreen() {
           {estado && (
             <View style={estilos.seccionMapa}>
               <Text style={[estilos.tituloMapa, { color: tema.texto }]}>{t('det_ubicacion')}</Text>
-              <MapaInteractivo
-                latitude={estado.latitude}
-                longitude={estado.longitude}
-                title={estado.nombre}
-                description={estado.descripcion}
-                zoom={8}
-                style={estilos.mapa}
-              />
+              <View style={estilos.mapa}>
+                <MapaRutas
+                  rutaColor="#3AB7A5"
+                  rutaNombre={estado.nombre}
+                  estadosRuta={[estado as Estado]}
+                  polylineCoords={[]}
+                  favoritos={[]}
+                  isDark={isDark}
+                  tema={tema as unknown as Record<string, string>}
+                  onToggleFav={() => {}}
+                  onIrADetalle={() => {}}
+                />
+              </View>
             </View>
           )}
         </View>
