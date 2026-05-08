@@ -138,7 +138,7 @@ describe('Performance Module', () => {
       const { PerformanceErrorBoundary } = Performance;
 
       const boundary = new PerformanceErrorBoundary(
-        { children: {} },
+        { children: null },
         {}
       );
 
