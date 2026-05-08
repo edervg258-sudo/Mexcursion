@@ -7,9 +7,9 @@ import { Platform } from 'react-native';
 const MAX_SECURE_BYTES = 1800;
 
 export async function secureGet(key: string): Promise<string | null> {
-  if (Platform.OS === 'web') return AsyncStorage.getItem(key);
+  if (Platform.OS === 'web') {return AsyncStorage.getItem(key);}
   const value = await SecureStore.getItemAsync(key);
-  if (value !== null) return value;
+  if (value !== null) {return value;}
   // Fallback: large value was stored in AsyncStorage
   return AsyncStorage.getItem(`_as_${key}`);
 }

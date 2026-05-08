@@ -25,7 +25,7 @@ export function IdiomaProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(val => {
-      if (val === 'en' || val === 'es') setIdioma(val);
+      if (val === 'en' || val === 'es') {setIdioma(val);}
     });
   }, []);
 
@@ -37,7 +37,7 @@ export function IdiomaProvider({ children }: { children: React.ReactNode }) {
   const t = useCallback(
     (clave: TraduccionClave, vars?: Record<string, string | number>) => {
       let txt = TEXTOS[idioma][clave] ?? clave;
-      if (vars) for (const [k, v] of Object.entries(vars)) txt = txt.replaceAll(`{${k}}`, String(v));
+      if (vars) {for (const [k, v] of Object.entries(vars)) {txt = txt.replaceAll(`{${k}}`, String(v));}}
       return txt;
     },
     [idioma],

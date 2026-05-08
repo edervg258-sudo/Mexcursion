@@ -49,6 +49,41 @@ module.exports = defineConfig([
       'max-len': ['warn', { code: 120, ignoreUrls: true, ignoreStrings: true }],
     },
   },
+  // Node.js scripts — globals nativos de CJS
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+  },
+  // Jest setup y e2e (Detox usa API de Jest)
+  {
+    files: ['jest.setup.js', 'e2e/**/*.js'],
+    languageOptions: {
+      globals: {
+        jest: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
   {
     ignores: [
       "dist/*",

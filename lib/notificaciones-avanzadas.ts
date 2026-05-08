@@ -53,7 +53,7 @@ export const programarRecordatorioViaje = async (
   const fechaRecordatorio = new Date(fechaViaje);
   fechaRecordatorio.setDate(fechaRecordatorio.getDate() - 1); // 1 día antes
 
-  if (fechaRecordatorio <= new Date()) return; // No programar si es pasado
+  if (fechaRecordatorio <= new Date()) {return;} // No programar si es pasado
 
   await Notifications.scheduleNotificationAsync({
     content: {

@@ -15,6 +15,7 @@ describe('useNetworkStatus', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockListener = jest.fn();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { addEventListener } = require('@react-native-community/netinfo');
     (addEventListener as jest.Mock).mockImplementation((callback: (state: { isConnected: boolean; isInternetReachable: boolean | null }) => void) => {
       mockListener = callback;
@@ -41,6 +42,7 @@ describe('useNetworkStatus', () => {
 
   it('debe llamar addEventListener una vez', () => {
     renderHook(() => useNetworkStatus());
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { addEventListener } = require('@react-native-community/netinfo');
     expect(addEventListener).toHaveBeenCalledTimes(1);
   });

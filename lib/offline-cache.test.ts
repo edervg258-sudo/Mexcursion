@@ -31,7 +31,7 @@ jest.mock('./sentry', () => ({
 }));
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
-const mockNetInfo = NetInfo as jest.Mocked<typeof NetInfo>;
+const _mockNetInfo = NetInfo as jest.Mocked<typeof NetInfo>;
 
 describe('CacheManager', () => {
   beforeEach(() => {

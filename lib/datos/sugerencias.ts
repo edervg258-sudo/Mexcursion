@@ -2,7 +2,7 @@
 //  lib/datos/sugerencias.ts  —  Sugerencias de rutas y paquetes
 // ============================================================
 
-import type { Sugerencia, Paquete, Nivel } from '../tipos';
+import type { Sugerencia, Paquete } from '../tipos';
 
 // ===========================
 //  SUGERENCIAS DE RUTAS

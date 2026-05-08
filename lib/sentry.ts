@@ -1,13 +1,9 @@
-// ============================================================
-//  lib/sentry.ts  —  Sentry Configuration
-// ============================================================
-
-import * as Sentry from '@sentry/react-native';
+// lib/sentry.ts — stubs vacíos (Sentry eliminado)
 
 type BreadcrumbInput = {
   category: string;
   message: string;
-  level?: Sentry.SeverityLevel;
+  level?: string;
   data?: Record<string, unknown>;
 };
 
@@ -18,64 +14,10 @@ type ApiErrorInput = {
   metadata?: Record<string, unknown>;
 };
 
-export const initSentry = () => {
-  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  if (!dsn || dsn.includes('your-sentry-dsn')) {
-    return;
-  }
-  Sentry.init({
-    dsn,
-    tracesSampleRate: 1.0,
-    enableAutoSessionTracking: true,
-    sessionTrackingIntervalMillis: 30000,
-    enableNativeCrashHandling: true,
-    enableNativeNagger: __DEV__,
-    environment: __DEV__ ? 'development' : 'production',
-  });
-};
-
-export const captureException = (error: unknown, context?: Record<string, unknown>) => {
-  Sentry.withScope(scope => {
-    if (context) {
-      scope.setContext('additional', context);
-    }
-    Sentry.captureException(error);
-  });
-};
-
-export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'info', context?: Record<string, unknown>) => {
-  Sentry.withScope(scope => {
-    if (context) {
-      scope.setContext('additional', context);
-    }
-    Sentry.captureMessage(message, level);
-  });
-};
-
-export const setUser = (user: { id: string; email?: string; username?: string }) => {
-  Sentry.setUser(user);
-};
-
-export const addBreadcrumb = ({ category, message, level = 'info', data }: BreadcrumbInput) => {
-  Sentry.addBreadcrumb({
-    category,
-    message,
-    level,
-    data,
-  });
-};
-
-export const setTag = (key: string, value: string) => {
-  Sentry.setTag(key, value);
-};
-
-export const captureApiError = ({ feature, action, error, metadata }: ApiErrorInput) => {
-  Sentry.withScope(scope => {
-    scope.setTag('feature', feature);
-    scope.setTag('action', action);
-    if (metadata) {
-      scope.setContext('api_metadata', metadata);
-    }
-    Sentry.captureException(error);
-  });
-};
+export const initSentry = () => {};
+export const captureException = (_error: unknown, _context?: Record<string, unknown>) => {};
+export const captureMessage = (_message: string, _level?: string, _context?: Record<string, unknown>) => {};
+export const setUser = (_user: { id: string; email?: string; username?: string }) => {};
+export const addBreadcrumb = (_input: BreadcrumbInput) => {};
+export const setTag = (_key: string, _value: string) => {};
+export const captureApiError = (_input: ApiErrorInput) => {};

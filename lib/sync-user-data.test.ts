@@ -8,14 +8,24 @@ import {
   guardarDatoLocal,
   obtenerDadoLocal,
   sincronizacionAutomatica,
-  UserData,
 } from './sync-user-data';
 import * as supabaseModule from './supabase';
 import * as secureStorageModule from './secure-storage';
 import * as supabaseDbModule from './supabase-db';
 
 // Mocks
-jest.mock('./supabase');
+jest.mock('./supabase', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+      signOut: jest.fn(),
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
+    },
+    from: jest.fn(),
+    functions: { invoke: jest.fn() },
+  },
+}));
 jest.mock('./secure-storage');
 jest.mock('./supabase-db');
 

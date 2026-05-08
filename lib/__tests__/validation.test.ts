@@ -153,6 +153,7 @@ describe('OWASP Input Validation', () => {
 
   describe('URL Validation', () => {
     test('should reject javascript: protocol', () => {
+      // eslint-disable-next-line no-script-url
       const url = 'javascript:alert("xss")';
       expect(isSafeUrl(url)).toBe(false);
     });
