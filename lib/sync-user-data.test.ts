@@ -8,13 +8,11 @@ import {
   guardarDatoLocal,
   obtenerDadoLocal,
   sincronizacionAutomatica,
-  UserData,
 } from './sync-user-data';
 import * as supabaseModule from './supabase';
 import * as secureStorageModule from './secure-storage';
 import * as supabaseDbModule from './supabase-db';
 
-// Mocks
 jest.mock('./supabase', () => ({
   supabase: {
     from: jest.fn(),

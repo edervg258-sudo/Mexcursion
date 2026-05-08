@@ -38,24 +38,6 @@ if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync();
 }
 
-// Parches web globales
-if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = 'input, textarea { outline: none !important; }';
-  document.head.appendChild(style);
-
-  const origSetAttr = HTMLElement.prototype.setAttribute;
-  HTMLElement.prototype.setAttribute = function (name: string, value: string) {
-    if (name === 'aria-hidden' && value === 'true') {
-      const focused = document.activeElement as HTMLElement | null;
-      if (focused && focused !== document.body && this.contains(focused)) {
-        focused.blur();
-      }
-    }
-    return origSetAttr.call(this, name, value);
-  };
-}
-
 const IGNORED_WARNINGS = [
   'props.pointerEvents is deprecated',
   'VirtualizedLists should never be nested',
@@ -68,23 +50,6 @@ const IGNORED_WARNINGS = [
 ];
 
 LogBox.ignoreLogs(IGNORED_WARNINGS);
-
-if (typeof window !== 'undefined') {
-  const matches = (arg: unknown) =>
-    typeof arg === 'string' && IGNORED_WARNINGS.some(msg => arg.includes(msg));
-
-  const originalWarn = console.warn;
-  console.warn = (...args) => {
-    if (matches(args[0])) { return; }
-    originalWarn(...args);
-  };
-
-  const originalError = console.error;
-  console.error = (...args) => {
-    if (matches(args[0]) || (args[0] instanceof Error && matches(args[0].message))) { return; }
-    originalError(...args);
-  };
-}
 
 export const unstable_settings = {
   initialRouteName: 'registro',

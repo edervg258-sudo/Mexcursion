@@ -48,8 +48,6 @@ describe('Performance Module', () => {
 
   describe('preloadCriticalResources', () => {
     it('should preload critical images without throwing', () => {
-      // jest.spyOn(global, 'require') no funciona en Jest/Node; simplemente
-      // verificamos que la función no lanza con los mocks de módulo existentes.
       expect(() => {
         Performance.preloadCriticalResources();
       }).not.toThrow();
@@ -138,10 +136,9 @@ describe('Performance Module', () => {
   describe('PerformanceErrorBoundary', () => {
     it('should render children without errors', () => {
       const { PerformanceErrorBoundary } = Performance;
-      const TestComponent = () => React.createElement('div', null, 'Test Content');
 
       const boundary = new PerformanceErrorBoundary(
-        { children: React.createElement(TestComponent) },
+        { children: {} },
         {}
       );
 

@@ -99,8 +99,9 @@ export const calcularPrecioDinamico = (
     razones.push('Día festivo');
   }
 
+  const precioFinal = Math.round((precioBase * factor) * 100) / 100;
   return {
-    precioFinal: Math.round(precioBase * factor * 100) / 100,
+    precioFinal,
     factor,
     razon: razones.length > 0 ? razones.join(' + ') : 'Precio estándar',
   };
