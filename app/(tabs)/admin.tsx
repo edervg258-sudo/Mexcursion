@@ -345,7 +345,7 @@ export default function AdminScreen() {
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     }}>
       <Text style={[s.errorBannerTxt, { color: '#DD331D', flex: 1, marginRight: 8 }]}>{errorCarga}</Text>
-      <TouchableOpacity onPress={recargar}>
+      <TouchableOpacity onPress={recargar} accessibilityRole="button" accessibilityLabel="Reintentar carga de datos">
         <Text style={{ color: '#DD331D', fontWeight: '700', fontSize: 13 }}>Reintentar</Text>
       </TouchableOpacity>
     </View>
@@ -501,7 +501,7 @@ export default function AdminScreen() {
             <AdminNavBar esPC={esPC} seccion={seccion} onSeleccionar={setSeccion} />
             <View style={[s.contenidoPC, { backgroundColor: tema.fondo }]}>
               <View style={[s.headerPC, { borderBottomColor: tema.borde, borderBottomWidth: 1, paddingBottom: 16 }]}>
-                <TouchableOpacity onPress={() => router.back()}>
+                <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver a la app">
                   <Text style={[s.btnAtras, { color: tema.primario }]}>Volver a la app</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitulo, { color: tema.texto }]}>Panel de administración</Text>
@@ -514,7 +514,7 @@ export default function AdminScreen() {
         ) : (
           <View style={s.layoutMovil}>
             <View style={[s.headerMovil, { backgroundColor: tema.superficieBlanca, borderBottomColor: tema.borde, borderBottomWidth: 1 }]}>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver">
                 <Text style={[s.btnAtras, { color: tema.primario, fontSize: 22 }]}>‹</Text>
               </TouchableOpacity>
               <Text style={[s.headerTitulo, { color: tema.texto }]}>Admin</Text>
@@ -524,7 +524,7 @@ export default function AdminScreen() {
             <View style={{ flex: 1 }}>
               {SECCIONES[seccion]}
               {seccion === 'destinos' && !modoForm && (
-                <TouchableOpacity style={[s.fab, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo} activeOpacity={0.85}>
+                <TouchableOpacity style={[s.fab, { backgroundColor: tema.primario }]} onPress={abrirFormNuevo} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Nuevo destino">
                   <Text style={s.fabTxt}>+</Text>
                 </TouchableOpacity>
               )}

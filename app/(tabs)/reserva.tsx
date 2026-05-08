@@ -103,6 +103,8 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
         style={[es.cajaInput, { justifyContent: 'space-between' }]}
         onPress={() => setVisible(true)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={fecha ? `Fecha seleccionada: ${fecha}` : 'Seleccionar fecha de viaje'}
       >
         <Text style={[es.input, { color: fecha ? '#333' : '#bbb', flex: 1 }]}>
           {fecha || 'DD/MM/AAAA'}
@@ -120,13 +122,13 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
             <View style={es.calCaja}>
               {/* Navegación mes */}
               <View style={es.calNav}>
-                <TouchableOpacity onPress={prevMes} style={es.calNavBtn}>
+                <TouchableOpacity onPress={prevMes} style={es.calNavBtn} accessibilityRole="button" accessibilityLabel="Mes anterior">
                   <Text style={[es.calNavArrow, { color: ac }]}>‹</Text>
                 </TouchableOpacity>
                 <Text style={es.calNavTitulo}>
                   {MESES_ES[mesBase.getMonth()]} {mesBase.getFullYear()}
                 </Text>
-                <TouchableOpacity onPress={nextMes} style={es.calNavBtn}>
+                <TouchableOpacity onPress={nextMes} style={es.calNavBtn} accessibilityRole="button" accessibilityLabel="Mes siguiente">
                   <Text style={[es.calNavArrow, { color: ac }]}>›</Text>
                 </TouchableOpacity>
               </View>
@@ -313,11 +315,11 @@ export default function ReservaScreen() {
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_num_personas')}</Text>
           <View style={es.filaPersonas}>
-            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.max(1, p - 1))} activeOpacity={0.8}>
+            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.max(1, p - 1))} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Reducir número de personas">
               <Text style={es.textoPersona}>−</Text>
             </TouchableOpacity>
-            <Text style={es.numPersonas}>{personas}</Text>
-            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.min(20, p + 1))} activeOpacity={0.8}>
+            <Text style={es.numPersonas} accessibilityLabel={`${personas} personas`}>{personas}</Text>
+            <TouchableOpacity style={es.btnPersona} onPress={() => setPersonas(p => Math.min(20, p + 1))} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Aumentar número de personas">
               <Text style={es.textoPersona}>+</Text>
             </TouchableOpacity>
             <View style={es.cajaTotalPersonas}>

@@ -184,6 +184,9 @@ export default function MenuScreen() {
               style={[estilos.itemSidebar, activa && { backgroundColor: isDark ? tema.primarioSuave : Tema.primarioSuave }]}
               onPress={() => navegarPestana(p.ruta)}
               activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}
+              accessibilityState={{ selected: activa }}
             >
               <Image source={activa ? p.iconoRojo : p.iconoGris} style={estilos.iconoSidebar} resizeMode="contain" />
             </TouchableOpacity>
@@ -216,6 +219,8 @@ export default function MenuScreen() {
               },
             ]}
             onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Notificaciones"
           >
             <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
           </TouchableOpacity>
@@ -236,7 +241,7 @@ export default function MenuScreen() {
               onChangeText={setBusqueda}
             />
             {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda('')}>
+              <TouchableOpacity onPress={() => setBusqueda('')} accessibilityRole="button" accessibilityLabel="Limpiar búsqueda">
                 <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
               </TouchableOpacity>
             )}
@@ -247,6 +252,9 @@ export default function MenuScreen() {
               style={[estilos.botonFiltro, dropdownAbierto && estilos.botonFiltroActivo]}
               onPress={() => setDropdownAbierto((v) => !v)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Ordenar por: ${etiquetaOrdenActual}`}
+              accessibilityState={{ expanded: dropdownAbierto }}
             >
               <Image source={require('../../assets/images/filtro.png')} style={estilos.iconoFiltroImg} resizeMode="contain" />
               <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>
@@ -270,6 +278,9 @@ export default function MenuScreen() {
                       setOrden(op.clave);
                       setDropdownAbierto(false);
                     }}
+                    accessibilityRole="menuitem"
+                    accessibilityLabel={op.etiqueta}
+                    accessibilityState={{ selected: orden === op.clave }}
                   >
                     <Text style={[estilos.textoDropdown, orden === op.clave && estilos.textoDropdownActivo]}>
                       {op.etiqueta}
@@ -295,6 +306,9 @@ export default function MenuScreen() {
                 key={cat.clave}
                 style={[estilos.chipCategoria, categoriaActiva === cat.clave && estilos.chipCategoriaActivo]}
                 onPress={() => setCategoriaActiva(cat.clave)}
+                accessibilityRole="button"
+                accessibilityLabel={cat.label}
+                accessibilityState={{ selected: categoriaActiva === cat.clave }}
               >
                 <Text style={[estilos.textoChip, categoriaActiva === cat.clave && estilos.textoChipActivo]}>{cat.label}</Text>
               </TouchableOpacity>
@@ -330,7 +344,7 @@ export default function MenuScreen() {
             <Text style={estilos.textoVacio}>🗺️</Text>
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
-            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
+            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }} accessibilityRole="button" accessibilityLabel={t('menu_limpiar')}>
               <Text style={estilos.limpiarFiltros}>{t('menu_limpiar')}</Text>
             </TouchableOpacity>
           </View>
@@ -383,7 +397,7 @@ export default function MenuScreen() {
                 PESTANAS.map((p) => {
                   const activa = estaActiva(p.ruta);
                   return (
-                    <TouchableOpacity key={p.ruta} testID={p.ruta.replace('/(tabs)/', '') + '-tab'} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
+                    <TouchableOpacity key={p.ruta} testID={p.ruta.replace('/(tabs)/', '') + '-tab'} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)} accessibilityRole="button" accessibilityLabel={t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)} accessibilityState={{ selected: estaActiva(p.ruta) }}>
                       <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width: 28, height: 28 }} resizeMode="contain" />
                       <Text style={[estilos.etiquetaPestana, { color: tema.textoMuted }, activa && estilos.etiquetaPestanaActiva]}>
                         {t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}

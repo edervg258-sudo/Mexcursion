@@ -126,7 +126,7 @@ export default function HistorialScreen() {
   };
 
   const footer = hasNextPage ? (
-    <TouchableOpacity style={s.btnCargarMas} onPress={() => fetchNextPage()} disabled={isFetchingNextPage} activeOpacity={0.8}>
+    <TouchableOpacity style={s.btnCargarMas} onPress={() => fetchNextPage()} disabled={isFetchingNextPage} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('hist_cargar_mas')} accessibilityState={{ disabled: isFetchingNextPage }}>
       {isFetchingNextPage
         ? <ActivityIndicator size="small" color="#3AB7A5" />
         : <Text style={s.txtCargarMas}>{t('hist_cargar_mas')}</Text>}

@@ -105,6 +105,9 @@ export default function NotificacionesScreen() {
       style={[s.item, { backgroundColor: tema.fondo }, !item.leida && { backgroundColor: tema.superficieBlanca, borderRadius: 12, paddingHorizontal: 12, marginHorizontal: -4 }]}
       onPress={() => marcarLeida(item.id)}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.titulo}. ${item.mensaje}`}
+      accessibilityState={{ checked: !!item.leida }}
     >
       <View style={[s.iconoCirculo, { backgroundColor: (COLOR[item.tipo] ?? '#888') + '22' }]}>
         <Text style={s.iconoEmoji}>{EMOJI[item.tipo] ?? '🔔'}</Text>
@@ -127,7 +130,7 @@ export default function NotificacionesScreen() {
       </View>
       <View style={s.filtros}>
         {(['todas', 'no_leidas'] as const).map(f => (
-          <TouchableOpacity key={f} style={[s.chipFiltro, { backgroundColor: tema.superficie, borderColor: tema.borde }, filtro === f && s.chipFiltroActivo]} onPress={() => setFiltro(f)}>
+          <TouchableOpacity key={f} style={[s.chipFiltro, { backgroundColor: tema.superficie, borderColor: tema.borde }, filtro === f && s.chipFiltroActivo]} onPress={() => setFiltro(f)} accessibilityRole="button" accessibilityLabel={f === 'todas' ? t('notif_todas') : `${t('notif_no_leidas')}${noLeidas > 0 ? `, ${noLeidas}` : ''}`} accessibilityState={{ selected: filtro === f }}>
             <Text style={[s.txtChip, { color: tema.textoSecundario }, filtro === f && s.txtChipActivo]}>
               {f === 'todas' ? t('notif_todas') : `${t('notif_no_leidas')}${noLeidas > 0 ? ` (${noLeidas})` : ''}`}
             </Text>
@@ -151,7 +154,7 @@ export default function NotificacionesScreen() {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={[s.separador, { backgroundColor: tema.borde }]} />}
           ListFooterComponent={hayMas && filtro === 'todas' ? (
-            <TouchableOpacity style={s.btnCargarMas} onPress={cargarMas} disabled={cargandoMas} activeOpacity={0.8}>
+            <TouchableOpacity style={s.btnCargarMas} onPress={cargarMas} disabled={cargandoMas} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('notif_cargar_mas')} accessibilityState={{ disabled: cargandoMas }}>
               {cargandoMas
                 ? <ActivityIndicator size="small" color="#3AB7A5" />
                 : <Text style={s.txtCargarMas}>{t('notif_cargar_mas')}</Text>}
@@ -170,7 +173,7 @@ export default function NotificacionesScreen() {
       maxWidth={720}
       headerRight={
         noLeidas > 0 ? (
-          <TouchableOpacity onPress={marcarTodas} style={s.btnMarcar}>
+          <TouchableOpacity onPress={marcarTodas} style={s.btnMarcar} accessibilityRole="button" accessibilityLabel={t('notif_marcar_todas')}>
             <Text style={s.txtMarcar}>{t('notif_marcar_todas')}</Text>
           </TouchableOpacity>
         ) : (

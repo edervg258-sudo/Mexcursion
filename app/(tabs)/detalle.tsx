@@ -57,7 +57,7 @@ const Sidebar = React.memo(({ estaActiva, navegarPestana }: {
       {PESTANAS.map(p => {
         const activa = estaActiva(p.ruta);
         return (
-          <TouchableOpacity key={p.ruta} style={[estilos.itemSidebar, activa && estilos.itemSidebarActivo, activa && { backgroundColor: tema.primarioSuave }]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75}>
+          <TouchableOpacity key={p.ruta} style={[estilos.itemSidebar, activa && estilos.itemSidebarActivo, activa && { backgroundColor: tema.primarioSuave }]} onPress={() => navegarPestana(p.ruta)} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)} accessibilityState={{ selected: activa }}>
             <Image source={activa ? p.iconoRojo : p.iconoGris} style={estilos.iconoSidebar} contentFit="contain" transition={150} />
           </TouchableOpacity>
         );
@@ -220,6 +220,8 @@ export default function DetalleScreen() {
               onPressOut={() => spring(resenasAnim, 1)}
               onPress={irAResenas}
               activeOpacity={1}
+              accessibilityRole="button"
+              accessibilityLabel={t('det_ver_resenas')}
             >
               <Animated.View style={{ transform: [{ scale: resenasAnim }] }}>
                 <Text style={estilos.txtBtnResenas}>{t('det_ver_resenas')}</Text>
@@ -265,6 +267,9 @@ export default function DetalleScreen() {
                     }
                   }}
                   activeOpacity={1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t(('rut_' + paquete.nivel) as TraduccionClave)}, ${paquete.precioTotal}`}
+                  accessibilityState={{ expanded: expandido }}
                 >
                   <Animated.View style={[{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', flex:1 }, { transform:[{ scale: cabAnims[idx] }] }]}>
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
@@ -359,6 +364,8 @@ export default function DetalleScreen() {
                         onPressOut={() => spring(reservarAnims[idx], 1)}
                         onPress={() => irAReserva(paquete)}
                         activeOpacity={1}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t('det_reservar')} ${t(('rut_' + paquete.nivel) as TraduccionClave)}`}
                       >
                         <Animated.View style={{ transform: [{ scale: reservarAnims[idx] }] }}>
                           <Text style={estilos.textoBotonReservar}>{t('det_reservar')}</Text>
@@ -428,7 +435,7 @@ export default function DetalleScreen() {
               {PESTANAS.map(p => {
                 const activa = estaActiva(p.ruta);
                 return (
-                  <TouchableOpacity key={p.ruta} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)}>
+                  <TouchableOpacity key={p.ruta} style={estilos.itemPestana} activeOpacity={1} onPress={() => navegarPestana(p.ruta)} accessibilityRole="button" accessibilityLabel={t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)} accessibilityState={{ selected: estaActiva(p.ruta) }}>
                     <Image source={activa ? p.iconoRojo : p.iconoGris} style={{ width:28, height:28 }} contentFit="contain" transition={100} />
                     <Text style={[estilos.etiquetaPestana, { color: tema.textoMuted }, activa && estilos.etiquetaPestanaActiva]}>{t(('tab_' + p.ruta.replace('/(tabs)/', '')) as TraduccionClave)}</Text>
                   </TouchableOpacity>
