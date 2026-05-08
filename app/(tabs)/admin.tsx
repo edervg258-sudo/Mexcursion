@@ -172,7 +172,19 @@ export default function AdminScreen() {
     Alert.alert('Eliminar destino', '¿Seguro que quieres eliminar este destino?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
-          await eliminarDestino(id);
+          const r = await eliminarDestino(id);
+          if (r.bloqueado) {
+            Alert.alert(
+              'No se puede eliminar',
+              `Este destino tiene ${r.reservasActivas} reserva${r.reservasActivas === 1 ? '' : 's'} activa${r.reservasActivas === 1 ? '' : 's'} (pendiente o confirmada).\n\nCancela o completa esas reservas antes de eliminar el destino.`,
+              [{ text: 'Entendido' }]
+            );
+            return;
+          }
+          if (!r.exito) {
+            Alert.alert('Error', r.error ?? 'No se pudo eliminar el destino.');
+            return;
+          }
           setDestinos(await obtenerTodosLosDestinos() as Destino[]);
       } },
     ]);
