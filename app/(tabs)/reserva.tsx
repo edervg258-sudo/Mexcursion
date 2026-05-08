@@ -100,6 +100,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   return (
     <>
       <TouchableOpacity
+        testID="travel-date-picker"
         style={[es.cajaInput, { justifyContent: 'space-between' }]}
         onPress={() => setVisible(true)}
         activeOpacity={0.8}
@@ -126,7 +127,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
                 <Text style={es.calNavTitulo}>
                   {MESES_ES[mesBase.getMonth()]} {mesBase.getFullYear()}
                 </Text>
-                <TouchableOpacity onPress={nextMes} style={es.calNavBtn}>
+                <TouchableOpacity testID="calendar-next-month" onPress={nextMes} style={es.calNavBtn}>
                   <Text style={[es.calNavArrow, { color: ac }]}>›</Text>
                 </TouchableOpacity>
               </View>
@@ -149,6 +150,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
                   return (
                     <TouchableOpacity
                       key={`d${i}`}
+                      testID={`calendar-day-${dia}`}
                       style={es.calCelda}
                       onPress={() => !pasado && elegirDia(dia)}
                       disabled={pasado}

@@ -36,7 +36,9 @@ describe('Mercursión App', () => {
     await element(by.id('traveler-name-input')).replaceText('Usuario Prueba');
     await element(by.id('traveler-email-input')).replaceText(E2E_EMAIL);
     await element(by.id('traveler-phone-input')).replaceText('5512345678');
-    await element(by.id('travel-date-input')).replaceText('30/12/2026');
+    await element(by.id('travel-date-picker')).tap();
+    await element(by.id('calendar-next-month')).tap();
+    await element(by.id('calendar-day-15')).tap();
     await element(by.id('reserve-continue-button')).tap();
 
     await waitFor(element(by.id('pago-screen'))).toBeVisible().withTimeout(10000);
@@ -65,7 +67,9 @@ describe('Mercursión App', () => {
     await element(by.id('traveler-name-input')).replaceText('Usuario Prueba');
     await element(by.id('traveler-email-input')).replaceText(E2E_EMAIL);
     await element(by.id('traveler-phone-input')).replaceText('5512345678');
-    await element(by.id('travel-date-input')).replaceText('30/12/2026');
+    await element(by.id('travel-date-picker')).tap();
+    await element(by.id('calendar-next-month')).tap();
+    await element(by.id('calendar-day-15')).tap();
     await element(by.id('reserve-continue-button')).tap();
     await waitFor(element(by.id('pago-screen'))).toBeVisible().withTimeout(10000);
 
