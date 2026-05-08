@@ -283,10 +283,10 @@ export default function MisReservasScreen() {
             <View style={es.cajaConfirmar}>
               <Text style={es.textoConfirmar}>{t('res_cancelar_msg', { folio: item.folio })}</Text>
               <View style={es.filaConfirmar}>
-                <TouchableOpacity style={es.btnMantener} onPress={() => setConfirmandoId(null)} activeOpacity={0.8}>
+                <TouchableOpacity style={es.btnMantener} onPress={() => setConfirmandoId(null)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('res_cancelar_no')}>
                   <Text style={es.textoBtnMantener}>{t('res_cancelar_no')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={es.btnConfirmarCancelar} onPress={() => confirmarCancelacion(item)} activeOpacity={0.8}>
+                <TouchableOpacity style={es.btnConfirmarCancelar} onPress={() => confirmarCancelacion(item)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('res_cancelar_si')}>
                   <Text style={es.textoBtnConfirmarCancelar}>{t('res_cancelar_si')}</Text>
                 </TouchableOpacity>
               </View>
@@ -295,7 +295,7 @@ export default function MisReservasScreen() {
 
           {/* Acciones */}
           <View style={[es.filaAcciones, { borderTopColor: tema.borde }]}>
-            <TouchableOpacity style={es.btnVerDetalle} onPress={() => irADetalle(item)} activeOpacity={0.8}>
+            <TouchableOpacity style={es.btnVerDetalle} onPress={() => irADetalle(item)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`${t('res_ver_destino')} ${item.destino}`}>
               <Text style={es.textoBtnDetalle}>{t('res_ver_destino')}</Text>
             </TouchableOpacity>
 
@@ -304,6 +304,8 @@ export default function MisReservasScreen() {
               style={[es.btnIcono, { borderColor: tema.borde }]}
               onPress={() => setReservaDetalle(item as ReservaDetalle)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ver detalle de reserva"
             >
               <Ionicons name="document-text-outline" size={16} color={tema.textoSecundario} />
             </TouchableOpacity>
@@ -312,6 +314,8 @@ export default function MisReservasScreen() {
               style={[es.btnIcono, { borderColor: tema.borde }]}
               onPress={() => compartirReserva(item)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Compartir reserva"
             >
               <Ionicons name="share-social-outline" size={16} color={tema.textoSecundario} />
             </TouchableOpacity>
@@ -322,6 +326,9 @@ export default function MisReservasScreen() {
                 onPress={() => setConfirmandoId(item.id)}
                 activeOpacity={0.8}
                 disabled={esCancelando || pidioConf}
+                accessibilityRole="button"
+                accessibilityLabel={`Cancelar reserva ${item.folio}`}
+                accessibilityState={{ disabled: esCancelando || pidioConf }}
               >
                 {esCancelando
                   ? <ActivityIndicator size="small" color="#DD331D" />
@@ -331,7 +338,7 @@ export default function MisReservasScreen() {
             )}
 
             {item.estado === 'cancelada' && (
-              <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8}>
+              <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`${t('res_btn_reservar')} ${item.destino}`}>
                 <Text style={es.textoBtnReservarOtra}>{t('res_btn_reservar')}</Text>
               </TouchableOpacity>
             )}
@@ -360,6 +367,9 @@ export default function MisReservasScreen() {
               onPressOut={() => chipPressOut(f.clave)}
               onPress={() => setFiltro(f.clave)}
               activeOpacity={1}
+              accessibilityRole="button"
+              accessibilityLabel={`${f.label}${n > 0 ? `, ${n}` : ''}`}
+              accessibilityState={{ selected: activo }}
             >
               <Animated.View style={[
                 es.chipFiltro,
@@ -378,7 +388,7 @@ export default function MisReservasScreen() {
   );
 
   const footer = hasNextPage && filtro === 'todas' ? (
-    <TouchableOpacity style={es.btnCargarMas} onPress={() => fetchNextPage()} disabled={isFetchingNextPage} activeOpacity={0.8}>
+    <TouchableOpacity style={es.btnCargarMas} onPress={() => fetchNextPage()} disabled={isFetchingNextPage} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('res_cargar_mas')} accessibilityState={{ disabled: isFetchingNextPage }}>
       {isFetchingNextPage
         ? <ActivityIndicator size="small" color="#3AB7A5" />
         : <Text style={es.txtCargarMas}>{t('res_cargar_mas')}</Text>}
@@ -402,6 +412,8 @@ export default function MisReservasScreen() {
           style={es.btnExplorar}
           onPress={() => router.replace('/(tabs)/menu' as never)}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Explorar destinos"
         >
           <Text style={es.txtExplorar}>Explorar destinos →</Text>
         </TouchableOpacity>

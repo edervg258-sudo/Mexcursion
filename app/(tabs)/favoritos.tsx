@@ -62,6 +62,8 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
         onPressIn={pressIn}
         onPressOut={pressOut}
         onPress={() => onPress(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.nombre}, ${item.categoria}`}
       >
         <Image source={item.imagen} style={s.imagenTarjeta} resizeMode="cover" />
         <View style={s.sombra} />
@@ -72,7 +74,7 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
         <Text style={s.precioTarjeta}>{t('fav_precio_desde', { precio: item.precio.toLocaleString() })}</Text>
       </TouchableOpacity>
       {/* Botón quitar favorito */}
-      <TouchableOpacity style={s.botonFavorito} onPress={handleRemove} activeOpacity={0.7}>
+      <TouchableOpacity style={s.botonFavorito} onPress={handleRemove} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`Quitar ${item.nombre} de favoritos`}>
         <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
           <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
         </Animated.View>
@@ -168,7 +170,7 @@ export default function FavoritosScreen() {
             <Image source={require('../../assets/images/favoritos_gris.png')} style={s.vacioCoreIcon} resizeMode="contain" />
             <Text style={[s.tituloVacio, { color: tema.texto }]}>{t('fav_vacios')}</Text>
             <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>{t('fav_vacios2')}</Text>
-            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)}>
+            <TouchableOpacity style={s.botonIr} onPress={() => setTimeout(() => router.replace('/(tabs)/menu' as never), 0)} accessibilityRole="button" accessibilityLabel={t('fav_explorar')}>
               <Text style={s.textoBotonIr}>{t('fav_explorar')}</Text>
             </TouchableOpacity>
           </View>
