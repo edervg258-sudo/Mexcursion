@@ -53,9 +53,11 @@ export interface Estado {
   categoria: CategoriaEstado;
   descripcion: string;
   imagen: any;
+  imagen_url?: string | null;
   precio: number;
   latitude: number;
   longitude: number;
+  activo?: number;
 }
 
 export interface Pestana {

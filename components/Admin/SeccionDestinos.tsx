@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {
-  Pressable, ScrollView, Text, TextInput,
+  Image, Pressable, ScrollView, Text, TextInput,
   TouchableOpacity, View,
 } from 'react-native';
 import { useTemaContext } from '../../lib/TemaContext';
@@ -16,6 +16,7 @@ interface FormState {
   categoria: string;
   precio: string;
   desc: string;
+  imagen_url: string;
   errores: Record<string, string | undefined>;
 }
 
@@ -51,10 +52,11 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
   const { tema } = useTemaContext();
 
   const campos = [
-    { key: 'nombre',    label: 'Nombre',      val: form.nombre,    ph: 'Ej: Oaxaca' },
-    { key: 'categoria', label: 'Categoría',   val: form.categoria, ph: 'Playa / Cultura / Aventura...' },
-    { key: 'precio',    label: 'Precio base', val: form.precio,    ph: 'Ej: 2500', numeric: true },
-    { key: 'desc',      label: 'Descripción', val: form.desc,      ph: 'Descripción breve' },
+    { key: 'nombre',     label: 'Nombre',       val: form.nombre,     ph: 'Ej: Oaxaca' },
+    { key: 'categoria',  label: 'Categoría',    val: form.categoria,  ph: 'Playa / Cultura / Aventura...' },
+    { key: 'precio',     label: 'Precio base',  val: form.precio,     ph: 'Ej: 2500', numeric: true },
+    { key: 'desc',       label: 'Descripción',  val: form.desc,       ph: 'Descripción breve' },
+    { key: 'imagen_url', label: 'URL de imagen',val: form.imagen_url, ph: 'https://picsum.photos/seed/nombre/800/500' },
   ] as const;
 
   if (modoForm) {
@@ -91,6 +93,17 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
             </View>
           );
         })}
+
+        {form.imagen_url ? (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[adminS.formLabel, { color: tema.textoMuted }]}>Vista previa</Text>
+            <Image
+              source={{ uri: form.imagen_url }}
+              style={{ width: '100%', height: 160, borderRadius: 12, backgroundColor: tema.superficie }}
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
 
         <TouchableOpacity style={adminS.btnPrimario} onPress={onGuardar}>
           <Text style={adminS.btnPrimarioTxt}>Guardar destino</Text>
