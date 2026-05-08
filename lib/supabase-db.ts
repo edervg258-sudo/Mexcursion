@@ -1,4 +1,5 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
+import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
 import { addBreadcrumb, captureApiError } from './sentry';
@@ -269,7 +270,8 @@ export async function solicitarRecuperacionContrasena(
       return { exito: false, error: 'Ingresa un correo electrónico válido.' };
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const redirectTo = Linking.createURL('nueva-contrasena');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     if (error) {
       return { exito: false, error: 'No se pudo enviar el correo de recuperación.' };
     }
@@ -293,6 +295,42 @@ export async function resetContrasena(
   } catch (err) {
     console.error('resetContrasena error:', err);
     return { exito: false, error: 'Error al restablecer contraseña.' };
+  }
+}
+
+export async function subirFotoPerfil(
+  usuario_id: string,
+  uri: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+    const path = `${usuario_id}/avatar.${ext}`;
+
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, blob, { contentType: mime, upsert: true });
+
+    if (uploadError) return { exito: false, error: 'No se pudo subir la imagen.' };
+
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from('usuarios')
+      .update({ foto_url: url })
+      .eq('id', usuario_id);
+
+    if (updateError) return { exito: false, error: 'No se pudo guardar la URL de la foto.' };
+
+    invalidarSesionCache();
+    return { exito: true, url };
+  } catch (err) {
+    console.error('subirFotoPerfil error:', err);
+    return { exito: false, error: 'Error al procesar la imagen.' };
   }
 }
 

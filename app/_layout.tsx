@@ -104,6 +104,9 @@ export default function RootLayout() {
         supabase.auth.signOut().catch(() => {});
         return;
       }
+      if (event === 'PASSWORD_RECOVERY') {
+        setTimeout(() => router.push('/nueva-contrasena'), 0);
+      }
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
         setUserId('');
