@@ -8,42 +8,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetContrasena } from '../lib/supabase-db';
 import { sombraBotonPrimario, sombraTarjeta, subtituloAuth, Tema, tituloAuth } from '../lib/tema';
+import { useForm } from '../hooks/use-form';
 
 export default function NuevaContrasenaScreen() {
   const { correo } = useLocalSearchParams<{ correo: string }>();
-
-  const [nueva, setNueva] = useState('');
-  const [confirmar, setConfirmar] = useState('');
+  const { values, errores, cargando, setCargando, setField, setErrors } = useForm({ nueva: '', confirmar: '' });
   const [verNueva, setVerNueva] = useState(false);
   const [verConfirmar, setVerConfirmar] = useState(false);
-  const [errorNueva, setErrorNueva] = useState('');
-  const [errorConfirmar, setErrorConfirmar] = useState('');
-  const [cargando, setCargando] = useState(false);
   const [exito, setExito] = useState(false);
 
   const validar = (): boolean => {
-    let valido = true;
-    if (nueva.length < 6) {
-      setErrorNueva('La contraseña debe tener al menos 6 caracteres');
-      valido = false;
-    } else { setErrorNueva(''); }
-
-    if (nueva !== confirmar) {
-      setErrorConfirmar('Las contraseñas no coinciden');
-      valido = false;
-    } else { setErrorConfirmar(''); }
-
-    return valido;
+    const nuevos: Partial<Record<'nueva' | 'confirmar', string>> = {};
+    if (values.nueva.length < 6) nuevos.nueva = 'La contraseña debe tener al menos 6 caracteres';
+    if (values.nueva !== values.confirmar) nuevos.confirmar = 'Las contraseñas no coinciden';
+    setErrors(nuevos);
+    return Object.keys(nuevos).length === 0;
   };
 
   const handleReset = async () => {
     if (!validar()) { return; }
     setCargando(true);
-    const resultado = await resetContrasena(correo ?? '', nueva);
+    const resultado = await resetContrasena(correo ?? '', values.nueva);
     setCargando(false);
-
     if (!resultado.exito) {
-      setErrorNueva(resultado.error ?? 'Error al restablecer contraseña');
+      setErrors({ nueva: resultado.error ?? 'Error al restablecer contraseña' });
       return;
     }
     setExito(true);
@@ -81,37 +69,37 @@ export default function NuevaContrasenaScreen() {
               <Text style={estilos.subtitulo}>Crea una contraseña segura para {correo}</Text>
 
               <View style={estilos.grupoCampo}>
-                <View style={[estilos.campoContenedor, errorNueva ? estilos.campoError : null]}>
+                <View style={[estilos.campoContenedor, errores.nueva ? estilos.campoError : null]}>
                   <TextInput
                     placeholder="Nueva contraseña"
                     placeholderTextColor={Tema.textoMuted}
                     style={estilos.campoInterno}
                     secureTextEntry={!verNueva}
-                    value={nueva}
-                    onChangeText={t => { setNueva(t); if (errorNueva) { setErrorNueva(''); } }}
+                    value={values.nueva}
+                    onChangeText={t => setField('nueva', t)}
                   />
                   <TouchableOpacity onPress={() => setVerNueva(v => !v)} style={estilos.botonOjo}>
                     <Text style={estilos.textoOjo}>{verNueva ? '◎' : '◉'}</Text>
                   </TouchableOpacity>
                 </View>
-                {errorNueva ? <Text style={estilos.textoError}>⚠ {errorNueva}</Text> : null}
+                {errores.nueva ? <Text style={estilos.textoError}>⚠ {errores.nueva}</Text> : null}
               </View>
 
               <View style={estilos.grupoCampo}>
-                <View style={[estilos.campoContenedor, errorConfirmar ? estilos.campoError : null]}>
+                <View style={[estilos.campoContenedor, errores.confirmar ? estilos.campoError : null]}>
                   <TextInput
                     placeholder="Confirmar contraseña"
                     placeholderTextColor={Tema.textoMuted}
                     style={estilos.campoInterno}
                     secureTextEntry={!verConfirmar}
-                    value={confirmar}
-                    onChangeText={t => { setConfirmar(t); if (errorConfirmar) { setErrorConfirmar(''); } }}
+                    value={values.confirmar}
+                    onChangeText={t => setField('confirmar', t)}
                   />
                   <TouchableOpacity onPress={() => setVerConfirmar(v => !v)} style={estilos.botonOjo}>
                     <Text style={estilos.textoOjo}>{verConfirmar ? '◎' : '◉'}</Text>
                   </TouchableOpacity>
                 </View>
-                {errorConfirmar ? <Text style={estilos.textoError}>⚠ {errorConfirmar}</Text> : null}
+                {errores.confirmar ? <Text style={estilos.textoError}>⚠ {errores.confirmar}</Text> : null}
               </View>
 
               <TouchableOpacity

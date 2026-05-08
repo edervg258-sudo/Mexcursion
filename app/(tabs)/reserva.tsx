@@ -11,6 +11,7 @@ import {
 import { BookingStepLayout } from '../../components/BookingStepLayout';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { useForm } from '../../hooks/use-form';
 
 // ─── Calendario funcional (web + nativo sin dependencias externas) ────────────
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -185,25 +186,11 @@ export default function ReservaScreen() {
   const { t } = useIdioma();
   const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
 
-  const [nombre_viajero, setNombreViajero] = useState('');
-  const [email, setEmail]                 = useState('');
-  const [telefono, setTelefono]           = useState('');
+  const { values, errores, setField, setErrors } = useForm({ nombre: '', email: '', tel: '', fecha: '', notas: '' });
   const [personas, setPersonas]           = useState(1);
-  const [fecha, setFecha]                 = useState('');
-  const [notas, setNotas]                 = useState('');
-  const [errores, setErrores]             = useState<Record<string, string>>({});
 
   const precioUnitario = parseInt(precio ?? '0');
   const total          = precioUnitario * personas;
-
-  const limpiarError = (campo: string) => {
-    setErrores(prev => {
-      if (!prev[campo]) { return prev; }
-      const next = { ...prev };
-      delete next[campo];
-      return next;
-    });
-  };
 
   const validarCampo = (campo: string, valor: string): string => {
     switch (campo) {
@@ -224,16 +211,16 @@ export default function ReservaScreen() {
   };
 
   const validar = () => {
-    const e: Record<string, string> = {};
-    const errNombre = validarCampo('nombre', nombre_viajero);
-    const errEmail  = validarCampo('email',  email);
-    const errTel    = validarCampo('tel',    telefono);
-    const errFecha  = validarCampo('fecha',  fecha);
+    const e: Partial<Record<'nombre' | 'email' | 'tel' | 'fecha', string>> = {};
+    const errNombre = validarCampo('nombre', values.nombre);
+    const errEmail  = validarCampo('email',  values.email);
+    const errTel    = validarCampo('tel',    values.tel);
+    const errFecha  = validarCampo('fecha',  values.fecha);
     if (errNombre) { e.nombre = errNombre; }
     if (errEmail)  { e.email  = errEmail;  }
     if (errTel)    { e.tel    = errTel;    }
     if (errFecha)  { e.fecha  = errFecha;  }
-    setErrores(e);
+    setErrors(e);
     return Object.keys(e).length === 0;
   };
 
@@ -241,7 +228,7 @@ export default function ReservaScreen() {
     if (!validar()) { return; }
     router.push({
       pathname: '/(tabs)/pago',
-      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
+      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha: values.fecha, nombre_viajero: values.nombre, email: values.email, telefono: values.tel, notas: values.notas },
     } as never);
   };
 
@@ -264,10 +251,7 @@ export default function ReservaScreen() {
             accessibilityHint="Campo del formulario de reserva"
             style={es.input}
             value={valor}
-            onChangeText={(v: string) => {
-              onChange(v);
-              if (campoKey) { limpiarError(campoKey); }
-            }}
+            onChangeText={onChange}
             placeholder={placeholder}
             placeholderTextColor="#bbb"
             keyboardType={teclado}
@@ -327,14 +311,14 @@ export default function ReservaScreen() {
           </View>
         </View>
 
-        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" />
-        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" />
-        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" />
+        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={values.nombre} onChange={v => setField('nombre', v)} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" />
+        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={values.email}  onChange={v => setField('email', v)}  error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" />
+        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={values.tel}    onChange={v => setField('tel', v)}    error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" />
 
         {/* Fecha con calendario */}
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_fecha')}</Text>
-          <CalendarioPicker fecha={fecha} onSelect={setFecha} color="#3AB7A5" />
+          <CalendarioPicker fecha={values.fecha} onSelect={v => setField('fecha', v)} color="#3AB7A5" />
           {errores.fecha ? <Text style={es.textoError}>{errores.fecha}</Text> : null}
         </View>
 
@@ -342,8 +326,8 @@ export default function ReservaScreen() {
           <Text style={es.label}>{t('rsv_notas')}</Text>
           <TextInput
             style={[es.cajaInput, { height: 88, paddingTop: 12, paddingHorizontal: 18 }]}
-            value={notas}
-            onChangeText={setNotas}
+            value={values.notas}
+            onChangeText={v => setField('notas', v)}
             placeholder={t('rsv_notas_hint')}
             placeholderTextColor="#bbb"
             multiline
