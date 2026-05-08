@@ -196,7 +196,7 @@ describe('Input Validation & Security', () => {
         '25/12/26', // año de 2 dígitos
       ];
 
-      invalidDates.forEach(date => {
+      invalidDates.forEach(_date => {
         // El parsing real debe ocurrir en politicas-negocio.ts
         expect(true).toBe(true);
       });
@@ -256,7 +256,7 @@ describe('Input Validation & Security', () => {
       'https://example.com/path?query=value',
     ];
 
-    const invalidURLs = [
+    const _invalidURLs = [
       'not a url',
       'ftp://example.com', // protocolo no soportado
       'http://example.com', // debe ser https
@@ -275,6 +275,7 @@ describe('Input Validation & Security', () => {
     });
 
     it('debería rechazar protocolos no permitidos', () => {
+      // eslint-disable-next-line no-script-url
       const invalidProtocols = ['ftp://', 'file://', 'javascript:'];
       invalidProtocols.forEach(protocol => {
         expect(['https://']).not.toContain(protocol);
@@ -310,6 +311,7 @@ describe('Input Validation & Security', () => {
       '<script>alert("xss")</script>',
       '<img src=x onerror="alert(\'xss\')">',
       '<svg onload="alert(\'xss\')">',
+      // eslint-disable-next-line no-script-url
       'javascript:alert("xss")',
       '<iframe src="evil.com"></iframe>',
     ];

@@ -10,7 +10,7 @@ type SombraConfig = {
 };
 
 export function sombra({
-  color = '#000',
+  color: _color = '#000',
   opacity = 0.1,
   radius = 8,
   offsetY = 4,

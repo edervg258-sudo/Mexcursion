@@ -52,16 +52,16 @@ async function encolarCambioPendiente(campo: string, valor: string | number | ob
 async function vaciarColaDeReintentos(usuarioId: string): Promise<void> {
   try {
     const raw = await secureGet(SYNC_KEYS.PENDING_CHANGES);
-    if (!raw) return;
+    if (!raw) {return;}
 
     const cola: PendingChange[] = JSON.parse(raw);
-    if (cola.length === 0) return;
+    if (cola.length === 0) {return;}
 
     const ahora = Date.now();
     const listas  = cola.filter(c => c.intentos < MAX_INTENTOS && ahora >= c.proximoIntento);
     const diferidas = cola.filter(c => !listas.includes(c));
 
-    if (listas.length === 0) return;
+    if (listas.length === 0) {return;}
 
     // Agrupa todos los campos listos en una sola llamada a Supabase
     const update: Record<string, unknown> = {};
@@ -99,7 +99,7 @@ async function vaciarColaDeReintentos(usuarioId: string): Promise<void> {
 export async function sincronizarDatosUsuario(): Promise<void> {
   try {
     const usuario = await obtenerUsuarioActivo();
-    if (!usuario) return;
+    if (!usuario) {return;}
 
     // Vaciar cambios que quedaron pendientes por falta de red
     await vaciarColaDeReintentos(usuario.id);
@@ -108,16 +108,16 @@ export async function sincronizarDatosUsuario(): Promise<void> {
     const datosLocales: Partial<UserData> = {};
     
     const idiomaLocal = await secureGet(SYNC_KEYS.IDIOMA);
-    if (idiomaLocal) datosLocales.idioma = idiomaLocal;
+    if (idiomaLocal) {datosLocales.idioma = idiomaLocal;}
     
     const notificacionesLocal = await secureGet(SYNC_KEYS.NOTIFICACIONES);
-    if (notificacionesLocal) datosLocales.notificaciones = parseInt(notificacionesLocal);
+    if (notificacionesLocal) {datosLocales.notificaciones = parseInt(notificacionesLocal);}
     
     const favoritosLocal = await secureGet(SYNC_KEYS.FAVORITOS);
-    if (favoritosLocal) datosLocales.favoritos = JSON.parse(favoritosLocal);
+    if (favoritosLocal) {datosLocales.favoritos = JSON.parse(favoritosLocal);}
     
     const preferenciasLocal = await secureGet(SYNC_KEYS.PREFERENCIAS);
-    if (preferenciasLocal) datosLocales.preferencias = JSON.parse(preferenciasLocal);
+    if (preferenciasLocal) {datosLocales.preferencias = JSON.parse(preferenciasLocal);}
 
     // Obtener datos del servidor
     const { data: datosServidor } = await supabase
@@ -126,10 +126,10 @@ export async function sincronizarDatosUsuario(): Promise<void> {
       .eq('id', usuario.id)
       .single();
 
-    if (!datosServidor) return;
+    if (!datosServidor) {return;}
 
     // Estrategia de sincronización: el más reciente gana
-    const lastSync = await secureGet(SYNC_KEYS.LAST_SYNC);
+    const _lastSync = await secureGet(SYNC_KEYS.LAST_SYNC);
     const now = Date.now().toString();
     
     // Helper: sube un campo al servidor; si falla, lo encola para reintento
@@ -204,7 +204,7 @@ export async function obtenerDadoLocal<T>(key: keyof typeof SYNC_KEYS): Promise<
     const storageKey = SYNC_KEYS[key];
     const valor = await secureGet(storageKey);
     
-    if (!valor) return null;
+    if (!valor) {return null;}
     
     // Intentar parsear como JSON, si falla devolver como string
     try {

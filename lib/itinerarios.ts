@@ -33,7 +33,7 @@ export async function crearItinerarioYAgregarDestino(params: {
   const { usuarioId, nombreNuevo, claveDestino, itinerariosActuales } = params;
   const nuevos = await crearItinerario(usuarioId, nombreNuevo);
   const itinerarioCreado = encontrarItinerarioCreado(itinerariosActuales, nuevos, nombreNuevo);
-  if (!itinerarioCreado) return nuevos;
+  if (!itinerarioCreado) {return nuevos;}
   return alternarDestinoItinerario(usuarioId, itinerarioCreado.id, claveDestino);
 }
 

@@ -472,6 +472,6 @@ export const TEXTOS: Record<Idioma, MapaPlano> = {
 /** Devuelve el string en el idioma solicitado, con soporte de interpolación {var} */
 export function traducir(clave: TraduccionClave, idioma: Idioma, vars?: Record<string, string | number>): string {
   let txt = TEXTOS[idioma][clave] ?? clave;
-  if (vars) for (const [k, v] of Object.entries(vars)) txt = txt.replaceAll(`{${k}}`, String(v));
+  if (vars) {for (const [k, v] of Object.entries(vars)) {txt = txt.replaceAll(`{${k}}`, String(v));}}
   return txt;
 }

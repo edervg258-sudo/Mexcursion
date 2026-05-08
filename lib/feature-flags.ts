@@ -19,7 +19,7 @@ const defaults: FeatureFlags = {
 let cachedOverrides: Partial<FeatureFlags> | null = null;
 
 const loadOverrides = async () => {
-  if (cachedOverrides) return cachedOverrides;
+  if (cachedOverrides) {return cachedOverrides;}
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     cachedOverrides = raw ? (JSON.parse(raw) as Partial<FeatureFlags>) : {};

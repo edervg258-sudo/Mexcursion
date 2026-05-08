@@ -1,7 +1,6 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
-import { addBreadcrumb, captureApiError } from './sentry';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -36,13 +35,13 @@ const isNetworkLikeError = (error: unknown) => {
 
 let _offlineHandlersReady = false;
 const ensureOfflineHandlers = () => {
-  if (_offlineHandlersReady) return;
+  if (_offlineHandlersReady) {return;}
   _offlineHandlersReady = true;
 
   registerOfflineHandler('TOGGLE_FAVORITO', async payload => {
     const usuarioId = String(payload.usuarioId ?? '');
     const estadoId = Number(payload.estadoId ?? 0);
-    if (!usuarioId || !estadoId) return;
+    if (!usuarioId || !estadoId) {return;}
     const { data: existe } = await supabase
       .from('favoritos')
       .select('*')
@@ -89,8 +88,8 @@ export async function registrarUsuario(
 
     if (error) {
       const msg = (error.message ?? '').toLowerCase();
-      if (msg.includes('already')) return { exito: false, error: 'Ya existe una cuenta con ese correo.' };
-      if (msg.includes('invalid') || msg.includes('email')) return { exito: false, error: 'Correo inválido.' };
+      if (msg.includes('already')) {return { exito: false, error: 'Ya existe una cuenta con ese correo.' };}
+      if (msg.includes('invalid') || msg.includes('email')) {return { exito: false, error: 'Correo inválido.' };}
       return { exito: false, error: error.message };
     }
 
@@ -108,7 +107,7 @@ export async function registrarUsuario(
         tipo: 'normal',
         activo: 1,
       });
-      if (data.session) return { exito: true };
+      if (data.session) {return { exito: true };}
       return { exito: true, confirmar: true };
     }
 
@@ -124,7 +123,7 @@ export async function iniciarSesion(
   contrasena: string
 ): Promise<{ exito: boolean; usuario?: Usuario; error?: string }> {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: correo,
       password: contrasena,
     });
@@ -204,7 +203,7 @@ export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
         .eq('id', user.id)
         .maybeSingle();
 
-      if (dbError) console.error('obtenerUsuarioActivo BD error:', dbError.message);
+      if (dbError) {console.error('obtenerUsuarioActivo BD error:', dbError.message);}
 
       if (data) {
         const usuario: Usuario = {
@@ -288,7 +287,7 @@ export async function resetContrasena(
   try {
     // Requiere sesión de recuperación activa (el usuario llegó por el link del email)
     const { error } = await supabase.auth.updateUser({ password: nueva_contrasena });
-    if (error) return { exito: false, error: 'Error al restablecer contraseña.' };
+    if (error) {return { exito: false, error: 'Error al restablecer contraseña.' };}
     return { exito: true };
   } catch (err) {
     console.error('resetContrasena error:', err);
@@ -302,12 +301,12 @@ export async function actualizarPerfil(
 ): Promise<{ exito: boolean; error?: string }> {
   try {
     const update: Record<string, any> = {};
-    if (campos.nombre          !== undefined) update.nombre          = campos.nombre;
-    if (campos.nombre_usuario  !== undefined) update.nombre_usuario  = campos.nombre_usuario;
-    if (campos.telefono        !== undefined) update.telefono        = campos.telefono;
+    if (campos.nombre          !== undefined) {update.nombre          = campos.nombre;}
+    if (campos.nombre_usuario  !== undefined) {update.nombre_usuario  = campos.nombre_usuario;}
+    if (campos.telefono        !== undefined) {update.telefono        = campos.telefono;}
 
     const { error } = await supabase.from('usuarios').update(update).eq('id', usuario_id);
-    if (error) return { exito: false, error: 'Error al actualizar perfil.' };
+    if (error) {return { exito: false, error: 'Error al actualizar perfil.' };}
     invalidarSesionCache(); // forzar recarga del perfil
     return { exito: true };
   } catch (err) {
@@ -322,8 +321,8 @@ export async function actualizarPreferencias(
 ): Promise<void> {
   try {
     const update: Record<string, any> = {};
-    if (campos.idioma          !== undefined) update.idioma          = campos.idioma;
-    if (campos.notificaciones  !== undefined) update.notificaciones  = campos.notificaciones;
+    if (campos.idioma          !== undefined) {update.idioma          = campos.idioma;}
+    if (campos.notificaciones  !== undefined) {update.notificaciones  = campos.notificaciones;}
     await supabase.from('usuarios').update(update).eq('id', usuario_id);
     invalidarSesionCache();
   } catch (err) { console.error('actualizarPreferencias error:', err); }
@@ -336,17 +335,17 @@ export async function cambiarContrasena(
 ): Promise<{ exito: boolean; error?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) return { exito: false, error: 'Sesión no válida.' };
+    if (!user?.email) {return { exito: false, error: 'Sesión no válida.' };}
 
     // Verifica la contraseña actual re-autenticando
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: contrasena_actual,
     });
-    if (signInError) return { exito: false, error: 'La contraseña actual es incorrecta.' };
+    if (signInError) {return { exito: false, error: 'La contraseña actual es incorrecta.' };}
 
     const { error } = await supabase.auth.updateUser({ password: contrasena_nueva });
-    if (error) return { exito: false, error: 'Error al cambiar contraseña.' };
+    if (error) {return { exito: false, error: 'Error al cambiar contraseña.' };}
     return { exito: true };
   } catch (err) {
     console.error('cambiarContrasena error:', err);
@@ -364,7 +363,7 @@ export async function cargarFavoritos(usuarioId: string): Promise<number[]> {
       .from('favoritos')
       .select('estado_id')
       .eq('usuario_id', usuarioId);
-    if (error) return [];
+    if (error) {return [];}
     return data?.map((f: any) => f.estado_id) ?? [];
   } catch (err) {
     console.error('cargarFavoritos error:', err);
@@ -419,7 +418,7 @@ export async function obtenerItinerarios(usuario_id: string): Promise<Itinerario
       .eq('usuario_id', usuario_id)
       .order('id', { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) {return [];}
 
     return data.map((iti: any) => ({
       id: iti.id,
@@ -508,7 +507,7 @@ export async function obtenerRutasSugeridas(): Promise<any[]> {
       .from('sugerencias_rutas')
       .select('*')
       .order('id', { ascending: true });
-    if (error) return [];
+    if (error) {return [];}
     return data ?? [];
   } catch (err) {
     console.error('obtenerRutasSugeridas error:', err);
@@ -551,7 +550,7 @@ export const toggleActivoRutaSugerida  = (id: string)         => toggleActivo('s
 export async function obtenerTodosLosDestinos(): Promise<any[]> {
   try {
     const { data, error } = await supabase.from('estados').select('*').order('id', { ascending: true });
-    if (error) return [];
+    if (error) {return [];}
     return data ?? [];
   } catch (err) {
     console.error('obtenerTodosLosDestinos error:', err);
@@ -632,11 +631,6 @@ export async function guardarReserva(
       .eq('folio', folioNormalizado)
       .maybeSingle();
     if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
       return 'idempotent';
     }
 
@@ -651,7 +645,7 @@ export async function guardarReserva(
       metodo: metodo.toLowerCase(),
       estado: estado.toLowerCase(),
     };
-    if (notas?.trim()) fila.notas = notas.trim();
+    if (notas?.trim()) {fila.notas = notas.trim();}
 
     const { error } = await supabase.from('reservas').insert(fila);
     if (error) {
@@ -666,23 +660,12 @@ export async function guardarReserva(
         });
         return 'queued_offline';
       }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+      console.error('guardarReserva insert error:', error);
       return 'failed';
     }
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
-    captureApiError({
-      feature: 'reservas',
-      action: 'insert',
-      error: err,
-      metadata: { usuario_id, folio },
-    });
     return 'failed';
   }
 }
@@ -695,7 +678,7 @@ export async function cargarReservas(usuario_id: string, limite = 20, offset = 0
       .eq('usuario_id', usuario_id)
       .order('creado_en', { ascending: false })
       .range(offset, offset + limite - 1);
-    if (error) return [];
+    if (error) {return [];}
     return data ?? [];
   } catch (err) {
     console.error('cargarReservas error:', err);
@@ -709,7 +692,7 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
       .from('reservas')
       .select('*, usuarios(nombre)')
       .order('creado_en', { ascending: false });
-    if (error) return [];
+    if (error) {return [];}
     return (data ?? []).map((r: any) => ({
       ...r,
       nombre_usuario: r.usuarios?.nombre ?? '',
@@ -737,7 +720,7 @@ export async function cargarResenas(destino: string): Promise<any[]> {
       .select('*, usuarios(nombre)')
       .eq('destino', destino)
       .order('created_at', { ascending: false });
-    if (error) return [];
+    if (error) {return [];}
     return (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' }));
   } catch (err) {
     console.error('cargarResenas error:', err);
@@ -757,7 +740,7 @@ export async function cargarResenasPaginadas(
       .eq('destino', destino)
       .order('created_at', { ascending: false })
       .range(offset, offset + limite - 1);
-    if (error) return { resenas: [], total: 0 };
+    if (error) {return { resenas: [], total: 0 };}
     return {
       resenas: (data ?? []).map((r: any) => ({ ...r, nombre: r.usuarios?.nombre ?? 'Anónimo' })),
       total: count ?? 0,
@@ -816,7 +799,7 @@ export async function guardarResena(
     const { error } = await supabase
       .from('resenas')
       .insert({ usuario_id, destino, calificacion, comentario });
-    if (error) return { exito: false, error: 'Error al guardar reseña.' };
+    if (error) {return { exito: false, error: 'Error al guardar reseña.' };}
     await crearNotificacion(
       usuario_id, 'resena', 'Gracias por tu reseña',
       `Tu reseña de ${destino} ayuda a otros viajeros a decidir.`
@@ -853,7 +836,7 @@ export async function cargarHistorial(usuario_id: string, limite = 30, offset = 
       .eq('usuario_id', usuario_id)
       .order('creado_en', { ascending: false })
       .range(offset, offset + limite - 1);
-    if (error) return [];
+    if (error) {return [];}
     return data ?? [];
   } catch (err) {
     console.error('cargarHistorial error:', err);
@@ -886,7 +869,7 @@ export async function cargarNotificaciones(usuario_id: string, limite = 20, offs
       .eq('usuario_id', usuario_id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limite - 1);
-    if (error) return [];
+    if (error) {return [];}
     // Mapear leida boolean → 0/1 para compatibilidad con las pantallas
     return (data ?? []).map((n: any) => ({ ...n, leida: n.leida ? 1 : 0 }));
   } catch (err) {
@@ -917,7 +900,7 @@ export async function cargarTodosLosUsuarios(): Promise<any[]> {
       .from('usuarios')
       .select('*')
       .order('nombre');
-    if (error || !usuarios) return [];
+    if (error || !usuarios) {return [];}
 
     const { data: reservas } = await supabase.from('reservas').select('usuario_id');
 

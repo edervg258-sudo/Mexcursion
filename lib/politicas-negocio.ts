@@ -16,7 +16,7 @@ export const POLITICAS_CANCELACION = {
     nombre: 'Cancelación Flexible',
     descripcion: 'Cancelación gratuita hasta 24 horas antes',
     costoCancelacion: (diasAntes: number, precioTotal: number): number => {
-      if (diasAntes >= 1) return 0;
+      if (diasAntes >= 1) {return 0;}
       return precioTotal * 0.1;
     },
   },
@@ -24,8 +24,8 @@ export const POLITICAS_CANCELACION = {
     nombre: 'Cancelación Moderada',
     descripcion: 'Cancelación gratuita hasta 7 días antes',
     costoCancelacion: (diasAntes: number, precioTotal: number): number => {
-      if (diasAntes >= 7) return 0;
-      if (diasAntes >= 3) return precioTotal * 0.05;
+      if (diasAntes >= 7) {return 0;}
+      if (diasAntes >= 3) {return precioTotal * 0.05;}
       return precioTotal * 0.15;
     },
   },
@@ -33,8 +33,8 @@ export const POLITICAS_CANCELACION = {
     nombre: 'Cancelación Estricta',
     descripcion: 'Cancelación gratuita hasta 30 días antes',
     costoCancelacion: (diasAntes: number, precioTotal: number): number => {
-      if (diasAntes >= 30) return 0;
-      if (diasAntes >= 14) return precioTotal * 0.2;
+      if (diasAntes >= 30) {return 0;}
+      if (diasAntes >= 14) {return precioTotal * 0.2;}
       return precioTotal * 0.5;
     },
   },

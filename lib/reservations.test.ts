@@ -6,7 +6,6 @@
 import {
   calcularCostoCancelacion,
   calcularPrecioDinamico,
-  POLITICAS_CANCELACION,
 } from './politicas-negocio';
 
 describe('Reservation Business Rules', () => {

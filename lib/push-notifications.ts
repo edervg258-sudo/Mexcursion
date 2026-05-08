@@ -11,7 +11,7 @@ type NotificationsModule = typeof import('expo-notifications');
 let notificationsModule: NotificationsModule | null | undefined;
 
 function getNotificationsModule(): NotificationsModule | null {
-  if (notificationsModule !== undefined) return notificationsModule;
+  if (notificationsModule !== undefined) {return notificationsModule;}
 
   const executionEnvironment = Constants.executionEnvironment;
   const isExpoGo =
@@ -31,7 +31,7 @@ function getNotificationsModule(): NotificationsModule | null {
   try {
     // Cargar de forma diferida evita romper el arranque cuando el módulo nativo
     // no está presente en Expo Go o en un binario no reconstruido.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     notificationsModule = require('expo-notifications') as NotificationsModule;
   } catch {
     notificationsModule = null;
@@ -50,7 +50,7 @@ export function getNotifications(): NotificationsModule | null {
 // ── Comportamiento cuando la app está en primer plano ────────────────────────
 export async function configurarNotificaciones() {
   const Notifications = getNotificationsModule();
-  if (!Notifications) return false;
+  if (!Notifications) {return false;}
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -78,11 +78,11 @@ export async function configurarNotificaciones() {
 // ── Solicitar permisos y registrar token ─────────────────────────────────────
 export async function registrarParaPush(usuarioId: string): Promise<string | null> {
   const Notifications = getNotificationsModule();
-  if (!Notifications) return null;
+  if (!Notifications) {return null;}
 
   // Solo en dispositivo físico
   const { data: esFisico } = await Notifications.getDevicePushTokenAsync().catch(() => ({ data: null }));
-  if (!esFisico) return null;  // simulador
+  if (!esFisico) {return null;}  // simulador
 
   const { status: existente } = await Notifications.getPermissionsAsync();
   let estadoFinal = existente;
@@ -91,7 +91,7 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
     const { status } = await Notifications.requestPermissionsAsync();
     estadoFinal = status;
   }
-  if (estadoFinal !== 'granted') return null;
+  if (estadoFinal !== 'granted') {return null;}
 
   const token = (await Notifications.getExpoPushTokenAsync()).data;
 
@@ -110,7 +110,7 @@ export async function registrarParaPush(usuarioId: string): Promise<string | nul
 // ── Enviar notificación local ─────────────────────────────────────────────────
 export async function mostrarNotificacionLocal(titulo: string, cuerpo: string) {
   const Notifications = getNotificationsModule();
-  if (!Notifications) return;
+  if (!Notifications) {return;}
 
   await Notifications.scheduleNotificationAsync({
     content: { title: titulo, body: cuerpo, sound: true },
@@ -121,7 +121,7 @@ export async function mostrarNotificacionLocal(titulo: string, cuerpo: string) {
 // ── Limpiar badge ─────────────────────────────────────────────────────────────
 export async function limpiarBadge() {
   const Notifications = getNotificationsModule();
-  if (!Notifications) return;
+  if (!Notifications) {return;}
 
   await Notifications.setBadgeCountAsync(0);
 }

@@ -2,8 +2,6 @@
 //  lib/validaciones.ts  —  Validaciones de formularios y datos
 // ============================================================
 
-import { Estado, Nivel, CategoriaEstado } from './tipos';
-
 // Validaciones de email
 export const validarEmail = (email: string): boolean => {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +26,7 @@ export const validarFechaFutura = (fecha: string): boolean => {
 // Validación de tarjeta de crédito con algoritmo de Luhn
 export const validarTarjeta = (numero: string): boolean => {
   const numeroLimpio = numero.replace(/\s+/g, '');
-  if (!/^[0-9]{13,19}$/.test(numeroLimpio)) return false;
+  if (!/^[0-9]{13,19}$/.test(numeroLimpio)) {return false;}
 
   // Algoritmo de Luhn
   let suma = 0;
@@ -37,7 +35,7 @@ export const validarTarjeta = (numero: string): boolean => {
     let digito = parseInt(numeroLimpio[i], 10);
     if (doble) {
       digito *= 2;
-      if (digito > 9) digito -= 9;
+      if (digito > 9) {digito -= 9;}
     }
     suma += digito;
     doble = !doble;
