@@ -2,12 +2,13 @@ import { useRouter } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Image, Modal, ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } from '../lib/supabase-db';
+import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena, reenviarConfirmacion } from '../lib/supabase-db';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,9 +22,13 @@ export default function LoginScreen() {
   // Errores por campo
   const [errorCorreo, setErrorCorreo] = useState('');
   const [errorContrasena, setErrorContrasena] = useState('');
-  // FIX #1: Estado de error separado para el modal de recuperación
   const [errorCorreoRecup, setErrorCorreoRecup] = useState('');
   const [verContrasena, setVerContrasena] = useState(false);
+
+  // Flujo de email no confirmado
+  const [emailNoConfirmado, setEmailNoConfirmado] = useState('');
+  const [reenvioLoading, setReenvioLoading] = useState(false);
+  const [reenvioMensaje, setReenvioMensaje] = useState('');
 
   useEffect(() => {
     obtenerUsuarioActivo().then(u => {
@@ -61,6 +66,11 @@ export default function LoginScreen() {
     setCargando(false);
 
     if (!resultado.exito) {
+      if (resultado.noConfirmado) {
+        setEmailNoConfirmado(correo.trim());
+        setReenvioMensaje('');
+        return;
+      }
       const msg = resultado.error ?? 'Error al iniciar sesión';
       if (msg.toLowerCase().includes('contraseña')) {
         setErrorContrasena(msg);
@@ -153,6 +163,32 @@ export default function LoginScreen() {
                 {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
               </View>
 
+              {!!emailNoConfirmado && (
+                <View style={estilos.bannerConfirmar}>
+                  <Text style={estilos.bannerConfirmarTexto}>
+                    Tu correo aún no está verificado. Revisa tu bandeja de entrada o reenvía el enlace.
+                  </Text>
+                  {reenvioMensaje ? (
+                    <Text style={[estilos.bannerConfirmarTexto, { marginTop: 4, fontWeight: '700' }]}>{reenvioMensaje}</Text>
+                  ) : null}
+                  <TouchableOpacity
+                    style={[estilos.btnReenvioConfirmar, reenvioLoading && { opacity: 0.6 }]}
+                    onPress={async () => {
+                      if (reenvioLoading) { return; }
+                      setReenvioLoading(true);
+                      const r = await reenviarConfirmacion(emailNoConfirmado);
+                      setReenvioLoading(false);
+                      setReenvioMensaje(r.exito ? 'Correo reenviado. Revisa tu bandeja.' : (r.error ?? 'No se pudo reenviar.'));
+                    }}
+                    disabled={reenvioLoading}
+                  >
+                    {reenvioLoading
+                      ? <ActivityIndicator size="small" color="#3AB7A5" />
+                      : <Text style={estilos.textoReenvioConfirmar}>Reenviar correo de verificación</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <TouchableOpacity
                 style={estilos.enlaceOlvide}
                 onPress={() => { setErrorCorreo(''); setModalRecuperar(true); }}
@@ -240,4 +276,8 @@ const estilos = StyleSheet.create({
   tituloModal:      { fontSize: 20, fontWeight: '700', color: '#222', marginBottom: 6, textAlign: 'center' },
   subtituloModal:   { fontSize: 13, color: '#666', marginBottom: 16, textAlign: 'center' },
   botonOjo:         { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
+  bannerConfirmar:       { backgroundColor: '#fff8e1', borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#b8860b' },
+  bannerConfirmarTexto:  { color: '#7a5c00', fontSize: 13, lineHeight: 18 },
+  btnReenvioConfirmar:   { marginTop: 8, alignItems: 'center', paddingVertical: 6 },
+  textoReenvioConfirmar: { color: '#3AB7A5', fontWeight: '700', fontSize: 13 },
 });

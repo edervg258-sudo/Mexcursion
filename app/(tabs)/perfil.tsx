@@ -362,6 +362,20 @@ export default function PerfilScreen() {
             </TouchableOpacity>
           )}
 
+          {sesion?.tipo === 'guide' && (
+            <TouchableOpacity
+              style={estilos.botonGuia}
+              onPressIn={() => Animated.spring(adminAnim, { toValue: 0.94, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
+              onPressOut={() => Animated.spring(adminAnim, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 6 }).start()}
+              onPress={() => setTimeout(() => router.push('/(tabs)/guia' as never), 0)}
+              activeOpacity={1}
+            >
+              <Animated.View style={{ transform: [{ scale: adminAnim }] }}>
+                <Text style={estilos.textoBotonGuia}>Panel de Guía</Text>
+              </Animated.View>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={estilos.botonCerrarSesion}
             onPressIn={() => Animated.spring(cerrarAnim, { toValue: 0.93, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: 2 }).start()}
@@ -423,6 +437,8 @@ const estilos = StyleSheet.create({
   chevron:               { fontSize: 16, color: '#aaa', fontWeight: '600' },
   botonAdmin:            { backgroundColor: '#1D3557', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 10, elevation: 4, alignSelf: 'center', width: 240 },
   textoBotonAdmin:       { color: '#fff', fontSize: 15, fontWeight: '600' },
+  botonGuia:             { backgroundColor: '#2E7D6F', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 10, elevation: 4, alignSelf: 'center', width: 240 },
+  textoBotonGuia:        { color: '#fff', fontSize: 15, fontWeight: '600' },
   botonCerrarSesion:     { backgroundColor: '#DD331D', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 10, marginBottom: 10, elevation: 4, alignSelf: 'center', width: 200 },
   textoCerrarSesion:     { color: '#fff', fontSize: 16, fontWeight: '600' },
   modalOverlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

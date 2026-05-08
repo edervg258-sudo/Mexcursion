@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Image,
     Modal,
     ScrollView,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { obtenerUsuarioActivo, registrarUsuario } from '../lib/supabase-db';
+import { obtenerUsuarioActivo, registrarUsuario, reenviarConfirmacion } from '../lib/supabase-db';
 
 type FormType = {
   nombre: string; nombre_usuario: string;
@@ -26,6 +27,9 @@ export default function RegistroScreen() {
   const [verContrasena, setVerContrasena]     = useState(false);
   const [aceptoTerminos, setAceptoTerminos]   = useState(false);
   const [verTerminos, setVerTerminos]         = useState(false);
+  const [correoRegistrado, setCorreoRegistrado] = useState('');
+  const [reenvioLoading, setReenvioLoading]   = useState(false);
+  const [reenvioMensaje, setReenvioMensaje]   = useState('');
 
   useEffect(() => {
     obtenerUsuarioActivo().then(u => { if (u) {router.replace('/(tabs)/menu');} });
@@ -81,6 +85,7 @@ export default function RegistroScreen() {
       return;
     }
     if (resultado.confirmar) {
+      setCorreoRegistrado(form.correo.trim());
       setMensajeExito('Te enviamos un enlace de verificación. Revisa tu correo y confirma tu cuenta para ingresar.');
       return;
     }
@@ -218,8 +223,26 @@ export default function RegistroScreen() {
               {mensajeExito ? (
                 <View style={estilos.bannerExito}>
                   <Text style={estilos.bannerExitoTexto}>✓ {mensajeExito}</Text>
-                  <TouchableOpacity onPress={() => router.replace('/login')} style={{ marginTop: 10 }}>
-                    <Text style={[estilos.textoEnlaceColor, { textAlign: 'center', fontWeight: '700' }]}>Ir a iniciar sesión</Text>
+                  {reenvioMensaje ? (
+                    <Text style={[estilos.bannerExitoTexto, { marginTop: 6, fontSize: 12 }]}>{reenvioMensaje}</Text>
+                  ) : null}
+                  <TouchableOpacity
+                    style={[estilos.btnReenvio, reenvioLoading && { opacity: 0.6 }]}
+                    onPress={async () => {
+                      if (reenvioLoading) { return; }
+                      setReenvioLoading(true);
+                      const r = await reenviarConfirmacion(correoRegistrado);
+                      setReenvioLoading(false);
+                      setReenvioMensaje(r.exito ? 'Correo reenviado.' : (r.error ?? 'No se pudo reenviar.'));
+                    }}
+                    disabled={reenvioLoading}
+                  >
+                    {reenvioLoading
+                      ? <ActivityIndicator size="small" color="#3AB7A5" />
+                      : <Text style={estilos.textoEnlaceColor}>Reenviar correo de verificación</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => router.replace('/login')} style={{ marginTop: 6, alignItems: 'center' }}>
+                    <Text style={[estilos.textoEnlaceColor, { fontWeight: '700' }]}>Ir a iniciar sesión</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -286,6 +309,7 @@ const estilos = StyleSheet.create({
   bannerErrorTexto: { color: '#DD331D', fontSize: 13, fontWeight: '600' },
   bannerExito:      { backgroundColor: '#e8f7f5', borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#3AB7A5' },
   bannerExitoTexto: { color: '#2a8a7e', fontSize: 13, lineHeight: 20 },
+  btnReenvio:       { marginTop: 10, alignItems: 'center', paddingVertical: 6 },
 
   checkboxFila:     { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 4 },
   checkbox:         { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: '#fff' },
