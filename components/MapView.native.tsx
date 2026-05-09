@@ -77,6 +77,6 @@ export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, titl
 }
 
 const s = StyleSheet.create({
-  contenedor: { flex: 1, borderRadius: 12, overflow: 'hidden' },
+  contenedor: { flex: 1, borderRadius: 14, overflow: 'hidden' },
   webview:    { flex: 1 },
 });

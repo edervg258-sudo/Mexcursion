@@ -48,7 +48,7 @@ export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, titl
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   return (
-    <View style={[{ flex: 1, borderRadius: 12, overflow: 'hidden' }, style]}>
+    <View style={[{ flex: 1, borderRadius: 14, overflow: 'hidden' }, style]}>
       {/* @ts-expect-error — MapContainer usa props de React DOM */}
       <MapContainer
         center={[latitude, longitude]}
