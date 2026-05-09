@@ -3,8 +3,6 @@ import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator, Alert,
-    Image,
-    ScrollView,
     StyleSheet, Text,
     TouchableOpacity,
     useWindowDimensions,
@@ -15,9 +13,9 @@ import { AdminDashboard } from '../../components/AdminDashboard';
 import { AdminNavBar } from '../../components/Admin/AdminNavBar';
 import { SeccionDestinos } from '../../components/Admin/SeccionDestinos';
 import { SeccionReservas } from '../../components/Admin/SeccionReservas';
+import { SeccionRutas } from '../../components/Admin/SeccionRutas';
 import { SeccionUsuarios } from '../../components/Admin/SeccionUsuarios';
-import { Destino, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
-import { RUTAS_TEMATICAS } from '../../lib/datos/rutas-tematicas';
+import { Destino, Reserva, Seccion, TRANSICIONES, Usuario } from '../../components/Admin/tipos';
 import {
     actualizarDestino,
     actualizarEstadoReserva,
@@ -30,38 +28,8 @@ import {
     toggleActivoDestinoAdmin,
     toggleActivoUsuarioAdmin
 } from '../../lib/supabase-db';
+import { useAdminStats } from '../../hooks/useAdminStats';
 import { useTemaContext } from '../../lib/TemaContext';
-
-// ── Imágenes de rutas ──────────────────────────────────────────────────────
-import guanajuatoImg from '../../assets/images/guanajuato.png';
-import chiapasImg from '../../assets/images/chiapas.png';
-import sinaloaImg from '../../assets/images/sinaloa.png';
-import jaliscoImg from '../../assets/images/jalisco.png';
-import chihuahuaImg from '../../assets/images/chihuahua.png';
-
-const RUTA_IMG: Record<string, number> = {
-  colonial: guanajuatoImg,
-  maya:     chiapasImg,
-  pacifico: sinaloaImg,
-  sabor:    jaliscoImg,
-  aventura: chihuahuaImg,
-};
-
-// ── Colores de estado de reserva ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
-  confirmada: { fondo: '#E8F5F2', texto: '#3AB7A5', label: 'Confirmada'  },
-  completada: { fondo: '#F0F0F0', texto: '#666',    label: 'Completada'  },
-  cancelada:  { fondo: '#FEF0EE', texto: '#DD331D', label: 'Cancelada'   },
-  pendiente:  { fondo: '#FEF8E8', texto: '#9A7118', label: 'Pendiente'   },
-};
-
-const TRANSICIONES: Record<string, { label: string; estado: string; color: string }[]> = {
-  pendiente:  [{ label: 'Confirmar', estado: 'confirmada', color: '#3AB7A5' }, { label: 'Cancelar', estado: 'cancelada', color: '#DD331D' }],
-  confirmada: [{ label: 'Completar', estado: 'completada', color: '#27AE60' }, { label: 'Cancelar', estado: 'cancelada', color: '#DD331D' }],
-  completada: [],
-  cancelada:  [],
-};
 
 // ── Componente principal ───────────────────────────────────────────────────
 export default function AdminScreen() {
@@ -212,55 +180,7 @@ export default function AdminScreen() {
     );
   };
 
-  // ── Estadísticas reales ────────────────────────────────────────────────
-  const ahora         = new Date();
-  const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-  const inicioMesPas  = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
-  const enEsteMes = (f: string) => new Date(f) >= inicioEsteMes;
-  const enMesPas  = (f: string) => new Date(f) >= inicioMesPas && new Date(f) < inicioEsteMes;
-  const trend     = (a: number, b: number) => b === 0 ? (a > 0 ? 100 : 0) : Math.round(((a - b) / b) * 100);
-  const formatTiempo = (fecha: string) => {
-    const seg = Math.floor((ahora.getTime() - new Date(fecha).getTime()) / 1000);
-    if (seg < 60)    { return 'Hace un momento'; }
-    if (seg < 3600)  { return `Hace ${Math.floor(seg / 60)} min`; }
-    if (seg < 86400) { return `Hace ${Math.floor(seg / 3600)}h`; }
-    return `Hace ${Math.floor(seg / 86400)}d`;
-  };
-
-  const topDestinos = Object.entries(
-    reservas.reduce<Record<string, number>>((acc, r) => {
-      if (r.destino) { acc[r.destino] = (acc[r.destino] ?? 0) + 1; }
-      return acc;
-    }, {})
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nombre, count]) => ({ nombre, reservas: count }));
-
-  const actividadReciente = [
-    ...[...reservas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()).slice(0, 6)
-      .map(r => ({ tipo: 'reserva', descripcion: `Reserva ${r.estado}: ${r.destino} — ${r.nombre_usuario}`, tiempo: formatTiempo(r.creado_en), _ts: new Date(r.creado_en).getTime() })),
-    ...[...usuarios].filter(u => !!u.creado_en).sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()).slice(0, 4)
-      .map(u => ({ tipo: 'usuario', descripcion: `Nuevo usuario: ${u.nombre || u.correo}`, tiempo: formatTiempo(u.creado_en), _ts: new Date(u.creado_en).getTime() })),
-  ].sort((a, b) => b._ts - a._ts).slice(0, 8).map(({ tipo, descripcion, tiempo }) => ({ tipo, descripcion, tiempo }));
-
-  const resEsteMes = reservas.filter(r => r.creado_en && enEsteMes(r.creado_en)).length;
-  const resMesPas  = reservas.filter(r => r.creado_en && enMesPas(r.creado_en)).length;
-  const ingEsteMes = reservas.filter(r => r.creado_en && enEsteMes(r.creado_en) && r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0);
-  const ingMesPas  = reservas.filter(r => r.creado_en && enMesPas(r.creado_en)  && r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0);
-  const usrEsteMes = usuarios.filter(u => u.creado_en && enEsteMes(u.creado_en)).length;
-  const usrMesPas  = usuarios.filter(u => u.creado_en && enMesPas(u.creado_en)).length;
-
-  const stats = {
-    totalReservas:       reservas.length,
-    ingresos:            reservas.filter(r => r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0),
-    confirmadas:         reservas.filter(r => r.estado === 'confirmada').length,
-    usuarios:            usuarios.filter(u => u.activo).length,
-    destinosActivos:     destinos.filter(d => d.activo).length,
-    reservasHoy:         reservas.filter(r => r.creado_en && new Date(r.creado_en).toDateString() === ahora.toDateString()).length,
-    crecimientoUsuarios: trend(usrEsteMes, usrMesPas),
-    trendReservas:       trend(resEsteMes, resMesPas),
-    trendIngresos:       trend(ingEsteMes, ingMesPas),
-    topDestinos,
-    actividadReciente,
-  };
+  const stats = useAdminStats(reservas, usuarios, destinos);
 
   // ── Datos filtrados y ordenados ────────────────────────────────────────
   const categoriasDestino = [
@@ -385,61 +305,6 @@ export default function AdminScreen() {
     />
   );
 
-  // ── Rutas temáticas (datos locales — RUTAS_TEMATICAS) ─────────────────
-  const RutasView = () => (
-    <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-      <Text style={[s.seccionTitulo, { color: tema.texto }]}>Rutas temáticas ({RUTAS_TEMATICAS.length})</Text>
-      <Text style={[s.subTitulo, { color: tema.textoMuted, marginBottom: 16, fontSize: 13 }]}>
-        Rutas curadas de la app. Para editar el contenido, modifica{' '}
-        <Text style={{ fontFamily: 'monospace', color: tema.primario }}>lib/datos/rutas-tematicas.ts</Text>
-      </Text>
-      {RUTAS_TEMATICAS.map(r => {
-        const img = RUTA_IMG[r.id];
-        const difColor = r.dificultad === 'Fácil' ? '#3AB7A5' : r.dificultad === 'Moderada' ? '#e9c46a' : '#DD331D';
-        return (
-          <View key={r.id} style={[s.rutaCard, { backgroundColor: tema.superficieBlanca, borderColor: r.color + '55', borderLeftColor: r.color }]}>
-            <View style={s.rutaCardTop}>
-              {img && <Image source={img} style={s.rutaCardImg} resizeMode="cover" />}
-              <View style={{ flex: 1 }}>
-                <View style={[s.itemCardRow, { marginBottom: 4 }]}>
-                  <Text style={[s.itemNombre, { color: tema.texto }]}>{r.nombre}</Text>
-                  <View style={[s.badge, { backgroundColor: difColor + '22', borderWidth: 1, borderColor: difColor }]}>
-                    <Text style={[s.badgeTxt, { color: difColor }]}>{r.dificultad}</Text>
-                  </View>
-                </View>
-                <Text style={[s.itemSub, { color: tema.textoMuted }]} numberOfLines={2}>{r.descripcion}</Text>
-              </View>
-            </View>
-            <View style={[s.rutaCardInfo, { borderTopColor: tema.borde }]}>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Destinos</Text>
-                <Text style={[s.rutaInfoVal, { color: r.color }]}>{r.estadoIds.length}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Días total</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.estadoIds.length * r.diasPorEstado}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Presupuesto</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.presupuestoDiario}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Época</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.mejorEpoca}</Text>
-              </View>
-            </View>
-            <View style={s.rutaTags}>
-              {r.tags.map(tag => (
-                <View key={tag} style={[s.rutaTag, { backgroundColor: r.color + '18', borderColor: r.color + '44' }]}>
-                  <Text style={[s.rutaTagTxt, { color: r.color }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
 
   const Reservas = () => (
     <SeccionReservas
@@ -477,7 +342,7 @@ export default function AdminScreen() {
   const SECCIONES: Record<Seccion, React.ReactNode> = {
     dashboard: <Dashboard />,
     destinos:  <Destinos  />,
-    rutas:     <RutasView />,
+    rutas:     <SeccionRutas />,
     reservas:  <Reservas  />,
     usuarios:  <Usuarios  />,
   };
@@ -560,23 +425,4 @@ const s = StyleSheet.create({
   // Error banner
   errorBannerTxt: { fontSize: 13, fontWeight: '600' },
 
-  // Rutas temáticas (SeccionRutas inline)
-  rutaCard:     { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
-  rutaCardTop:  { flexDirection: 'row', gap: 12, padding: 14 },
-  rutaCardImg:  { width: 68, height: 68, borderRadius: 10 },
-  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
-  rutaInfoItem: { flex: 1, alignItems: 'center', gap: 2 },
-  rutaInfoLbl:  { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  rutaInfoVal:  { fontSize: 13, fontWeight: '800' },
-  rutaTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
-  rutaTag:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  rutaTagTxt:   { fontSize: 11, fontWeight: '600' },
-  itemCardRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  itemNombre:   { fontSize: 15, fontWeight: '700', flex: 1 },
-  itemSub:      { fontSize: 12, marginTop: 2 },
-  badge:        { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
-  badgeTxt:     { fontSize: 11, fontWeight: '700' },
-  subTitulo:    { fontSize: 14, fontWeight: '600' },
-  seccionScroll:{ padding: 16, gap: 14, paddingBottom: 120 },
-  seccionTitulo:{ fontSize: 22, fontWeight: '800' },
 });

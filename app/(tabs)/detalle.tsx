@@ -10,12 +10,11 @@ import {
     StatusBar, StyleSheet, Text,
     TouchableOpacity, UIManager, View, useWindowDimensions
 } from 'react-native';
-import { CarruselImagenes } from '../../components/CarruselImagenes';
+import { TarjetaPaquete } from '../../components/Detalle/TarjetaPaquete';
 import { ModalSeleccionItinerario } from '../../components/ModalSeleccionItinerario';
 // FIX 1: Importar SafeAreaView de react-native en lugar de react-native-safe-area-context
 // para el contenedor principal, y usar solo useSafeAreaInsets para medidas puntuales.
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Estrellas } from '../../components/Estrellas';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
@@ -27,8 +26,6 @@ import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
 import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
-const { width: W } = Dimensions.get('window');
-const CARD_W = Math.min(W, 800);
 
 if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).nativeFabricUIManager && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -109,16 +106,8 @@ export default function DetalleScreen() {
     staleTime: 1000 * 60 * 10,
   });
   const resumenDestino = nombre ? resumenResenas[nombre] : undefined;
-  const paqueteAnims  = useRef(paquetes.map(() => new Animated.Value(0))).current;
-  const cabAnims      = useRef(paquetes.map(() => new Animated.Value(1))).current;
-  const rutaAnims     = useRef(paquetes.map(() => new Animated.Value(1))).current;
-  const reservarAnims = useRef(paquetes.map(() => new Animated.Value(1))).current;
-  const resenasAnim   = useRef(new Animated.Value(1)).current;
-  // Anims de altura para expand/collapse de paquetes — compatibles con web y Android
-  const expandAnims   = useRef(paquetes.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-  const EXPAND_DUR    = 280;
-  // Rastrea qué paquetes se han expandido alguna vez (para no desmontar el contenido animado)
-  const [paquetesVistos, setPaquetesVistos] = useState<Set<string>>(new Set(['economico']));
+  const paqueteAnims = useRef(paquetes.map(() => new Animated.Value(0))).current;
+  const resenasAnim  = useRef(new Animated.Value(1)).current;
 
   const spring = (anim: Animated.Value, to: number) =>
     Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
@@ -238,139 +227,21 @@ export default function DetalleScreen() {
 
           <Text style={[estilos.subtitulo, { color: tema.texto }]}>{t('det_elige_paquete')}</Text>
 
-          {paquetes.map((paquete, idx) => {
-            const expandido = paqueteExpandido === paquete.nivel;
-            const enRuta    = estaEnRuta(paquete.nivel);
-            const anim      = paqueteAnims[idx] ?? new Animated.Value(1);
-            return (
-              <Animated.View key={paquete.nivel} style={{
-                opacity: anim,
-                transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
-              }}>
-              <View style={[estilos.tarjetaPaquete, { borderColor:paquete.color, backgroundColor: tema.superficieBlanca }]}>
-                <TouchableOpacity
-                  style={[estilos.cabeceraPaquete, { backgroundColor:paquete.color }]}
-                  onPressIn={() => spring(cabAnims[idx], 0.97)}
-                  onPressOut={() => spring(cabAnims[idx], 1)}
-                  onPress={() => {
-                    const abriendo = !expandido;
-                    setPaqueteExpandido(abriendo ? paquete.nivel : null);
-                    if (abriendo) {
-                      setPaquetesVistos(v => { const s = new Set(v); s.add(paquete.nivel); return s; });
-                      Animated.timing(expandAnims[idx], { toValue: 1, duration: EXPAND_DUR, useNativeDriver: false }).start();
-                    } else {
-                      Animated.timing(expandAnims[idx], { toValue: 0, duration: EXPAND_DUR, useNativeDriver: false }).start(() => {
-                        setPaquetesVistos(v => { const s = new Set(v); s.delete(paquete.nivel); return s; });
-                      });
-                    }
-                  }}
-                  activeOpacity={1}
-                >
-                  <Animated.View style={[{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', flex:1 }, { transform:[{ scale: cabAnims[idx] }] }]}>
-                    <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-                      <Text style={estilos.emojiPaquete}>{paquete.emoji}</Text>
-                      <View>
-                        <Text style={estilos.etiquetaPaquete}>{t(('rut_' + paquete.nivel) as TraduccionClave)}</Text>
-                        <Text style={estilos.precioPaquete}>{paquete.precioTotal}</Text>
-                      </View>
-                    </View>
-                    <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-                      <Text style={estilos.diasPaquete}>{paquete.diasRecomendados} {t(paquete.diasRecomendados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}</Text>
-                      <Text style={estilos.chevron}>{expandido ? '▲' : '▼'}</Text>
-                    </View>
-                  </Animated.View>
-                </TouchableOpacity>
-
-                {(expandido || paquetesVistos.has(paquete.nivel)) && (
-                  <Animated.View style={[estilos.cuerpoPaquete, {
-                    maxHeight: expandAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [0, 2400] }),
-                    opacity:   expandAnims[idx].interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0, 1] }),
-                    overflow: 'hidden',
-                  }]}>
-                    <CarruselImagenes imagenes={paquete.imagenesHotel} color={paquete.color} ancho={Math.min(W - 28 * 2, CARD_W - 28)} />
-
-                    <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_hotel')}</Text></View>
-                      <Text style={[estilos.nombreHotel, { color: tema.texto }]}>{paquete.hotel}</Text>
-                      <Estrellas valor={paquete.estrellas} tamaño={12} />
-                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{paquete.descripcionHotel[idioma]}</Text>
-                      <Text style={estilos.precioLinea}>{paquete.precioHotel}</Text>
-                      <View style={estilos.listaIncluye}>
-                        {paquete.incluye[idioma].map(inc => (
-                          <View key={inc} style={estilos.chipIncluye}>
-                            <Text style={estilos.textoChipIncluye}>✓ {inc}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-
-                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
-
-                    <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_restaurante')}</Text></View>
-                      <Text style={[estilos.nombreHotel, { color: tema.texto }]}>{paquete.restaurante}</Text>
-                      <Text style={estilos.tipoCocina}>{paquete.tipoCocina[idioma]}</Text>
-                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{t('det_platillo', { p: paquete.platillo[idioma] })}</Text>
-                      <Text style={estilos.precioLinea}>{paquete.precioRestaurante}</Text>
-                    </View>
-
-                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
-
-                    <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_transporte')}</Text></View>
-                      <Text style={[estilos.textoInfo, { color: tema.textoSecundario }]}>{paquete.transporte[idioma]}</Text>
-                      <Text style={estilos.precioLinea}>{paquete.precioTransporte}</Text>
-                    </View>
-
-                    <View style={[estilos.divisor, { backgroundColor: tema.borde }]} />
-
-                    <View style={estilos.seccionInfo}>
-                      <View style={estilos.filaSeccion}><Text style={[estilos.tituloSeccion, { color: tema.texto }]}>{t('det_actividades')}</Text></View>
-                      {paquete.actividades[idioma].map((act, i) => (
-                        <View key={i} style={estilos.filaActividad}>
-                          <View style={[estilos.puntoActividad, { backgroundColor:paquete.color }]} />
-                          <Text style={[estilos.textoActividad, { color: tema.textoSecundario }]}>{act}</Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    <View style={estilos.filaBotones}>
-                      <TouchableOpacity
-                        testID="add-itinerary-button"
-                        style={[estilos.botonRuta, enRuta && estilos.botonRutaActivo]}
-                        onPressIn={() => spring(rutaAnims[idx], 0.93)}
-                        onPressOut={() => spring(rutaAnims[idx], 1)}
-                        onPress={() => abrirSeleccionRuta(paquete.nivel)}
-                        activeOpacity={1}
-                        accessibilityRole="button"
-                        accessibilityLabel={enRuta ? 'Gestionar itinerario' : 'Agregar a itinerario'}
-                        accessibilityHint="Abre el selector de itinerarios para este paquete"
-                      >
-                        <Animated.View style={{ transform: [{ scale: rutaAnims[idx] }] }}>
-                          <Text style={estilos.textoBotonRuta}>
-                            {enRuta ? t('det_en_ruta') : t('det_add_itinerario')}
-                          </Text>
-                        </Animated.View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        testID="reserve-package-button"
-                        style={[estilos.botonReservar, { backgroundColor:paquete.color }]}
-                        onPressIn={() => spring(reservarAnims[idx], 0.93)}
-                        onPressOut={() => spring(reservarAnims[idx], 1)}
-                        onPress={() => irAReserva(paquete)}
-                        activeOpacity={1}
-                      >
-                        <Animated.View style={{ transform: [{ scale: reservarAnims[idx] }] }}>
-                          <Text style={estilos.textoBotonReservar}>{t('det_reservar')}</Text>
-                        </Animated.View>
-                      </TouchableOpacity>
-                    </View>
-                  </Animated.View>
-                )}
-              </View>
-              </Animated.View>
-            );
-          })}
+          {paquetes.map((paquete, idx) => (
+            <TarjetaPaquete
+              key={paquete.nivel}
+              paquete={paquete}
+              idx={idx}
+              expandido={paqueteExpandido === paquete.nivel}
+              enRuta={estaEnRuta(paquete.nivel)}
+              entradaAnim={paqueteAnims[idx] ?? new Animated.Value(1)}
+              onToggle={() => setPaqueteExpandido(
+                paqueteExpandido === paquete.nivel ? null : paquete.nivel
+              )}
+              onAgregarARuta={() => abrirSeleccionRuta(paquete.nivel)}
+              onReservar={() => irAReserva(paquete)}
+            />
+          ))}
           <View style={{ height:20 }} />
 
           {/* Mapa interactivo */}
@@ -490,66 +361,11 @@ const estilos = StyleSheet.create({
   txtBtnResenas:         { fontSize:13, fontWeight:'700', color:'#c8a000' },
   txtBtnCompartir:       { fontSize:13, fontWeight:'700', color:'#3AB7A5' },
   subtitulo:             { fontSize:18, fontWeight:'800', color:'#333', marginBottom:14 },
-  tarjetaPaquete:        { borderRadius:18, borderWidth:2, marginBottom:16, overflow:'hidden', backgroundColor:'#fff' },
-  cabeceraPaquete:       { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:16, paddingVertical:14 },
-  emojiPaquete:          { fontSize:20, color:'#fff', fontWeight:'800' },
-  etiquetaPaquete:       { fontSize:16, fontWeight:'800', color:'#fff' },
-  precioPaquete:         { fontSize:12, color:'rgba(255,255,255,0.85)', marginTop:2 },
-  diasPaquete:           { fontSize:12, color:'#fff', fontWeight:'600', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:3, borderRadius:10 },
-  chevron:               { fontSize:12, color:'#fff', fontWeight:'700' },
-  cuerpoPaquete:         { padding:16 },
-  seccionInfo:           { marginBottom:4 },
-  filaSeccion:           { flexDirection:'row', alignItems:'center', gap:6, marginBottom:6 },
-  iconoSeccion:          { fontSize:16 },
-  tituloSeccion:         { fontSize:14, fontWeight:'700', color:'#333' },
-  nombreHotel:           { fontSize:15, fontWeight:'700', color:'#222', marginBottom:4 },
-  tipoCocina:            { fontSize:12, color:'#3AB7A5', fontWeight:'600', marginBottom:4 },
-  textoInfo:             { fontSize:13, color:'#666', lineHeight:19, marginBottom:4 },
-  precioLinea:           { fontSize:13, fontWeight:'700', color:'#DD331D', marginTop:2 },
-  listaIncluye:          { flexDirection:'row', flexWrap:'wrap', gap:6, marginTop:8 },
-  chipIncluye:           { backgroundColor:'#f0faf9', borderRadius:10, paddingHorizontal:8, paddingVertical:3, borderWidth:1, borderColor:'#3AB7A5' },
-  textoChipIncluye:      { fontSize:11, color:'#3AB7A5', fontWeight:'600' },
-  divisor:               { height:1, backgroundColor:'#eee', marginVertical:14 },
-  filaActividad:         { flexDirection:'row', alignItems:'center', gap:8, marginBottom:6 },
-  puntoActividad:        { width:8, height:8, borderRadius:4 },
-  textoActividad:        { fontSize:13, color:'#444', flex:1 },
-  filaBotones:           { flexDirection:'row', gap:10, marginTop:16 },
-  botonRuta:             { flex:1, backgroundColor:'#3AB7A5', paddingVertical:13, borderRadius:25, alignItems:'center', elevation:3 },
-  botonRutaActivo:       { backgroundColor:'#27897b' },
-  textoBotonRuta:        { color:'#fff', fontWeight:'700', fontSize:14 },
-  botonReservar:         { flex:1, paddingVertical:13, borderRadius:25, alignItems:'center', elevation:3 },
-  textoBotonReservar:    { color:'#fff', fontWeight:'700', fontSize:14 },
   envolturaBarra:        { width:'100%', backgroundColor:'#fff', borderTopWidth:1, borderTopColor:'#e0e0e0' },
   barraPestanas:         { flexDirection:'row', backgroundColor:'#fff', width:'100%', maxWidth:800, alignSelf:'center' },
   itemPestana:           { flex:1, alignItems:'center', justifyContent:'center', paddingVertical:8, height:56 },
   etiquetaPestana:       { fontSize:10, color:'#999', marginTop:2 },
   etiquetaPestanaActiva: { color:'#DD331D', fontWeight:'600' },
-  textoVacio:            { fontSize:14, color:'#888', textAlign:'center', marginTop:10 },
-  
-  // ── Modal Itinerarios ──
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', zIndex: 999 },
-  modalContent: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: 24, alignItems: 'center'
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 15 },
-  modalItiCard: {
-    padding: 14, backgroundColor: '#f9f9f9', borderRadius: 10,
-    borderWidth: 1, borderColor: '#eee', marginBottom: 8, alignItems: 'center'
-  },
-  modalItiCardActivo: { backgroundColor: '#FFECEB', borderColor: '#DD331D' },
-  modalItiText: { fontSize: 15, fontWeight: '600', color: '#444' },
-  modalItiTextActivo: { color: '#DD331D' },
-  modalLabel: { fontSize: 13, color: '#666', marginBottom: 6, alignSelf: 'flex-start' },
-  modalInput: {
-    backgroundColor: '#f5f5f5', borderRadius: 10, padding: 12, fontSize: 15,
-    borderWidth: 1, borderColor: '#e0e0e0', color: '#333', marginBottom: 10
-  },
-  modalBtnCrear: { backgroundColor: '#333', borderRadius: 10, padding: 12, alignItems: 'center' },
-  modalBtnCrearTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  modalBtnCerrar: { marginTop: 10, padding: 10 },
-  modalBtnCerrarTxt: { color: '#888', fontSize: 14, fontWeight: '600' },
-
   // ── Mapa ──
   seccionMapa: { marginTop: 20, marginBottom: 20 },
   tituloMapa: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 12, textAlign: 'center' },

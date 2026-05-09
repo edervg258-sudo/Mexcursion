@@ -34,10 +34,9 @@ import { sombraBarraInferior, sombraBarraInferiorOscura, Tema } from '../../lib/
 import { useTemaContext } from '../../lib/TemaContext';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { TraduccionClave } from '../../lib/traducciones';
+import { useMenuFiltros, EstadoConFavorito } from '../../hooks/useMenuFiltros';
 
-type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
-type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
-type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
+type Estado = EstadoConFavorito;
 
 export default function MenuScreen() {
   const { width } = useWindowDimensions();
@@ -52,26 +51,16 @@ export default function MenuScreen() {
   const [estados, setEstados] = useState(() =>
     TODOS_LOS_ESTADOS.map((e) => ({ ...e, favorito: false }))
   );
-  const [busqueda, setBusqueda] = useState('');
-  const [orden, setOrden] = useState<TipoOrden>('az');
-  const [categoriaActiva, setCategoriaActiva] = useState('Todos');
-  const CATEGORIAS = [
-    { clave: 'Todos', label: t('menu_cat_todos') },
-    { clave: 'Playa', label: t('menu_cat_playa') },
-    { clave: 'Cultura', label: t('menu_cat_cultura') },
-    { clave: 'Aventura', label: t('menu_cat_aventura') },
-    { clave: 'Gastronomía', label: t('menu_cat_gastro') },
-    { clave: 'Ciudad', label: t('menu_cat_ciudad') },
-  ];
-
-  const OPCIONES_ORDEN: { clave: TipoOrden; etiqueta: string }[] = [
-    { clave: 'az', etiqueta: t('menu_orden_az') },
-    { clave: 'mas_barato', etiqueta: t('menu_menor_precio') },
-    { clave: 'mas_caro', etiqueta: t('menu_mayor_precio') },
-  ];
-
-
-  const [dropdownAbierto, setDropdownAbierto] = useState(false);
+  const {
+    busqueda, setBusqueda,
+    orden, setOrden,
+    categoriaActiva, setCategoriaActiva,
+    dropdownAbierto, setDropdownAbierto,
+    CATEGORIAS, OPCIONES_ORDEN,
+    etiquetaOrdenActual,
+    filtrar,
+    limpiarFiltros,
+  } = useMenuFiltros();
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -136,14 +125,7 @@ export default function MenuScreen() {
     }
   };
 
-  const estadosFiltrados = estados
-    .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
-    .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
-    .sort((a, b) => {
-      if (orden === 'mas_caro') {return b.precio - a.precio;}
-      if (orden === 'mas_barato') {return a.precio - b.precio;}
-      return a.nombre.localeCompare(b.nombre);
-    });
+  const estadosFiltrados = filtrar(estados);
 
   const { data: resumenesResenas = {} } = useQuery({
     queryKey: ['resumen-resenas-menu'],
@@ -157,8 +139,6 @@ export default function MenuScreen() {
     const segmento = ruta.replace('/(tabs)', '');
     return rutaActual.endsWith(segmento);
   };
-
-  const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? t('menu_orden_az');
 
   const renderizarEstado = ({ item }: { item: Estado }) => (
     <DestinoCard
@@ -330,7 +310,7 @@ export default function MenuScreen() {
             <Text style={estilos.textoVacio}>🗺️</Text>
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
-            <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
+            <TouchableOpacity onPress={limpiarFiltros}>
               <Text style={estilos.limpiarFiltros}>{t('menu_limpiar')}</Text>
             </TouchableOpacity>
           </View>
