@@ -2,13 +2,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Animated, Modal, Platform, ScrollView,
+  Animated, Modal, Platform, ScrollView, Share,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
 import MapaRutas from '../../components/MapaRutas';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { useToast } from '../../components/Toast';
 import {
   PAQUETES_POR_ESTADO,
   TODOS_LOS_ESTADOS,
@@ -24,6 +25,7 @@ import {
   alternarFavorito,
   cargarFavoritos,
   crearItinerario,
+  duplicarItinerario,
   eliminarItinerario,
   obtenerItinerarios,
   obtenerUsuarioActivo,
@@ -55,6 +57,7 @@ export default function RutasScreen() {
   const esPC             = width >= 768;
   const { t }            = useIdioma();
   const { tema, isDark } = useTemaContext();
+  const toast            = useToast();
 
   const [usuarioId,  setUsuarioId]  = useState<string | null>(null);
   const [favoritos,  setFavoritos]  = useState<number[]>([]);
@@ -62,6 +65,7 @@ export default function RutasScreen() {
   const [itinerarioExpandidoId, setItinerarioExpandidoId] = useState<number | null>(null);
   const [tabPorItinerario, setTabPorItinerario] = useState<Record<number, 'destinos' | 'mapa'>>({});
   const [modalAgregarDestino, setModalAgregarDestino] = useState<{ itinerarioId: number } | null>(null);
+  const [confirmarBorrado, setConfirmarBorrado] = useState<Itinerario | null>(null);
   const [creandoNuevo, setCreandoNuevo] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [editandoId, setEditandoId] = useState<number | null>(null);
@@ -153,7 +157,8 @@ export default function RutasScreen() {
     }
     setNuevoNombre('');
     setCreandoNuevo(false);
-  }, [nuevoNombre, usuarioId]);
+    toast.mostrar(t('rut_toast_creado'), 'success');
+  }, [nuevoNombre, t, toast, usuarioId]);
 
   const iniciarEdicion = useCallback((itinerario: Itinerario) => {
     setEditandoId(itinerario.id);
@@ -166,7 +171,8 @@ export default function RutasScreen() {
     setItinerarios(actualizados);
     setEditandoId(null);
     setNombreEditado('');
-  }, [usuarioId, nombreEditado]);
+    toast.mostrar(t('rut_toast_renombrado'), 'success');
+  }, [nombreEditado, t, toast, usuarioId]);
 
   const cancelarEdicion = useCallback(() => {
     setEditandoId(null);
@@ -174,34 +180,53 @@ export default function RutasScreen() {
   }, []);
 
   const borrarItinerario = useCallback((itinerario: Itinerario) => {
-    if (!usuarioId) {
-      return;
+    if (!usuarioId) { return; }
+    setConfirmarBorrado(itinerario);
+  }, [usuarioId]);
+
+  const ejecutarBorrado = useCallback(async () => {
+    if (!usuarioId || !confirmarBorrado) { return; }
+    const id = confirmarBorrado.id;
+    setConfirmarBorrado(null);
+    const actualizados = await eliminarItinerario(usuarioId, id);
+    setItinerarios(actualizados);
+    if (itinerarioExpandidoId === id) {
+      setItinerarioExpandidoId(null);
     }
-    Alert.alert(
-      t('rut_eliminar_viaje'),
-      t('rut_confirmar_borrar', { nombre: itinerario.nombre }),
-      [
-        { text: t('rut_cancelar'), style: 'cancel' },
-        {
-          text: t('rut_eliminar'),
-          style: 'destructive',
-          onPress: async () => {
-            const actualizados = await eliminarItinerario(usuarioId, itinerario.id);
-            setItinerarios(actualizados);
-            if (itinerarioExpandidoId === itinerario.id) {
-              setItinerarioExpandidoId(null);
-            }
-          },
-        },
-      ]
-    );
-  }, [itinerarioExpandidoId, t, usuarioId]);
+    toast.mostrar(t('rut_toast_eliminado'), 'info');
+  }, [confirmarBorrado, itinerarioExpandidoId, t, toast, usuarioId]);
 
   const quitarDestinoDeItinerario = useCallback(async (itinerarioId: number, clave: string) => {
     if (!usuarioId) { return; }
     const actualizados = await alternarDestinoItinerario(usuarioId, itinerarioId, clave);
     setItinerarios(actualizados);
   }, [usuarioId]);
+
+  const duplicar = useCallback(async (itinerario: Itinerario) => {
+    if (!usuarioId) { return; }
+    const nuevoNombreDup = `${itinerario.nombre} (copia)`;
+    const actualizados = await duplicarItinerario(usuarioId, itinerario.id, nuevoNombreDup);
+    setItinerarios(actualizados);
+    toast.mostrar(t('rut_toast_duplicado'), 'success');
+  }, [t, toast, usuarioId]);
+
+  const compartir = useCallback(async (
+    itinerario: { nombre: string; destinos: { titulo: string; estado: string }[]; diasEstimados: number; totalEstimado: number }
+  ) => {
+    const lineas = [
+      t('rut_comp_titulo', { nombre: itinerario.nombre }),
+      '',
+      ...itinerario.destinos.map((d, i) => `${i + 1}. ${d.titulo} (${d.estado})`),
+      '',
+      t('rut_comp_duracion2', { n: String(itinerario.diasEstimados) }),
+      t('rut_comp_costo2', { c: itinerario.totalEstimado.toLocaleString('es-MX') }),
+      '',
+      t('rut_comp_footer'),
+    ];
+    try {
+      await Share.share({ message: lineas.join('\n') });
+    } catch { /* usuario canceló */ }
+  }, [t]);
 
   const agregarDestinoAItinerario = useCallback(async (itinerarioId: number, estadoNombre: string, nivel: 'economico' | 'medio' | 'premium') => {
     if (!usuarioId) { return; }
@@ -302,7 +327,7 @@ export default function RutasScreen() {
                     onPress={() => setCreandoNuevo(true)}
                     activeOpacity={0.85}
                   >
-                    <Text style={es.btnCrearViajeTxt}>+ {t('rut_nuevo_viaje_btn')}</Text>
+                    <Text style={es.btnCrearViajeTxt}>{t('rut_nuevo_viaje_btn')}</Text>
                   </TouchableOpacity>
                 )
               ) : (
@@ -424,6 +449,22 @@ export default function RutasScreen() {
                         <Text style={[es.btnSecundarioTxt, { color: tema.texto }]}>
                           {expandido ? t('rut_cancelar') : t('rut_ver_itinerario')}
                         </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[es.btnIcono, { borderColor: tema.borde }]}
+                        onPress={() => duplicar(itinerario)}
+                        activeOpacity={0.85}
+                        hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                      >
+                        <Text style={[es.btnIconoTxt, { color: tema.textoMuted }]}>⧉</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[es.btnIcono, { borderColor: tema.borde }]}
+                        onPress={() => compartir(itinerario)}
+                        activeOpacity={0.85}
+                        hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                      >
+                        <Text style={[es.btnIconoTxt, { color: tema.textoMuted }]}>↑</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={es.btnEliminar}
@@ -563,6 +604,39 @@ export default function RutasScreen() {
         </Animated.View>
       </View>
 
+      {/* Modal: confirmar borrado de itinerario */}
+      <Modal
+        visible={!!confirmarBorrado}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmarBorrado(null)}
+      >
+        <View style={es.modalOverlay}>
+          <View style={[es.modalCard, { backgroundColor: tema.superficieBlanca }]}>
+            <Text style={[es.modalTitulo, { color: tema.texto }]}>{t('rut_eliminar_viaje')}</Text>
+            <Text style={[es.modalSubtitulo, { color: tema.textoSecundario }]}>
+              {t('rut_confirmar_borrar', { nombre: confirmarBorrado?.nombre ?? '' })}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[es.btnInlineCancelar, { flex: 1, borderColor: tema.borde }]}
+                onPress={() => setConfirmarBorrado(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={[es.btnInlineCancelarTxt, { color: tema.textoMuted }]}>{t('rut_cancelar')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[es.btnEliminarModal, { flex: 1 }]}
+                onPress={ejecutarBorrado}
+                activeOpacity={0.85}
+              >
+                <Text style={es.btnEliminarModalTxt}>{t('rut_eliminar')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal: agregar destino al itinerario */}
       <Modal
         visible={!!modalAgregarDestino}
@@ -668,11 +742,15 @@ const es = StyleSheet.create({
   destinosPreview:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   destinoPreviewChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 },
   destinoPreviewTxt:{ fontSize: 12, fontWeight: '700' },
-  itinerarioAcciones: { flexDirection: 'row', gap: 10 },
+  itinerarioAcciones: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   btnSecundario:    { flex: 1, borderWidth: 1, borderRadius: 22, paddingVertical: 11, alignItems: 'center' },
   btnSecundarioTxt: { fontSize: 13, fontWeight: '800' },
+  btnIcono:         { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  btnIconoTxt:      { fontSize: 16, fontWeight: '700' },
   btnEliminar:      { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center', backgroundColor: '#FFECEB' },
-  btnEliminarTxt:   { fontSize: 13, fontWeight: '800', color: '#DD331D' },
+  btnEliminarModal:    { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center', backgroundColor: '#DD331D' },
+  btnEliminarModalTxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  btnEliminarTxt:      { fontSize: 13, fontWeight: '800', color: '#DD331D' },
   itinerarioDetalle:{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, gap: 12 },
 
   // Tabs Destinos / Mapa
