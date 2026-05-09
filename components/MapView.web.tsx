@@ -2,7 +2,6 @@
 import L from 'leaflet';
 import React, { useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { View } from 'react-native';
 import { useTemaContext } from '../lib/TemaContext';
 
 if (typeof document !== 'undefined') {
@@ -40,7 +39,7 @@ interface MapViewProps {
   style?: object;
 }
 
-export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, title, description, zoom = 10, style }: MapViewProps) {
+export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, title, description, zoom = 10 }: MapViewProps) {
   const { isDark } = useTemaContext();
 
   const tileUrl = isDark
@@ -48,32 +47,30 @@ export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, titl
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   return (
-    <View style={[{ flex: 1, borderRadius: 14, overflow: 'hidden' }, style]}>
-      {/* @ts-expect-error — MapContainer usa props de React DOM */}
-      <MapContainer
-        center={[latitude, longitude]}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom
-      >
-        <TileLayer
-          url={tileUrl}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-        <Marker position={[latitude, longitude]} icon={iconoMarcador}>
-          {title && (
-            <Popup>
-              <div style={{ fontFamily: 'sans-serif', minWidth: 140 }}>
-                <strong style={{ fontSize: 14 }}>{title}</strong>
-                {description && (
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>{description}</p>
-                )}
-              </div>
-            </Popup>
-          )}
-        </Marker>
-        <CentrarMapa lat={latitude} lon={longitude} zoom={zoom} />
-      </MapContainer>
-    </View>
+    // @ts-expect-error — MapContainer usa props de React DOM
+    <MapContainer
+      center={[latitude, longitude]}
+      zoom={zoom}
+      style={{ height: 360, width: '100%', borderRadius: 14 }}
+      scrollWheelZoom
+    >
+      <TileLayer
+        url={tileUrl}
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+      <Marker position={[latitude, longitude]} icon={iconoMarcador}>
+        {title && (
+          <Popup>
+            <div style={{ fontFamily: 'sans-serif', minWidth: 140 }}>
+              <strong style={{ fontSize: 14 }}>{title}</strong>
+              {description && (
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>{description}</p>
+              )}
+            </div>
+          </Popup>
+        )}
+      </Marker>
+      <CentrarMapa lat={latitude} lon={longitude} zoom={zoom} />
+    </MapContainer>
   );
 }
