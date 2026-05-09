@@ -12,7 +12,7 @@ import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { alternarFavorito, cargarFavoritos, obtenerItinerarios, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonLista } from './skeletonloader';
@@ -95,12 +95,9 @@ export default function FavoritosScreen() {
   const [usuarioId, setUsuarioId]       = useState<string | null>(null);
   const [cargando, setCargando]   = useState(true);
   const [recargando, setRecargando] = useState(false);
+  const [itinerariosCount, setItinerariosCount] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const totalCategorias = useMemo(
-    () => new Set(estadosFavoritos.map(item => item.categoria)).size,
-    [estadosFavoritos]
-  );
   const previewFavoritos = useMemo(
     () => estadosFavoritos.slice(0, 3).map(item => item.nombre).join(' · '),
     [estadosFavoritos]
@@ -113,10 +110,12 @@ export default function FavoritosScreen() {
       if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
 
-      const [idsFav, destinosDB] = await Promise.all([
+      const [idsFav, destinosDB, itinerarios] = await Promise.all([
         cargarFavoritos(usuario.id),
-        obtenerTodosLosDestinos()
+        obtenerTodosLosDestinos(),
+        obtenerItinerarios(usuario.id),
       ]);
+      setItinerariosCount(itinerarios.length);
 
       const mapeados = destinosDB
         .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
@@ -137,7 +136,7 @@ export default function FavoritosScreen() {
   const onRefresh = useCallback(async () => {
     if (!usuarioId) { return; }
     setRecargando(true);
-    const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
+    const [idsFav, destinosDB, itinerarios] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos(), obtenerItinerarios(usuarioId)]);
     const mapeados = destinosDB
       .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
       .map((d: Record<string, unknown>) => {
@@ -145,6 +144,7 @@ export default function FavoritosScreen() {
         return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
       });
     setEstadosFavoritos(mapeados);
+    setItinerariosCount(itinerarios.length);
     setRecargando(false);
   }, [usuarioId]);
 
@@ -202,10 +202,10 @@ export default function FavoritosScreen() {
                         <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
                         <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{estadosFavoritos.length}</Text>
                       </View>
-                      {/* Categorías con PNG de rutas */}
+                      {/* Itinerarios con PNG de rutas */}
                       <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
                         <Image source={require('../../assets/images/rutas_gris.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
-                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{totalCategorias}</Text>
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{itinerariosCount}</Text>
                       </View>
                     </View>
                   </View>
