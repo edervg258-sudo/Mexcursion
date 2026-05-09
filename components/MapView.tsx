@@ -2,11 +2,40 @@
 //  components/MapView.tsx  —  Mapa interactivo (Expo Go compatible)
 // ============================================================
 
-import React from 'react';
+import L from 'leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Alert, View, StyleSheet, Platform, Dimensions, Text, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTemaContext } from '../lib/TemaContext';
 import { MapaEstatico } from './MapaEstatico';
+
+// Inyectar CSS de Leaflet (solo en web, solo una vez)
+if (typeof document !== 'undefined') {
+  if (!document.querySelector('[data-leaflet]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    link.setAttribute('data-leaflet', '1');
+    document.head.appendChild(link);
+  }
+}
+
+function CentrarMapa({ lat, lon, zoom }: { lat: number; lon: number; zoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lon], zoom);
+  }, [lat, lon, zoom, map]);
+  return null;
+}
+
+const iconoMarcador = L.divIcon({
+  className: '',
+  html: `<div style="background:#E91E63;width:28px;height:28px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -18],
+});
 
 const { width: _width } = Dimensions.get('window');
 
@@ -80,22 +109,33 @@ export function MapaInteractivo({
   `;
 
   if (Platform.OS === 'web') {
-    // Para web, usar iframe con OpenStreetMap (sin API key requerida)
-    const openStreetMapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
-
     return (
       <View style={[estilos.container, style]}>
-        <iframe
-          src={openStreetMapUrl}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            borderRadius: 12,
-          }}
-          allowFullScreen
-          loading="lazy"
-        />
+        {/* @ts-expect-error — MapContainer usa props de React DOM */}
+        <MapContainer
+          center={[latitude, longitude]}
+          zoom={zoom}
+          style={{ height: '100%', width: '100%', borderRadius: 12 }}
+          scrollWheelZoom
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          />
+          <Marker position={[latitude, longitude]} icon={iconoMarcador}>
+            {title && (
+              <Popup>
+                <div style={{ fontFamily: 'sans-serif', minWidth: 140 }}>
+                  <strong style={{ fontSize: 14 }}>{title}</strong>
+                  {description && (
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>{description}</p>
+                  )}
+                </div>
+              </Popup>
+            )}
+          </Marker>
+          <CentrarMapa lat={latitude} lon={longitude} zoom={zoom} />
+        </MapContainer>
       </View>
     );
   }
