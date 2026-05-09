@@ -17,6 +17,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { ToastProvider } from '../components/Toast';
 import { configurarBarraAndroid } from '../lib/android-ui';
 import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { getFeatureFlags } from '../lib/feature-flags';
@@ -160,6 +161,7 @@ export default function RootLayout() {
             <TemaProvider>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
+                  <ToastProvider>
                   <OfflineBanner />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="registro"         options={{ headerShown: false }} />
@@ -178,6 +180,7 @@ export default function RootLayout() {
                     }}
                     onRechazar={() => setPendingPushUid(null)}
                   />
+                  </ToastProvider>
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </TemaProvider>
