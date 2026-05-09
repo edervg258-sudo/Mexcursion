@@ -18,6 +18,7 @@ export type Reserva = {
   folio: string;
   usuario_id: number;
   nombre_usuario: string;
+  correo_usuario: string;
   destino: string;
   paquete: string;
   fecha: string;

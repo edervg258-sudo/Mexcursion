@@ -707,12 +707,13 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('reservas')
-      .select('*, usuarios(nombre)')
+      .select('*, usuarios(nombre, email)')
       .order('creado_en', { ascending: false });
     if (error) return [];
     return (data ?? []).map((r: any) => ({
       ...r,
       nombre_usuario: r.usuarios?.nombre ?? '',
+      correo_usuario: r.usuarios?.email ?? '',
     }));
   } catch (err) {
     console.error('cargarTodasLasReservas error:', err);
@@ -720,9 +721,37 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   }
 }
 
-export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+export interface EmailReservaPayload {
+  to: string;
+  nombre: string;
+  folio: string;
+  destino: string;
+  paquete: string;
+  fecha: string;
+  personas: number;
+  total: number;
+  estado: string;
+  metodo: string;
+}
+
+export async function enviarEmailReserva(payload: EmailReservaPayload): Promise<void> {
+  try {
+    await supabase.functions.invoke('enviar-email-reserva', { body: payload });
+  } catch (err) {
+    console.error('enviarEmailReserva error:', err);
+  }
+}
+
+export async function actualizarEstadoReserva(
+  id: number,
+  estado: string,
+  emailData?: Omit<EmailReservaPayload, 'estado'>
+): Promise<void> {
   try {
     await supabase.from('reservas').update({ estado }).eq('id', id);
+    if (emailData && (estado === 'confirmada' || estado === 'cancelada')) {
+      void enviarEmailReserva({ ...emailData, estado });
+    }
   } catch (err) { console.error('actualizarEstadoReserva error:', err); }
 }
 

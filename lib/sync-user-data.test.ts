@@ -3,11 +3,6 @@
 //  Tests for user data synchronization between local and server
 // ============================================================
 
-// Mocks must be applied before imports
-jest.mock('./supabase');
-jest.mock('./secure-storage');
-jest.mock('./supabase-db');
-
 import {
   sincronizarDatosUsuario,
   guardarDatoLocal,
@@ -17,6 +12,19 @@ import {
 import * as supabaseModule from './supabase';
 import * as secureStorageModule from './secure-storage';
 import * as supabaseDbModule from './supabase-db';
+
+jest.mock('./supabase', () => ({
+  supabase: {
+    from: jest.fn(),
+    auth: {
+      getUser: jest.fn(),
+      signInWithPassword: jest.fn(),
+      signOut: jest.fn(),
+    },
+  },
+}));
+jest.mock('./secure-storage');
+jest.mock('./supabase-db');
 
 const mockSupabase = supabaseModule.supabase as jest.Mocked<typeof supabaseModule.supabase>;
 const mockSecureStorage = secureStorageModule as jest.Mocked<typeof secureStorageModule>;

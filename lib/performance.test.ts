@@ -1,3 +1,4 @@
+import React from 'react';
 import { Platform } from 'react-native';
 import * as Performance from './performance';
 import { logEvent } from './analytics';
@@ -137,7 +138,7 @@ describe('Performance Module', () => {
       const { PerformanceErrorBoundary } = Performance;
 
       const boundary = new PerformanceErrorBoundary(
-        { children: {} },
+        { children: React.createElement('div') },
         {}
       );
 
