@@ -118,6 +118,12 @@ export const validarReserva = (datos: {
   };
 };
 
+// Extrae el primer número entero de una cadena de precio (ej. "$1,234" → 1234)
+export const extraerMonto = (precio: string): number => {
+  const match = String(precio ?? '').replace(/,/g, '').match(/\d+/);
+  return match ? Number(match[0]) : 0;
+};
+
 // Sanitización de inputs
 export const sanitizarInput = (input: string): string => {
   return input
