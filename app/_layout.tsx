@@ -8,10 +8,9 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { PermisoOnboarding } from '../components/PermisoOnboarding';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -22,17 +21,10 @@ import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { getFeatureFlags } from '../lib/feature-flags';
 import { IdiomaProvider } from '../lib/IdiomaContext';
 import { initPerformanceMonitoring, preloadCriticalResources } from '../lib/performance';
-import {
-    configurarNotificaciones,
-    getNotifications,
-    registrarParaPush,
-} from '../lib/push-notifications';
 import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
 import { initSentry, setUser } from '../lib/sentry';
-
-type NotificationSubscription = { remove: () => void };
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync();
@@ -69,10 +61,6 @@ const asyncStoragePersister = createAsyncStoragePersister({ storage: AsyncStorag
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const notifListener = useRef<NotificationSubscription | null>(null);
-  const responseListener = useRef<NotificationSubscription | null>(null);
-  // uid pendiente de permiso: muestra onboarding antes de pedir push
-  const [pendingPushUid, setPendingPushUid] = useState<string | null>(null);
 
   const [fontsLoaded] = useFonts({
     Ionicons: Platform.OS === 'web'
@@ -85,7 +73,6 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   useEffect(() => { configurarBarraAndroid(); }, []);
-  useEffect(() => { configurarNotificaciones(); }, []);
   useEffect(() => { initSentry(); }, []);
 
   useEffect(() => {
@@ -114,41 +101,11 @@ export default function RootLayout() {
         setUserId(uid);
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
         setUser({ id: uid, email: session.user.email ?? undefined });
-
-        // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
-        const Notifications = getNotifications();
-        if (Notifications) {
-          Notifications.getPermissionsAsync().then(({ status }) => {
-            if (status === 'granted') {
-              registrarParaPush(uid).catch(() => {});
-            } else {
-              setPendingPushUid(uid);
-            }
-          }).catch(() => {
-            registrarParaPush(uid).catch(() => {});
-          });
-        }
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const Notifications = getNotifications();
-    if (!Notifications) { return; }
-    notifListener.current = Notifications.addNotificationReceivedListener(() => {});
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      if (response.notification.request.content.data?.ruta) {
-        setTimeout(() => router.push(response.notification.request.content.data.ruta as never), 0);
-      } else if (response.notification.request.content.data?.notificacion_id) {
-        setTimeout(() => router.push('/(tabs)/notificaciones' as never), 0);
-      }
-    });
-    return () => {
-      notifListener.current?.remove();
-      responseListener.current?.remove();
-    };
-  }, []);
 
   if (!fontsLoaded) { return null; }
 
@@ -168,16 +125,6 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
                   </Stack>
                   <StatusBar style="auto" />
-                  {/* Onboarding de permisos antes de pedir push al SO */}
-                  <PermisoOnboarding
-                    visible={!!pendingPushUid}
-                    tipo="notificaciones"
-                    onAceptar={() => {
-                      if (pendingPushUid) { registrarParaPush(pendingPushUid).catch(() => {}); }
-                      setPendingPushUid(null);
-                    }}
-                    onRechazar={() => setPendingPushUid(null)}
-                  />
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </TemaProvider>

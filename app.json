@@ -55,15 +55,7 @@
     "plugins": [
       "expo-router",
       "expo-maps",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/logo.png",
-          "color": "#3AB7A5",
-          "sounds": []
-        }
-      ],
-      [
+[
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
