@@ -553,5 +553,5 @@ const estilos = StyleSheet.create({
   // ── Mapa ──
   seccionMapa: { marginTop: 20, marginBottom: 20 },
   tituloMapa: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 12, textAlign: 'center' },
-  mapa: { height: 250, borderRadius: 12, overflow: 'hidden' }
+  mapa: { height: 360, borderRadius: 14, overflow: 'hidden' }
 });
