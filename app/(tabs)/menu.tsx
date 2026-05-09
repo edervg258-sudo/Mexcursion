@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DestinoCard } from '../../components/DestinoCard';
+import { NotificationIconButton } from '../../components/NotificationIconButton';
 import { SkeletonLista } from './skeletonloader';
 import {
     Animated,
@@ -207,18 +208,7 @@ export default function MenuScreen() {
         </View>
 
         <View style={estilos.iconosEncabezado}>
-          <TouchableOpacity
-            style={[
-              estilos.botonIcono,
-              {
-                backgroundColor: isDark ? tema.superficie : tema.superficieBlanca,
-                borderColor: isDark ? tema.borde : tema.bordeInput,
-              },
-            ]}
-            onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)}
-          >
-            <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
+          <NotificationIconButton onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)} />
         </View>
       </View>
 
@@ -440,27 +430,6 @@ const estilos = StyleSheet.create({
   saludo: { fontSize: 12, color: Platform.OS === 'android' ? Tema.primario : Tema.textoMuted, fontWeight: '600' },
   tituloEncabezado: { fontSize: 20, fontWeight: '800', color: Platform.OS === 'android' ? Tema.primario : Tema.texto, letterSpacing: -0.4 },
   iconosEncabezado: { flexDirection: 'row', alignItems: 'center' },
-  botonIcono: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Tema.superficieBlanca,
-    borderWidth: 1.5,
-    borderColor: Tema.bordeInput,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#1A3D38',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      default: { elevation: 3 },
-    }),
-  },
-  iconoEncabezado: { width: 26, height: 26 },
-
   contenedorCentrado: { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
 
   // Búsqueda
