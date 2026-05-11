@@ -17,6 +17,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { ToastProvider } from '../components/Toast';
 import { configurarBarraAndroid } from '../lib/android-ui';
 import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { getFeatureFlags } from '../lib/feature-flags';
@@ -30,7 +31,6 @@ import {
 import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
-import { initSentry, setUser } from '../lib/sentry';
 
 type NotificationSubscription = { remove: () => void };
 
@@ -86,7 +86,6 @@ export default function RootLayout() {
 
   useEffect(() => { configurarBarraAndroid(); }, []);
   useEffect(() => { configurarNotificaciones(); }, []);
-  useEffect(() => { initSentry(); }, []);
 
   useEffect(() => {
     const initRuntime = async () => {
@@ -107,13 +106,11 @@ export default function RootLayout() {
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
         setUserId('');
-        setUser({ id: '', email: '' });
       }
       if (event === 'SIGNED_IN' && session?.user?.id) {
         const uid = session.user.id;
         setUserId(uid);
         logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
-        setUser({ id: uid, email: session.user.email ?? undefined });
 
         // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
         const Notifications = getNotifications();
@@ -160,6 +157,7 @@ export default function RootLayout() {
             <TemaProvider>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
+                  <ToastProvider>
                   <OfflineBanner />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="registro"         options={{ headerShown: false }} />
@@ -178,6 +176,7 @@ export default function RootLayout() {
                     }}
                     onRechazar={() => setPendingPushUid(null)}
                   />
+                  </ToastProvider>
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </TemaProvider>

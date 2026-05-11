@@ -10,7 +10,6 @@ import { PagoTarjeta } from '../../components/PagoTarjeta';
 import { normalizeError, userMessageForError } from '../../lib/error-handling';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { addBreadcrumb, captureApiError } from '../../lib/sentry';
 import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 import { estadoReservaPorMetodo, generarReferenciaOxxo, type MetodoPago } from '../../lib/utilidades/pago';
@@ -61,11 +60,6 @@ export default function PagoScreen() {
     setProcesando(true);
 
     const folio = folioOverride ?? ('MX' + Math.random().toString(36).slice(2, 8).toUpperCase());
-    addBreadcrumb({
-      category: 'payments',
-      message: 'payment_started',
-      data: { metodo, folio, nombre, paquete, precio, personas },
-    });
 
     // 30-second timeout so a hung network doesn't spin forever
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -126,11 +120,6 @@ export default function PagoScreen() {
 
       procesandoRef.current = false;
       setProcesando(false);
-      addBreadcrumb({
-        category: 'payments',
-        message: 'payment_completed',
-        data: { metodo, folio },
-      });
       router.push({
         pathname: '/(tabs)/confirmacion',
         params: {
@@ -151,12 +140,7 @@ export default function PagoScreen() {
     } catch (err) {
       procesandoRef.current = false;
       setProcesando(false);
-      captureApiError({
-        feature: 'payments',
-        action: 'process_payment',
-        error: err,
-        metadata: { metodo, folio, nombre, paquete },
-      });
+      console.error('Payment error:', err);
       if (err instanceof Error && err.message === 'no_session') {
         Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
       } else if (err instanceof Error && err.message === 'timeout') {
@@ -178,12 +162,7 @@ export default function PagoScreen() {
   };
   const handlePagoTarjetaError = (error: string) => {
     const normalized = normalizeError(error);
-    captureApiError({
-      feature: 'payments',
-      action: 'simulated_card_payment',
-      error,
-      metadata: { nombre, paquete, precio, personas },
-    });
+    console.error('Card payment error:', error);
     Alert.alert('Error en pago', userMessageForError(normalized));
   };
 

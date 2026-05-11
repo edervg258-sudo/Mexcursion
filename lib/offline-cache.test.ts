@@ -24,12 +24,6 @@ jest.mock('@react-native-async-storage/async-storage');
 // Mock NetInfo
 jest.mock('@react-native-community/netinfo');
 
-// Mock Sentry
-jest.mock('./sentry', () => ({
-  addBreadcrumb: jest.fn(),
-  captureApiError: jest.fn(),
-}));
-
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const mockNetInfo = NetInfo as jest.Mocked<typeof NetInfo>;
 
