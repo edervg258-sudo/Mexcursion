@@ -2,9 +2,5 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "framework": null,
-  "installCommand": "npm install",
-  "env": {
-    "EXPO_PUBLIC_SUPABASE_URL": "@supabase-url",
-    "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key"
-  }
+  "installCommand": "npm install"
 }
