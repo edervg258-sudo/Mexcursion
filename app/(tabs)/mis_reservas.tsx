@@ -104,6 +104,7 @@ export default function MisReservasScreen() {
   const {
     data: reservasPages,
     isLoading: cargando,
+    isError: errorReservas,
     isFetching,
     fetchNextPage,
     hasNextPage,
@@ -126,6 +127,7 @@ export default function MisReservasScreen() {
     queryKey: ['destinos-todos'],
     queryFn: obtenerTodosLosDestinos,
     staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
   });
 
   const actualizarEstadoMutation = useMutation({
@@ -388,6 +390,15 @@ export default function MisReservasScreen() {
   // ── Contenido principal con animación de entrada ─────────────
   const contenido = cargando ? (
     <SkeletonFilas cantidad={5} />
+  ) : errorReservas ? (
+    <Animated.View style={[es.vacio, { opacity: fadeAnim }]}>
+      <Text style={es.vacioEmoji}>⚠️</Text>
+      <Text style={[es.tituloVacio, { color: tema.texto }]}>Error al cargar reservas</Text>
+      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>Revisa tu conexión e intenta de nuevo.</Text>
+      <TouchableOpacity style={es.btnExplorar} onPress={() => _refetchReservas()} activeOpacity={0.85}>
+        <Text style={es.txtExplorar}>Reintentar</Text>
+      </TouchableOpacity>
+    </Animated.View>
   ) : reservasFiltradas.length === 0 ? (
     <Animated.View style={[es.vacio, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <Text style={es.vacioEmoji}>{filtro === 'todas' ? '🗺️' : '🔍'}</Text>

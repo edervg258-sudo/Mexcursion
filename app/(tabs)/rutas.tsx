@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Animated, Modal, Platform, ScrollView, Share,
+  Alert, Animated, FlatList, Modal, Platform, ScrollView, Share,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
   useWindowDimensions,
 } from 'react-native';
@@ -920,8 +920,13 @@ export default function RutasScreen() {
               style={[es.inputInline, { backgroundColor: tema.superficie, borderColor: tema.borde, color: tema.texto, marginBottom: 10 }]}
             />
 
-            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-              {estadosFiltradosModal.map(estado => {
+            <FlatList
+              data={estadosFiltradosModal}
+              keyExtractor={item => String(item.id)}
+              style={{ maxHeight: 400 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: estado }) => {
                 const niveles: ('economico' | 'medio' | 'premium')[] = ['economico', 'medio', 'premium'];
                 const nivelesDisponibles = niveles.filter(
                   n => !clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n))
@@ -929,7 +934,6 @@ export default function RutasScreen() {
                 if (nivelesDisponibles.length === 0) return null;
                 return (
                   <View
-                    key={estado.id}
                     style={[es.estadoPickerFila, { backgroundColor: tema.superficie, borderColor: tema.borde }]}
                   >
                     <View style={{ flex: 1 }}>
@@ -957,21 +961,20 @@ export default function RutasScreen() {
                     </View>
                   </View>
                 );
-              })}
-
-              {sinResultadosEnModal && (
+              }}
+              ListEmptyComponent={sinResultadosEnModal ? (
                 <Text style={[es.modalSubtitulo, { textAlign: 'center', marginTop: 16, color: tema.textoSecundario }]}>
                   Sin resultados para esa búsqueda.
                 </Text>
-              )}
-              {todosYaAgregadosEnModal && (
+              ) : null}
+              ListFooterComponent={todosYaAgregadosEnModal ? (
                 <Text style={[es.modalSubtitulo, { textAlign: 'center', marginTop: 16, color: tema.textoSecundario }]}>
                   {busquedaModal.trim()
                     ? 'Ya tienes todos los destinos que coinciden con esa búsqueda.'
                     : 'Ya agregaste todos los destinos disponibles.'}
                 </Text>
-              )}
-            </ScrollView>
+              ) : null}
+            />
 
             <TouchableOpacity
               style={es.modalBtnCerrar}

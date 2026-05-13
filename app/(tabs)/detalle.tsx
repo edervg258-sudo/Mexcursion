@@ -109,6 +109,7 @@ export default function DetalleScreen() {
     queryKey: ['resumen-resenas-detalle', nombre],
     queryFn: () => cargarResumenResenas(nombre ? [nombre] : []),
     staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
   });
   const resumenDestino = nombre ? resumenResenas[nombre] : undefined;
   const paqueteAnims  = useRef(paquetes.map(() => new Animated.Value(0))).current;
@@ -122,8 +123,8 @@ export default function DetalleScreen() {
   // Rastrea qué paquetes se han expandido alguna vez (para no desmontar el contenido animado)
   const [paquetesVistos, setPaquetesVistos] = useState<Set<string>>(new Set(['economico']));
 
-  const spring = (anim: Animated.Value, to: number) =>
-    Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
+  const spring = useCallback((anim: Animated.Value, to: number) =>
+    Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start(), []);
 
   useEffect(() => {
     Animated.stagger(90, paqueteAnims.map(anim =>
@@ -193,13 +194,13 @@ export default function DetalleScreen() {
     }
   };
 
-  const irAReserva = (paquete: Paquete) => {
+  const irAReserva = useCallback((paquete: Paquete) => {
     setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
-  };
+  }, [nombre, t]);
 
-  const irAResenas = () => {
+  const irAResenas = useCallback(() => {
     setTimeout(() => router.push({ pathname:'/(tabs)/resenas' as never, params:{ nombre } }), 0);
-  };
+  }, [nombre]);
 
   // ── Contenido ──────────────────────────────────────────────────────────
   const contenidoJSX = (

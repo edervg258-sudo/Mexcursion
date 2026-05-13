@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DestinoCard } from '../../components/DestinoCard';
 import { NotificationIconButton } from '../../components/NotificationIconButton';
 import { SkeletonLista } from './skeletonloader';
@@ -121,7 +121,7 @@ export default function MenuScreen() {
     setRefreshing(false);
   }, [usuarioId]);
 
-  const manejarFavorito = async (id: number) => {
+  const manejarFavorito = useCallback(async (id: number) => {
     if (!usuarioId) {return;}
     // Animación spring: crece y vuelve
     const anim = obtenerAnimFav(id);
@@ -135,33 +135,34 @@ export default function MenuScreen() {
     } catch {
       // silencioso — el estado local no se actualiza y el usuario puede reintentar
     }
-  };
+  }, [usuarioId, obtenerAnimFav]);
 
-  const estadosFiltrados = estados
+  const estadosFiltrados = useMemo(() => estados
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
     .sort((a, b) => {
       if (orden === 'mas_caro') {return b.precio - a.precio;}
       if (orden === 'mas_barato') {return a.precio - b.precio;}
       return a.nombre.localeCompare(b.nombre);
-    });
+    }), [estados, busqueda, categoriaActiva, orden]);
 
   const { data: resumenesResenas = {} } = useQuery({
     queryKey: ['resumen-resenas-menu'],
     queryFn: () => cargarResumenResenas(TODOS_LOS_ESTADOS.map(estado => estado.nombre)),
     staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
   });
 
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
+  const navegarPestana = useCallback((ruta: string) => router.replace(ruta as any), []);
 
-  const estaActiva = (ruta: string) => {
+  const estaActiva = useCallback((ruta: string) => {
     const segmento = ruta.replace('/(tabs)', '');
     return rutaActual.endsWith(segmento);
-  };
+  }, [rutaActual]);
 
   const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? t('menu_orden_az');
 
-  const renderizarEstado = ({ item }: { item: Estado }) => (
+  const renderizarEstado = useCallback(({ item }: { item: Estado }) => (
     <DestinoCard
       item={item}
       fadeAnim={fadeAnim}
@@ -169,7 +170,7 @@ export default function MenuScreen() {
       onToggleFavorito={manejarFavorito}
       resumenResenas={resumenesResenas[item.nombre]}
     />
-  );
+  ), [fadeAnim, obtenerAnimFav, manejarFavorito, resumenesResenas]);
 
   // Sidebar (PC)
   const renderSidebar = () => (

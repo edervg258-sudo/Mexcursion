@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { useToast } from '../../components/Toast';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
@@ -86,6 +87,7 @@ export default function FavoritosScreen() {
   const esPC             = width >= 768;
   const { t } = useIdioma();
   const { tema } = useTemaContext();
+  const { showToast } = useToast();
 
   useEffect(() => {
     configurarBarraAndroid();
@@ -106,47 +108,59 @@ export default function FavoritosScreen() {
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       setCargando(true);
-      const usuario = await obtenerUsuarioActivo();
-      if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
-      setUsuarioId(usuario.id);
+      try {
+        const usuario = await obtenerUsuarioActivo();
+        if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
+        setUsuarioId(usuario.id);
 
-      const [idsFav, destinosDB, itinerarios] = await Promise.all([
-        cargarFavoritos(usuario.id),
-        obtenerTodosLosDestinos(),
-        obtenerItinerarios(usuario.id),
-      ]);
-      setItinerariosCount(itinerarios.length);
+        const [idsFav, destinosDB, itinerarios] = await Promise.all([
+          cargarFavoritos(usuario.id),
+          obtenerTodosLosDestinos(),
+          obtenerItinerarios(usuario.id),
+        ]);
+        setItinerariosCount(itinerarios.length);
 
-      const mapeados = destinosDB
-        .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-        .map((d: Record<string, unknown>) => {
-          const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-          return {
-            id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
-            precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
-          };
-        });
-      setEstadosFavoritos(mapeados);
-      setCargando(false);
-      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
+        const mapeados = destinosDB
+          .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+          .map((d: Record<string, unknown>) => {
+            const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
+            return {
+              id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
+              precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
+            };
+          });
+        setEstadosFavoritos(mapeados);
+        Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
+      } catch (error) {
+        if (__DEV__) console.error('Error cargando favoritos:', error);
+        showToast(t('error_cargar_favoritos') || 'No se pudieron cargar los favoritos', 'error');
+      } finally {
+        setCargando(false);
+      }
     };
     cargar();
-  }, [fadeAnim]));
+  }, [fadeAnim, showToast, t]));
 
   const onRefresh = useCallback(async () => {
     if (!usuarioId) { return; }
     setRecargando(true);
-    const [idsFav, destinosDB, itinerarios] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos(), obtenerItinerarios(usuarioId)]);
-    const mapeados = destinosDB
-      .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-      .map((d: Record<string, unknown>) => {
-        const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-        return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
-      });
-    setEstadosFavoritos(mapeados);
-    setItinerariosCount(itinerarios.length);
-    setRecargando(false);
-  }, [usuarioId]);
+    try {
+      const [idsFav, destinosDB, itinerarios] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos(), obtenerItinerarios(usuarioId)]);
+      const mapeados = destinosDB
+        .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+        .map((d: Record<string, unknown>) => {
+          const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
+          return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
+        });
+      setEstadosFavoritos(mapeados);
+      setItinerariosCount(itinerarios.length);
+    } catch (error) {
+      if (__DEV__) console.error('Error refrescando favoritos:', error);
+      showToast(t('error_refrescar') || 'Error al actualizar favoritos', 'error');
+    } finally {
+      setRecargando(false);
+    }
+  }, [usuarioId, showToast, t]);
 
   const quitarFavorito = async (id: number) => {
     if (!usuarioId) { return; }

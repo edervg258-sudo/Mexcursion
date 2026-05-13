@@ -84,6 +84,7 @@ export default function HistorialScreen() {
   const {
     data: historialPages,
     isLoading: cargando,
+    isError: errorHistorial,
     isFetching,
     fetchNextPage,
     hasNextPage,
@@ -135,6 +136,15 @@ export default function HistorialScreen() {
 
   const cuerpo = cargando ? (
     <SkeletonFilas cantidad={5} />
+  ) : errorHistorial ? (
+    <View style={s.vacio}>
+      <Ionicons name="cloud-offline-outline" size={52} color="#ccc" />
+      <Text style={[s.tituloVacio, { color: tema.texto }]}>Error al cargar historial</Text>
+      <Text style={[s.subtituloVacio, { color: tema.textoMuted }]}>Revisa tu conexión e intenta de nuevo.</Text>
+      <TouchableOpacity style={s.btnReintento} onPress={() => _refetchHistorial()} activeOpacity={0.85}>
+        <Text style={s.txtReintento}>Reintentar</Text>
+      </TouchableOpacity>
+    </View>
   ) : eventos.length === 0 ? (
     <View style={s.vacio}>
       <Ionicons name="document-text-outline" size={52} color="#ccc" />
@@ -189,4 +199,6 @@ const s = StyleSheet.create({
   vacio:             { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8, padding: 40 },
   tituloVacio:       { fontSize: 18, fontWeight: '700', color: '#333' },
   subtituloVacio:    { fontSize: 13, color: '#888' },
+  btnReintento:      { marginTop: 12, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 25, backgroundColor: '#3AB7A5' },
+  txtReintento:      { fontSize: 14, color: '#fff', fontWeight: '600' },
 });
