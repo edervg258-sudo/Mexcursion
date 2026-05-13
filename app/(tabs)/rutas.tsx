@@ -433,6 +433,7 @@ export default function RutasScreen() {
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={es.misRutasScroll}
+            removeClippedSubviews={true}
           >
             {/* ── Hero "Mis viajes" ── */}
             <View style={[es.heroMisViajes, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
