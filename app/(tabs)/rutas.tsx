@@ -106,8 +106,9 @@ export default function RutasScreen() {
         ]);
         setFavoritos(idsFav);
         setItinerarios(itinerariosUsuario);
-      } catch {
-        Alert.alert('Error', 'No se pudo cargar tus itinerarios. Revisa tu conexión.');
+      } catch (e) {
+        if (__DEV__) console.error('Error cargando rutas:', e);
+        toast.mostrar(t('error_cargar_rutas') || 'No se pudieron cargar tus itinerarios', 'error');
       } finally {
         setCargandoPantalla(false);
         Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
@@ -128,12 +129,13 @@ export default function RutasScreen() {
     );
     try {
       await alternarFavorito(usuarioId, estadoId);
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.error('Error actualizando favorito:', e);
       // Revertir si el servidor falló
       setFavoritos(prev =>
         yaEraFavorito ? [...prev, estadoId] : prev.filter(id => id !== estadoId)
       );
-      Alert.alert('Error', 'No se pudo actualizar favoritos.');
+      toast.mostrar(t('error_favorito') || 'No se pudo actualizar favoritos', 'error');
     } finally {
       favoritosEnVuelo.current.delete(estadoId);
     }
@@ -307,8 +309,9 @@ export default function RutasScreen() {
     try {
       const actualizados = await alternarDestinoItinerario(usuarioId, itinerarioId, clave);
       setItinerarios(actualizados);
-    } catch {
-      Alert.alert('Error', 'No se pudo quitar el destino.');
+    } catch (e) {
+      if (__DEV__) console.error('Error quitando destino:', e);
+      toast.mostrar(t('error_quitar_destino') || 'No se pudo quitar el destino', 'error');
     } finally {
       setGuardandoAccion(false);
     }
@@ -327,8 +330,10 @@ export default function RutasScreen() {
       setItinerarios(actualizados);
       setModalAgregarDestino(null);
       setBusquedaModal('');
-    } catch {
-      Alert.alert('Error', 'No se pudo agregar el destino.');
+      toast.mostrar(t('rut_toast_agregado') || 'Destino agregado', 'success');
+    } catch (e) {
+      if (__DEV__) console.error('Error agregando destino:', e);
+      toast.mostrar(t('error_agregar_destino') || 'No se pudo agregar el destino', 'error');
     } finally {
       setGuardandoAccion(false);
     }
@@ -350,8 +355,9 @@ export default function RutasScreen() {
     try {
       const actualizados = await reordenarItinerarioItems(usuarioId, itinerarioId, nuevas);
       if (actualizados.length > 0) setItinerarios(actualizados);
-    } catch {
-      Alert.alert('Error', 'No se pudo reordenar los destinos.');
+    } catch (e) {
+      if (__DEV__) console.error('Error reordenando destinos:', e);
+      toast.mostrar(t('error_reordenar') || 'No se pudo reordenar los destinos', 'error');
     } finally {
       setGuardandoAccion(false);
     }

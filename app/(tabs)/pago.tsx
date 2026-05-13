@@ -140,7 +140,7 @@ export default function PagoScreen() {
     } catch (err) {
       procesandoRef.current = false;
       setProcesando(false);
-      console.error('Payment error:', err);
+      if (__DEV__) console.error('Payment error:', err);
       if (err instanceof Error && err.message === 'no_session') {
         Alert.alert(t('pago_sesion_requerida'), t('pago_sesion_msg'));
       } else if (err instanceof Error && err.message === 'timeout') {
@@ -162,7 +162,7 @@ export default function PagoScreen() {
   };
   const handlePagoTarjetaError = (error: string) => {
     const normalized = normalizeError(error);
-    console.error('Card payment error:', error);
+    if (__DEV__) console.error('Card payment error:', error);
     Alert.alert('Error en pago', userMessageForError(normalized));
   };
 

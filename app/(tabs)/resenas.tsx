@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Estrellas } from '../../components/Estrellas';
 import { TabChrome } from '../../components/TabChrome';
+import { useToast } from '../../components/Toast';
 import { useIdioma } from '../../lib/IdiomaContext';
 import {
   cargarResenasPaginadas,
@@ -37,9 +38,11 @@ export default function ResenasScreen() {
   const esPC              = width >= 768;
   const { t } = useIdioma();
   const { tema } = useTemaContext();
+  const { showToast } = useToast();
 
   const [resenas, setResenas]         = useState<ResenaDB[]>([]);
   const [cargando, setCargando]       = useState(true);
+  const [errorCarga, setErrorCarga]   = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [totalResenas, setTotalResenas] = useState(0);
@@ -51,14 +54,21 @@ export default function ResenasScreen() {
 
   const cargarPagina = useCallback(async (offset: number, append = false) => {
     if (!nombre) return;
-    const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
-    if (append) {
-      setResenas(prev => [...prev, ...result.resenas]);
-    } else {
-      setResenas(result.resenas);
+    try {
+      const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
+      if (append) {
+        setResenas(prev => [...prev, ...result.resenas]);
+      } else {
+        setResenas(result.resenas);
+        setErrorCarga(false);
+      }
+      setTotalResenas(result.total);
+    } catch (error) {
+      if (__DEV__) console.error('Error cargando reseñas:', error);
+      if (!append) setErrorCarga(true);
+      else showToast('No se pudieron cargar más reseñas', 'error');
     }
-    setTotalResenas(result.total);
-  }, [nombre]);
+  }, [nombre, showToast]);
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
@@ -91,14 +101,23 @@ export default function ResenasScreen() {
   const enviarResena = async () => {
     if (miEstrellas === 0 || !miTexto.trim() || !usuarioId || !nombre) { return; }
     setEnviando(true);
-    const resultado = await guardarResena(usuarioId, nombre, miEstrellas, miTexto.trim());
-    setEnviando(false);
-    if (resultado.exito) {
-      setEnviado(true);
-      setMiEstrellas(0);
-      setMiTexto('');
-      await cargarPagina(0, false);
-      setTimeout(() => setEnviado(false), 2500);
+    try {
+      const resultado = await guardarResena(usuarioId, nombre, miEstrellas, miTexto.trim());
+      if (resultado.exito) {
+        setEnviado(true);
+        setMiEstrellas(0);
+        setMiTexto('');
+        showToast(t('res_enviada') || '¡Reseña publicada!', 'success');
+        await cargarPagina(0, false);
+        setTimeout(() => setEnviado(false), 2500);
+      } else {
+        showToast(t('res_error_enviar') || 'No se pudo publicar la reseña', 'error');
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Error enviando reseña:', error);
+      showToast(t('res_error_enviar') || 'Error al enviar la reseña', 'error');
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -218,6 +237,19 @@ export default function ResenasScreen() {
 
       {cargando ? (
         <SkeletonFilas cantidad={4} />
+      ) : errorCarga ? (
+        <View style={es.vacioCont}>
+          <Text style={es.vacioEmoji}>⚠️</Text>
+          <Text style={[es.vacioTitulo, { color: tema.texto }]}>Error al cargar reseñas</Text>
+          <Text style={[es.vacioSub, { color: tema.textoMuted }]}>Revisa tu conexión e intenta de nuevo.</Text>
+          <TouchableOpacity
+            style={[es.btnCargarMas, { borderColor: '#3AB7A5', marginTop: 12 }]}
+            onPress={() => cargarPagina(0, false)}
+            activeOpacity={0.85}
+          >
+            <Text style={[es.txtCargarMas, { color: '#3AB7A5' }]}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={resenas}

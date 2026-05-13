@@ -58,33 +58,45 @@ export default function NotificacionesScreen() {
   const { tema }              = useTemaContext();
   const [notifs, setNotifs]     = useState<Notif[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [hayMas, setHayMas]     = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [filtro, setFiltro]     = useState<'todas' | 'no_leidas'>('todas');
 
-  useFocusEffect(useCallback(() => {
-    const cargar = async () => {
-      setCargando(true);
-      limpiarBadge();
+  const cargarNotifs = useCallback(async () => {
+    setCargando(true);
+    setErrorCarga(false);
+    limpiarBadge();
+    try {
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
       const nuevas = await cargarNotificaciones(usuario.id, LIMITE, 0);
       setNotifs(nuevas);
       setHayMas(nuevas.length === LIMITE);
+    } catch (error) {
+      if (__DEV__) console.error('Error cargando notificaciones:', error);
+      setErrorCarga(true);
+    } finally {
       setCargando(false);
-    };
-    cargar();
-  }, []));
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { cargarNotifs(); }, [cargarNotifs]));
 
   const cargarMas = async () => {
     if (!usuarioId || cargandoMas) { return; }
     setCargandoMas(true);
-    const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
-    setNotifs(prev => [...prev, ...mas]);
-    setHayMas(mas.length === LIMITE);
-    setCargandoMas(false);
+    try {
+      const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
+      setNotifs(prev => [...prev, ...mas]);
+      setHayMas(mas.length === LIMITE);
+    } catch (error) {
+      if (__DEV__) console.error('Error cargando más notificaciones:', error);
+    } finally {
+      setCargandoMas(false);
+    }
   };
 
   const noLeidas = notifs.filter(n => !n.leida).length;
@@ -136,6 +148,19 @@ export default function NotificacionesScreen() {
       </View>
       {cargando ? (
         <SkeletonFilas cantidad={6} />
+      ) : errorCarga ? (
+        <View style={s.vacio}>
+          <Text style={s.vacioemoji}>⚠️</Text>
+          <Text style={[s.vacioTitulo, { color: tema.texto }]}>Error al cargar</Text>
+          <Text style={[s.vacioSub, { color: tema.textoMuted }]}>Revisa tu conexión e intenta de nuevo.</Text>
+          <TouchableOpacity
+            style={[s.btnCargarMas, { marginTop: 8 }]}
+            onPress={cargarNotifs}
+            activeOpacity={0.85}
+          >
+            <Text style={s.txtCargarMas}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       ) : visibles.length === 0 ? (
         <View style={s.vacio}>
           <Text style={s.vacioemoji}>🔔</Text>
