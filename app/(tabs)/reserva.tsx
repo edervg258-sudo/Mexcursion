@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardTypeOptions,
   Modal,
   Platform,
@@ -9,6 +10,7 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
+import { useToast } from '../../components/Toast';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
 
@@ -192,6 +194,8 @@ export default function ReservaScreen() {
   const [fecha, setFecha]                 = useState('');
   const [notas, setNotas]                 = useState('');
   const [errores, setErrores]             = useState<Record<string, string>>({});
+  const [enviando, setEnviando]           = useState(false);
+  const { showToast } = useToast();
 
   const precioUnitario = parseInt(precio ?? '0');
   const total          = precioUnitario * personas;
@@ -237,12 +241,23 @@ export default function ReservaScreen() {
     return Object.keys(e).length === 0;
   };
 
-  const continuar = () => {
-    if (!validar()) { return; }
-    router.push({
-      pathname: '/(tabs)/pago',
-      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
-    } as never);
+  const continuar = async () => {
+    if (!validar()) {
+      showToast(t('rsv_completa_datos'), 'error');
+      return;
+    }
+    setEnviando(true);
+    try {
+      router.push({
+        pathname: '/(tabs)/pago',
+        params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
+      } as never);
+    } catch (error) {
+      if (__DEV__) console.error('Error navigating to payment:', error);
+      showToast(t('rsv_error_continuar') || 'Error al continuar', 'error');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const Campo = ({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID, campoKey }: {
@@ -354,13 +369,18 @@ export default function ReservaScreen() {
 
         <TouchableOpacity
           testID="reserve-continue-button"
-          style={es.btnContinuar}
+          style={[es.btnContinuar, enviando && es.btnContinuarDisabled]}
           onPress={continuar}
+          disabled={enviando}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Continuar a pago"
         >
-          <Text style={es.textoContinuar}>{t('rsv_continuar')}</Text>
+          {enviando ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={es.textoContinuar}>{t('rsv_continuar')}</Text>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 20 }} />
@@ -396,6 +416,10 @@ const es = StyleSheet.create({
   cajaTotalPersonas: { flex: 1, backgroundColor: '#f0faf9', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'flex-end' },
   totalLabel:        { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
   totalMonto:        { fontSize: 17, fontWeight: '800', color: '#3AB7A5' },
+
+  btnContinuar:      { backgroundColor: '#3AB7A5', borderRadius: 25, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginBottom: 24, ...sombra({ opacity: 0.2, radius: 6, offsetY: 3, elevation: 4 }) },
+  btnContinuarDisabled: { backgroundColor: '#9DB8B3', opacity: 0.7 },
+  textoContinuar:    { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   btnContinuar:      { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginTop: 8, ...sombra({ color: '#DD331D', opacity: 0.3, radius: 8, offsetY: 4, elevation: 5 }) },
   textoContinuar:    { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },

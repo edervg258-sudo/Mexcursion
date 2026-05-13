@@ -5,6 +5,8 @@ import { supabase } from './supabase';
 
 const ANALYTICS_QUEUE_KEY = '@analytics_event_queue_v1';
 const MAX_QUEUE = 300;
+const FLUSH_INTERVAL = 30000; // Flush every 30 seconds max
+const FLUSH_AT_COUNT = 10; // Flush after 10 events
 
 type AnalyticsEvent = {
   event_name: string;
@@ -17,6 +19,8 @@ type AnalyticsEvent = {
 
 let currentUserId: string | null = null;
 let flushing = false;
+let flushTimer: NodeJS.Timeout | null = null;
+let eventsSinceFlush = 0;
 
 export const AnalyticsEvents = {
   APP_OPEN: 'app_open',
@@ -55,6 +59,17 @@ const enqueueEvent = async (event: AnalyticsEvent) => {
   const queue = await loadQueue();
   queue.push(event);
   await saveQueue(queue);
+  eventsSinceFlush++;
+
+  // Flush if we hit the threshold or schedule a delayed flush
+  if (eventsSinceFlush >= FLUSH_AT_COUNT) {
+    void flushQueue();
+  } else if (!flushTimer) {
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      void flushQueue();
+    }, FLUSH_INTERVAL);
+  }
 };
 
 const flushQueue = async () => {
@@ -78,11 +93,12 @@ const flushQueue = async () => {
 
     const { error } = await supabase.from('analytics_eventos').insert(eventsToInsert);
     if (error) {
-      console.error('Analytics flush error:', error);
+      if (__DEV__) console.error('Analytics flush error:', error);
       return;
     }
 
     await saveQueue([]);
+    eventsSinceFlush = 0;
   } finally {
     flushing = false;
   }
@@ -114,5 +130,5 @@ export const logEvent = async (event: string, params: Record<string, unknown> = 
   };
 
   await enqueueEvent(payload);
-  await flushQueue();
+  // flush is now debounced in enqueueEvent
 };

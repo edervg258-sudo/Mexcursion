@@ -17,6 +17,7 @@ import { ModalSeleccionItinerario } from '../../components/ModalSeleccionItinera
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Estrellas } from '../../components/Estrellas';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { useToast } from '../../components/Toast';
 import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
@@ -75,6 +76,7 @@ export default function DetalleScreen() {
   const { bottom: bottomInset } = useSafeAreaInsets();
   const { t, idioma } = useIdioma();
   const { tema, isDark } = useTemaContext();
+  const { showToast } = useToast();
 
   // Obtener datos del estado
   const estado = TODOS_LOS_ESTADOS.find(e => e.nombre === nombre);
@@ -151,21 +153,32 @@ export default function DetalleScreen() {
 
   const agregarAItinerario = async (id_itinerario: number) => {
     if (!usuarioId || !paqueteSeleccionado) { return; }
-    setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
-    setModalVisible(false);
+    try {
+      setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
+      setModalVisible(false);
+    } catch (error) {
+      if (__DEV__) console.error('Error al actualizar itinerario:', error);
+      showToast(t('error_itinerario') || 'No se pudo actualizar el itinerario', 'error');
+    }
   };
 
   const crearYNuevoItinerario = async () => {
     if (!usuarioId || !paqueteSeleccionado || !nuevoNombre.trim()) { return; }
     const nombreNuevo = nuevoNombre.trim();
-    setItinerarios(await crearItinerarioYAgregarDestino({
-      usuarioId,
-      nombreNuevo,
-      claveDestino: paqueteSeleccionado,
-      itinerariosActuales: itinerarios,
-    }));
-    setModalVisible(false);
-    setNuevoNombre('');
+    try {
+      setItinerarios(await crearItinerarioYAgregarDestino({
+        usuarioId,
+        nombreNuevo,
+        claveDestino: paqueteSeleccionado,
+        itinerariosActuales: itinerarios,
+      }));
+      setModalVisible(false);
+      setNuevoNombre('');
+      showToast(t('itinerario_creado') || 'Itinerario creado', 'success');
+    } catch (error) {
+      if (__DEV__) console.error('Error al crear itinerario:', error);
+      showToast(t('error_crear_itinerario') || 'No se pudo crear el itinerario', 'error');
+    }
   };
 
   const compartir = async () => {
@@ -174,7 +187,8 @@ export default function DetalleScreen() {
         title: `${nombre ?? ''} — Mexcursión`,
         message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\nDescarga la app y reserva tu próxima aventura.`,
       });
-    } catch {
+    } catch (error) {
+      if (__DEV__) console.error('Error al compartir:', error);
       // El usuario canceló o el sistema no soporta Share — no se requiere acción
     }
   };

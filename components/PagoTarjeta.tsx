@@ -13,7 +13,7 @@ interface PagoTarjetaProps {
   onBack?: () => void;
 }
 
-export function PagoTarjeta({
+export const PagoTarjeta = React.memo(function PagoTarjeta({
   amount,
   description: _description,
   payerEmail: _payerEmail,
@@ -161,7 +161,7 @@ export function PagoTarjeta({
       <View style={{ height: 30 }} />
     </ScrollView>
   );
-}
+});
 
 const estilos = StyleSheet.create({
   container: {

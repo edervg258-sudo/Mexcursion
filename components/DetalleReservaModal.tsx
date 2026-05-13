@@ -154,7 +154,7 @@ const COLOR_ESTADO: Record<string, { fondo: string; texto: string; etiqueta: str
 };
 
 // ── Componente ────────────────────────────────────────────────────────────────
-export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
+export const DetalleReservaModal = React.memo(function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   const { tema, isDark } = useTemaContext();
   const { bottom } = useSafeAreaInsets();
 
@@ -320,7 +320,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
       </View>
     </Modal>
   );
-}
+});
 
 // ── Sub-componente DatoItem ───────────────────────────────────────────────────
 function DatoItem({ label, valor, colorValor, tema }: { label: string; valor: string; colorValor?: string; tema: any }) {

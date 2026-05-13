@@ -108,7 +108,7 @@ export async function registrarUsuario(
         activo: 1,
       });
       if (insertError) {
-        console.error('registrarUsuario: fallo al crear perfil', insertError);
+        if (__DEV__) console.error('registrarUsuario: fallo al crear perfil', insertError);
         return { exito: false, error: 'Cuenta creada pero no se pudo guardar el perfil. Contacta soporte.' };
       }
       if (data.session) return { exito: true };
@@ -117,7 +117,7 @@ export async function registrarUsuario(
 
     return { exito: true, confirmar: true };
   } catch (err) {
-    console.error('registrarUsuario error', err);
+    if (__DEV__) console.error('registrarUsuario error', err);
     return { exito: false, error: 'Error al registrar.' };
   }
 }
@@ -133,8 +133,8 @@ export async function iniciarSesion(
     });
 
     if (error) {
-      console.log('❌ Error de login:', error.message);
-      
+      if (__DEV__) console.log('Error de login:', error.message);
+
       // Manejar específicamente errores de refresh token
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
@@ -143,21 +143,19 @@ export async function iniciarSesion(
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
-    console.log('✅ Login exitoso para:', correo);
-    
     // Obtener usuario activo inmediatamente
     const usuario = await obtenerUsuarioActivo();
     
     return { exito: true, usuario: usuario ?? undefined };
   } catch (error) {
-    console.log('❌ Error inesperado en login:', error);
+    if (__DEV__) console.log('Error inesperado en login:', error);
     return { exito: false, error: 'Error al iniciar sesión.' };
   }
 }
 
 export async function cerrarSesion(): Promise<void> {
   _sessionCache = null; // invalidar caché al cerrar sesión
-  try { await supabase.auth.signOut(); } catch (err) { console.error('cerrarSesion error:', err); }
+  try { await supabase.auth.signOut(); } catch (err) { if (__DEV__) console.error('cerrarSesion error:', err); }
 }
 
 // ── Verificación rápida — solo auth, sin query a BD (para routing inicial) ─
