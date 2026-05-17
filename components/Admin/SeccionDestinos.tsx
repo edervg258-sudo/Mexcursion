@@ -85,7 +85,7 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
                 onChangeText={v => { onSetForm(f.key, v); if (error) {onLimpiarError(f.key);} }}
                 placeholder={f.ph}
                 placeholderTextColor={tema.textoMuted}
-                keyboardType={f.numeric ? 'numeric' : 'default'}
+                keyboardType={(f as { numeric?: boolean }).numeric ? 'numeric' : 'default'}
               />
               {error && <Text style={adminS.formError}>{error}</Text>}
             </View>
