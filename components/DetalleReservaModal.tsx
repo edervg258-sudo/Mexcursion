@@ -44,7 +44,7 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseFecha(fecha: string): Date | null {
-  if (!fecha) return null;
+  if (!fecha) { return null; }
   // ISO → Date
   if (fecha.includes('T') || fecha.includes('-')) {
     const d = new Date(fecha);
@@ -52,20 +52,20 @@ function parseFecha(fecha: string): Date | null {
   }
   // DD/MM/YYYY
   const [dd, mm, yyyy] = fecha.split('/');
-  if (!dd || !mm || !yyyy) return null;
+  if (!dd || !mm || !yyyy) { return null; }
   const d = new Date(`${yyyy}-${mm}-${dd}`);
   return isNaN(d.getTime()) ? null : d;
 }
 
 function formatearFechaLarga(fecha: string): string {
   const d = parseFecha(fecha);
-  if (!d) return fecha;
+  if (!d) { return fecha; }
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function diasHastaViaje(fecha: string): number {
   const d = parseFecha(fecha);
-  if (!d) return 0;
+  if (!d) { return 0; }
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const ms = d.getTime() - hoy.getTime();
@@ -78,30 +78,30 @@ function politicaCancelacion(dias: number): {
   color: string;
   icono: 'checkmark-circle' | 'alert-circle' | 'close-circle' | 'information-circle';
 } {
-  if (dias > 30) return {
+  if (dias > 30) { return {
     titulo: 'Cancelación gratuita',
     descripcion: 'Puedes cancelar sin costo hasta 30 días antes de tu viaje.',
     color: '#3AB7A5',
     icono: 'checkmark-circle',
-  };
-  if (dias > 14) return {
+  }; }
+  if (dias > 14) { return {
     titulo: 'Cancelación con 25% de cargo',
     descripcion: 'Entre 15 y 30 días antes del viaje aplica un cargo del 25% del total.',
     color: '#f5a623',
     icono: 'alert-circle',
-  };
-  if (dias > 7) return {
+  }; }
+  if (dias > 7) { return {
     titulo: 'Cancelación con 50% de cargo',
     descripcion: 'Entre 8 y 14 días antes aplica un cargo del 50% del total.',
     color: '#f5a623',
     icono: 'alert-circle',
-  };
-  if (dias >= 0) return {
+  }; }
+  if (dias >= 0) { return {
     titulo: 'Sin reembolso',
     descripcion: 'A menos de 7 días del viaje no aplican reembolsos.',
     color: '#DD331D',
     icono: 'close-circle',
-  };
+  }; }
   return {
     titulo: 'Viaje ya realizado',
     descripcion: 'Este viaje ya ocurrió. Gracias por viajar con Mexcursión.',
@@ -163,7 +163,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   const est = reserva ? (COLOR_ESTADO[reserva.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: reserva.estado }) : null;
 
   const compartirReserva = async () => {
-    if (!reserva) return;
+    if (!reserva) { return; }
     try {
       await Share.share({
         title: `Reserva ${reserva.folio} — Mexcursión`,
@@ -180,7 +180,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   };
 
   const agregarAlCalendario = async () => {
-    if (!reserva) return;
+    if (!reserva) { return; }
     const ics = generarICS(reserva);
     try {
       await Share.share({
@@ -193,7 +193,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   };
 
   const copiarFolio = () => {
-    if (!reserva) return;
+    if (!reserva) { return; }
     Alert.alert(
       'Folio copiado',
       reserva.folio,
@@ -201,7 +201,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
     );
   };
 
-  if (!reserva) return null;
+  if (!reserva) { return null; }
 
   return (
     <Modal
