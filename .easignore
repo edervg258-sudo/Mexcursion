@@ -4,17 +4,34 @@
 node_modules/
 .git/
 .gitignore
+
+# Claude Code internal files (14 GB)
+.claude/
+
+# Android build artifacts
 android/build/
+android/app/build/
+android/app/.cxx/
 android/.gradle/
+
+# iOS
 ios/Pods/
 ios/build/
+
+# Dev/tooling
 .expo/
 dist/
 build/
+coverage/
+.jest/
+.kilo/
+.vs/
+.idea/
+e2e/
+
+# Misc
 .env.local
 .env.*.local
 *.log
 .DS_Store
 .turbo/
-coverage/
-.jest/
