@@ -154,6 +154,7 @@ export default function MenuScreen() {
   const navegarPestana = (ruta: string) => router.replace(ruta as any);
 
   const estaActiva = (ruta: string) => {
+    if (ruta === '/(tabs)/menu') return true;
     const segmento = ruta.replace('/(tabs)', '');
     return rutaActual.endsWith(segmento);
   };
@@ -617,5 +618,5 @@ const estilos = StyleSheet.create({
   barraPestanas: { flexDirection: 'row', backgroundColor: 'transparent', width: '100%', maxWidth: 800, alignSelf: 'center' },
   itemPestana: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
   etiquetaPestana: { fontSize: 10, color: Tema.textoMuted, marginTop: 2, fontWeight: '500' },
-  etiquetaPestanaActiva: { color: Tema.acento, fontWeight: '700' },
+  etiquetaPestanaActiva: { color: Tema.primario, fontWeight: '700' },
 });
