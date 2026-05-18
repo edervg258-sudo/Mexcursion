@@ -2,6 +2,7 @@
 //  lib/IdiomaContext.test.tsx
 // ============================================================
 import React from 'react';
+import { Text, TouchableOpacity } from 'react-native';
 import { render, act, fireEvent } from '@testing-library/react-native';
 import { IdiomaProvider, useIdioma } from './IdiomaContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +21,7 @@ describe('IdiomaContext', () => {
   it('debe proporcionar el hook useIdioma', () => {
     const Consumer = () => {
       const { idioma } = useIdioma();
-      return <text testID="idioma">{idioma}</text>;
+      return <Text testID="idioma">{idioma}</Text>;
     };
     const { getByTestId } = render(<IdiomaProvider><Consumer /></IdiomaProvider>);
     expect(getByTestId('idioma')).toBeTruthy();
@@ -29,7 +30,7 @@ describe('IdiomaContext', () => {
   it('debe tener la función t()', () => {
     const Consumer = () => {
       const { t } = useIdioma();
-      return <text testID="traduccion">{t('saludo')}</text>;
+      return <Text testID="traduccion">{t('saludo')}</Text>;
     };
     const { getByTestId } = render(<IdiomaProvider><Consumer /></IdiomaProvider>);
     expect(getByTestId('traduccion')).toBeTruthy();
@@ -41,8 +42,8 @@ describe('IdiomaContext', () => {
       const { idioma, cambiarIdioma } = useIdioma();
       return (
         <>
-          <text testID="idioma">{idioma}</text>
-          <button testID="cambiar" onPress={() => cambiarIdioma('en')} />
+          <Text testID="idioma">{idioma}</Text>
+          <TouchableOpacity testID="cambiar" onPress={() => cambiarIdioma('en')} />
         </>
       );
     };
@@ -59,7 +60,7 @@ describe('IdiomaContext', () => {
   it('debe soportar variables en traducciones', () => {
     const Consumer = () => {
       const { t } = useIdioma();
-      return <text testID="traduccion">{t('precio', { cantidad: 100 })}</text>;
+      return <Text testID="traduccion">{t('precio', { cantidad: 100 })}</Text>;
     };
     const { getByTestId } = render(<IdiomaProvider><Consumer /></IdiomaProvider>);
     expect(getByTestId('traduccion')).toBeTruthy();

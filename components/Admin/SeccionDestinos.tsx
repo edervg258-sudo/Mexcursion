@@ -55,7 +55,7 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
     { key: 'categoria', label: 'Categoría',   val: form.categoria, ph: 'Playa / Cultura / Aventura...' },
     { key: 'precio',    label: 'Precio base', val: form.precio,    ph: 'Ej: 2500', numeric: true },
     { key: 'desc',      label: 'Descripción', val: form.desc,      ph: 'Descripción breve' },
-  ] as const;
+  ] satisfies { key: string; label: string; val: string; ph: string; numeric?: boolean }[];
 
   if (modoForm) {
     return (
@@ -82,7 +82,7 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
                   borderWidth: 1,
                 }]}
                 value={f.val}
-                onChangeText={v => { onSetForm(f.key, v); if (error) {onLimpiarError(f.key);} }}
+                onChangeText={v => { onSetForm(f.key as Parameters<typeof onSetForm>[0], v); if (error) {onLimpiarError(f.key);} }}
                 placeholder={f.ph}
                 placeholderTextColor={tema.textoMuted}
                 keyboardType={f.numeric ? 'numeric' : 'default'}

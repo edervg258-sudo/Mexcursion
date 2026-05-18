@@ -20,7 +20,7 @@ type AnalyticsEvent = {
 
 let currentUserId: string | null = null;
 let flushing = false;
-let mixpanelInstance: ReturnType<typeof Mixpanel> | null = null;
+let mixpanelInstance: InstanceType<typeof Mixpanel> | null = null;
 
 const initMixpanel = async () => {
   try {
@@ -139,7 +139,7 @@ export const setUserId = async (userId: string) => {
 export const setUserProperties = async (properties: Record<string, string>) => {
   if (mixpanelInstance && currentUserId) {
     try {
-      await mixpanelInstance.setUserProperties(properties);
+      await mixpanelInstance.getPeople().set(properties);
     } catch {
       // no-op
     }

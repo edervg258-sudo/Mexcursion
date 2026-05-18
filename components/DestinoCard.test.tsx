@@ -24,7 +24,7 @@ const mockDestino = {
   categoria: 'Playa',
   descripcion: '天堂 tropical con ruinas mayas',
   precio: 1500,
-  imagen: { uri: 'https://example.com/cancun.jpg' } as ReturnType<typeof require>,
+  imagen: { uri: 'https://example.com/cancun.jpg' } as any,
   favorito: false,
 };
 

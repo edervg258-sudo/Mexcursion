@@ -2,6 +2,7 @@
 //  lib/TemaContext.test.tsx
 // ============================================================
 import React from 'react';
+import { Text, TouchableOpacity } from 'react-native';
 import { render, act, fireEvent } from '@testing-library/react-native';
 import { TemaProvider, useTemaContext } from './TemaContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,7 +32,7 @@ describe('TemaContext', () => {
   it('debe tener toggleTema como función', () => {
     const Consumer = () => {
       const { toggleTema } = useTemaContext();
-      return <button testID="toggle" onPress={toggleTema} />;
+      return <TouchableOpacity testID="toggle" onPress={toggleTema} />;
     };
     const { getByTestId } = render(<TemaProvider><Consumer /></TemaProvider>);
     expect(getByTestId('toggle')).toBeTruthy();
@@ -41,7 +42,7 @@ describe('TemaContext', () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     const Consumer = () => {
       const { toggleTema } = useTemaContext();
-      return <button testID="toggle" onPress={toggleTema} />;
+      return <TouchableOpacity testID="toggle" onPress={toggleTema} />;
     };
     const { getByTestId } = render(<TemaProvider><Consumer /></TemaProvider>);
 
@@ -55,7 +56,7 @@ describe('TemaContext', () => {
   it('debe tener isDark booleano', () => {
     const Consumer = () => {
       const { isDark } = useTemaContext();
-      return <text testID="isDark">{String(isDark)}</text>;
+      return <Text testID="isDark">{String(isDark)}</Text>;
     };
     const { getByTestId } = render(<TemaProvider><Consumer /></TemaProvider>);
     expect(getByTestId('isDark')).toBeTruthy();

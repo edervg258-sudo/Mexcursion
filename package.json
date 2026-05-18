@@ -89,5 +89,11 @@
     "jest-expo": "~54.0.17",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "postcss": "^8.5.10",
+    "ws": "^8.20.1",
+    "@tootallnate/once": "^3.0.1",
+    "brace-expansion@>=5.0.2 <5.0.6": "5.0.6"
+  }
 }

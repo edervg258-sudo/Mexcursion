@@ -10,7 +10,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 }));
 
 describe('useNetworkStatus', () => {
-  let mockListener: jest.Mock;
+  let mockListener: (state: { isConnected: boolean; isInternetReachable: boolean | null }) => void;
 
   beforeEach(() => {
     jest.clearAllMocks();
