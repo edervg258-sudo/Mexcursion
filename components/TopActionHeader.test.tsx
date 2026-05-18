@@ -5,11 +5,15 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { TopActionHeader } from './TopActionHeader';
 
-jest.mock('./NotificationIconButton', () => ({
-  NotificationIconButton: ({ onPress }: { onPress: () => void }) => (
-    <button testID="notification-button" onPress={onPress} />
-  ),
-}));
+jest.mock('./NotificationIconButton', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { TouchableOpacity } = require('react-native');
+  return {
+    NotificationIconButton: ({ onPress }: { onPress: () => void }) => (
+      <TouchableOpacity testID="notification-button" onPress={onPress} />
+    ),
+  };
+});
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
