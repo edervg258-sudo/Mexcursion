@@ -6,9 +6,11 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { TopActionHeader } from './TopActionHeader';
 
 jest.mock('./NotificationIconButton', () => ({
-  NotificationIconButton: ({ onPress }: { onPress: () => void }) => (
-    <button testID="notification-button" onPress={onPress} />
-  ),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  NotificationIconButton: ({ onPress }: { onPress: () => void }) => {
+    const { TouchableOpacity } = require('react-native');
+    return <TouchableOpacity testID="notification-button" onPress={onPress} />;
+  },
 }));
 
 jest.mock('react-native', () => {

@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.mercursion.app'
+    namespace 'com.mexcursion.app'
     defaultConfig {
-        applicationId 'com.mercursion.app'
+        applicationId 'com.mexcursion.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

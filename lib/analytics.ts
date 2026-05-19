@@ -1,10 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-import { Mixpanel } from 'mixpanel-react-native';
 import { supabase } from './supabase';
-import { addBreadcrumb, captureApiError } from './sentry';
 
 const ANALYTICS_QUEUE_KEY = '@analytics_event_queue_v1';
 const MAX_QUEUE = 300;
@@ -20,21 +17,6 @@ type AnalyticsEvent = {
 
 let currentUserId: string | null = null;
 let flushing = false;
-let mixpanelInstance: ReturnType<typeof Mixpanel> | null = null;
-
-const initMixpanel = async () => {
-  try {
-    const token = Constants.expoConfig?.extra?.mixpanelToken as string | undefined;
-    if (token) {
-      mixpanelInstance = new Mixpanel(token, false);
-      await mixpanelInstance.init();
-    }
-  } catch {
-    // Mixpanel no disponible
-  }
-};
-
-initMixpanel();
 
 export const AnalyticsEvents = {
   APP_OPEN: 'app_open',
@@ -77,8 +59,6 @@ const enqueueEvent = async (event: AnalyticsEvent) => {
 
 const flushQueue = async () => {
   if (flushing) return;
-  // No intentes flush si no hay usuario autenticado (RLS bloquea inserts anónimos).
-  // Los eventos quedan encolados en AsyncStorage y se envían al hacer login.
   if (!currentUserId) return;
   flushing = true;
   try {
@@ -88,7 +68,6 @@ const flushQueue = async () => {
     const queue = await loadQueue();
     if (!queue.length) return;
 
-    // Asignar user_id a eventos encolados antes del login
     const eventsToInsert = queue.map(e => ({
       ...e,
       user_id: e.user_id ?? currentUserId,
@@ -96,21 +75,11 @@ const flushQueue = async () => {
 
     const { error } = await supabase.from('analytics_eventos').insert(eventsToInsert);
     if (error) {
-      captureApiError({
-        feature: 'analytics',
-        action: 'flush_queue',
-        error,
-        metadata: { queued_events: queue.length },
-      });
+      console.warn('[analytics] flush error:', error);
       return;
     }
 
     await saveQueue([]);
-    addBreadcrumb({
-      category: 'analytics',
-      message: 'flush_success',
-      data: { count: queue.length },
-    });
   } finally {
     flushing = false;
   }
@@ -124,26 +93,10 @@ NetInfo.addEventListener(state => {
 
 export const setUserId = async (userId: string) => {
   currentUserId = userId?.trim() ? userId : null;
-  
-  if (mixpanelInstance && currentUserId) {
-    try {
-      await mixpanelInstance.identify(currentUserId);
-    } catch {
-      // no-op
-    }
-  }
-  
   await flushQueue();
 };
 
 export const setUserProperties = async (properties: Record<string, string>) => {
-  if (mixpanelInstance && currentUserId) {
-    try {
-      await mixpanelInstance.setUserProperties(properties);
-    } catch {
-      // no-op
-    }
-  }
   await logEvent('set_user_properties', properties);
 };
 
@@ -156,14 +109,6 @@ export const logEvent = async (event: string, params: Record<string, unknown> = 
     app_version: params.app_version ? String(params.app_version) : '1.0.0',
     created_at: new Date().toISOString(),
   };
-
-  if (mixpanelInstance && currentUserId) {
-    try {
-      await mixpanelInstance.track(event, params);
-    } catch {
-      // no-op
-    }
-  }
 
   await enqueueEvent(payload);
   await flushQueue();
