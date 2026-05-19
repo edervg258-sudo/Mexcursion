@@ -24,8 +24,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="mercursion"/>
-        <data android:scheme="exp+mercursion"/>
+        <data android:scheme="mexcursion"/>
+        <data android:scheme="exp+mexcursion"/>
       </intent-filter>
     </activity>
   </application>

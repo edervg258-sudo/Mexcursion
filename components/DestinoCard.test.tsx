@@ -2,7 +2,7 @@
 //  components/DestinoCard.test.tsx
 // ============================================================
 import React from 'react';
-import { Animated } from 'react-native';
+import { Animated, ImageSourcePropType } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import { DestinoCard } from './DestinoCard';
 
@@ -24,7 +24,7 @@ const mockDestino = {
   categoria: 'Playa',
   descripcion: '天堂 tropical con ruinas mayas',
   precio: 1500,
-  imagen: { uri: 'https://example.com/cancun.jpg' } as ReturnType<typeof require>,
+  imagen: { uri: 'https://example.com/cancun.jpg' } as ImageSourcePropType,
   favorito: false,
 };
 

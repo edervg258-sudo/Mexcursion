@@ -50,12 +50,13 @@ export const SeccionDestinos = React.memo(function SeccionDestinos({
 }: Props) {
   const { tema } = useTemaContext();
 
-  const campos = [
+  type FormKey = keyof Omit<FormState, 'errores'>;
+  const campos: Array<{ key: FormKey; label: string; val: string; ph: string; numeric?: boolean }> = [
     { key: 'nombre',    label: 'Nombre',      val: form.nombre,    ph: 'Ej: Oaxaca' },
     { key: 'categoria', label: 'Categoría',   val: form.categoria, ph: 'Playa / Cultura / Aventura...' },
     { key: 'precio',    label: 'Precio base', val: form.precio,    ph: 'Ej: 2500', numeric: true },
     { key: 'desc',      label: 'Descripción', val: form.desc,      ph: 'Descripción breve' },
-  ] as const;
+  ];
 
   if (modoForm) {
     return (

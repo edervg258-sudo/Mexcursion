@@ -1,7 +1,6 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
-import { addBreadcrumb, captureApiError } from './sentry';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -632,11 +631,6 @@ export async function guardarReserva(
       .eq('folio', folioNormalizado)
       .maybeSingle();
     if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
       return 'idempotent';
     }
 
@@ -666,23 +660,12 @@ export async function guardarReserva(
         });
         return 'queued_offline';
       }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+      console.error('guardarReserva insert error:', error);
       return 'failed';
     }
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
-    captureApiError({
-      feature: 'reservas',
-      action: 'insert',
-      error: err,
-      metadata: { usuario_id, folio },
-    });
     return 'failed';
   }
 }

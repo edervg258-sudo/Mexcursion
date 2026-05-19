@@ -1,16 +1,61 @@
-// app.config.js — extiende app.json con valores dinámicos de env vars.
-// Requerido para inyectar el API key de Google Maps en expo-maps (Android).
-const base = require('./app.json');
-
+// app.config.js — única fuente de configuración dinámica.
+// Inyecta el API key de Google Maps (expo-maps Android) desde env vars.
 module.exports = {
-  ...base.expo,
+  name: 'Mexcursión',
+  slug: 'mexcursion',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/logo.png',
+  scheme: 'mexcursion',
+  userInterfaceStyle: 'automatic',
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: 'com.mexcursion.app',
+    buildNumber: '1.0.0',
+    infoPlist: {
+      CFBundleDisplayName: 'Mexcursión',
+      LSRequiresIPhoneOS: true,
+      UIStatusBarStyle: 'UIStatusBarStyleDefault',
+      UIViewControllerBasedStatusBarAppearance: false,
+      UILaunchStoryboardName: 'SplashScreen',
+      UIRequiredDeviceCapabilities: ['armv7'],
+      UIStatusBarHidden: false,
+      UISupportedInterfaceOrientations: [
+        'UIInterfaceOrientationPortrait',
+        'UIInterfaceOrientationLandscapeLeft',
+        'UIInterfaceOrientationLandscapeRight',
+      ],
+      'UISupportedInterfaceOrientations~ipad': [
+        'UIInterfaceOrientationPortrait',
+        'UIInterfaceOrientationPortraitUpsideDown',
+        'UIInterfaceOrientationLandscapeLeft',
+        'UIInterfaceOrientationLandscapeRight',
+      ],
+    },
+    splash: {
+      image: './assets/images/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#ffffff',
+    },
+  },
+  android: {
+    package: 'com.mexcursion.app',
+    adaptiveIcon: {
+      foregroundImage: './assets/images/android-icon-foreground.png',
+      backgroundImage: './assets/images/android-icon-background.png',
+      monochromeImage: './assets/images/android-icon-monochrome.png',
+    },
+    predictiveBackGestureEnabled: false,
+  },
+  web: {
+    bundler: 'metro',
+    output: 'single',
+  },
   plugins: [
     'expo-router',
     [
       'expo-maps',
       {
-        // Necesario para que expo-maps muestre tiles de Google Maps en Android.
-        // Agrega EXPO_PUBLIC_GOOGLE_MAPS_API_KEY a tu archivo .env
         android: {
           apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
         },
@@ -36,4 +81,15 @@ module.exports = {
     ],
     'expo-sqlite',
   ],
+  experiments: {
+    typedRoutes: true,
+    reactCompiler: true,
+  },
+  extra: {
+    router: {},
+    eas: {
+      projectId: 'd84a3cc9-6abb-4f01-9b22-cb70f8227452',
+    },
+  },
+  owner: 'edervg5s-organization',
 };
