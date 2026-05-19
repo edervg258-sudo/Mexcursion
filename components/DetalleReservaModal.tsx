@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIdioma } from '../lib/IdiomaContext';
 import { useTemaContext } from '../lib/TemaContext';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -146,21 +147,30 @@ const METODO_LABEL: Record<string, string> = {
   oxxo:    '🏪 OXXO Pay',
 };
 
-const COLOR_ESTADO: Record<string, { fondo: string; texto: string; etiqueta: string }> = {
-  confirmada: { fondo: '#e8f8f5', texto: '#3AB7A5', etiqueta: '✓ Confirmada'   },
-  pendiente:  { fondo: '#fff8e1', texto: '#b8860b', etiqueta: '⏳ Pendiente'    },
-  completada: { fondo: '#f0f0f0', texto: '#888',    etiqueta: '✔ Completada'   },
-  cancelada:  { fondo: '#fef0f0', texto: '#DD331D', etiqueta: '✕ Cancelada'    },
+const COLOR_ESTADO_BASE: Record<string, { fondo: string; texto: string }> = {
+  confirmada: { fondo: '#e8f8f5', texto: '#3AB7A5' },
+  pendiente:  { fondo: '#fff8e1', texto: '#b8860b' },
+  completada: { fondo: '#f0f0f0', texto: '#888'    },
+  cancelada:  { fondo: '#fef0f0', texto: '#DD331D' },
 };
 
 // ── Componente ────────────────────────────────────────────────────────────────
-export const DetalleReservaModal = React.memo(function DetalleReservaModal({ reserva, visible, onClose }: Props) {
+export const DetalleReservaModal = React.memo(function ({ reserva, visible, onClose }: Props) {
   const { tema, isDark } = useTemaContext();
+  const { t } = useIdioma();
   const { bottom } = useSafeAreaInsets();
 
   const dias = useMemo(() => reserva ? diasHastaViaje(reserva.fecha) : 0, [reserva]);
   const politica = useMemo(() => politicaCancelacion(dias), [dias]);
-  const est = reserva ? (COLOR_ESTADO[reserva.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: reserva.estado }) : null;
+
+  const COLOR_ESTADO = useMemo(() => ({
+    confirmada: { ...COLOR_ESTADO_BASE.confirmada, etiqueta: t('res_estado_confirmada') },
+    pendiente:  { ...COLOR_ESTADO_BASE.pendiente,  etiqueta: t('res_estado_pendiente')  },
+    completada: { ...COLOR_ESTADO_BASE.completada, etiqueta: t('res_estado_completada') },
+    cancelada:  { ...COLOR_ESTADO_BASE.cancelada,  etiqueta: t('res_estado_cancelada')  },
+  }), [t]);
+
+  const est = reserva ? (COLOR_ESTADO[reserva.estado as keyof typeof COLOR_ESTADO] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: reserva.estado }) : null;
 
   const compartirReserva = async () => {
     if (!reserva) return;

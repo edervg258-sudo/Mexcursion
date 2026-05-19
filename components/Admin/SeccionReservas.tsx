@@ -16,18 +16,20 @@ interface Props {
   busqueda: string;
   filtroEstado: string;
   filtroFecha: string;
+  filtroMetodo: string;
   orden: string;
   onBusqueda: (v: string) => void;
   onFiltroEstado: (v: string) => void;
   onFiltroFecha: (v: string) => void;
+  onFiltroMetodo: (v: string) => void;
   onOrden: (v: string) => void;
   onCambiarEstado: (r: Reserva, nuevoEstado: string) => void;
 }
 
 export const SeccionReservas = React.memo(function SeccionReservas({
   reservas, reservasFiltradas, cargando,
-  busqueda, filtroEstado, filtroFecha, orden,
-  onBusqueda, onFiltroEstado, onFiltroFecha, onOrden, onCambiarEstado,
+  busqueda, filtroEstado, filtroFecha, filtroMetodo, orden,
+  onBusqueda, onFiltroEstado, onFiltroFecha, onFiltroMetodo, onOrden, onCambiarEstado,
 }: Props) {
   const { tema, isDark } = useTemaContext();
 
@@ -71,6 +73,28 @@ export const SeccionReservas = React.memo(function SeccionReservas({
                 >
                   <Text style={[adminS.chipFiltroTxt, { color: filtroEstado === f ? '#fff' : tema.textoMuted }, filtroEstado === f && { fontWeight: '700' }]}>
                     {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Chips método de pago */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+              {[
+                { id: 'todos',   label: 'Todos' },
+                { id: 'tarjeta', label: '💳 Tarjeta' },
+                { id: 'spei',    label: '🏦 SPEI' },
+                { id: 'oxxo',    label: '🏪 OXXO' },
+              ].map(m => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[adminS.chipFiltro, { backgroundColor: filtroMetodo === m.id ? '#3E5FA8' : tema.superficieBlanca }]}
+                  onPress={() => onFiltroMetodo(m.id)}
+                >
+                  <Text style={[adminS.chipFiltroTxt, { color: filtroMetodo === m.id ? '#fff' : tema.textoMuted }, filtroMetodo === m.id && { fontWeight: '700' }]}>
+                    {m.label}
                   </Text>
                 </TouchableOpacity>
               ))}

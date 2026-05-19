@@ -130,6 +130,7 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   value={correo}
                   onChangeText={t => { setCorreo(t); if (errorCorreo) {setErrorCorreo('');} }}
+                  underlineColorAndroid="transparent"
                 />
                 {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
               </View>
@@ -145,6 +146,7 @@ export default function LoginScreen() {
                     secureTextEntry={!verContrasena}
                     value={contrasena}
                     onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
+                    underlineColorAndroid="transparent"
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
@@ -194,6 +196,7 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 value={correoRecup}
                 onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) {setErrorCorreoRecup('');} }}
+                underlineColorAndroid="transparent"
               />
               {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
             </View>
@@ -222,9 +225,9 @@ const estilos = StyleSheet.create({
   titulo:           { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6, color: '#222' },
   subtitulo:        { fontSize: 14, textAlign: 'center', color: '#666', marginBottom: 20 },
   grupoCampo:       { marginBottom: 14 },
-  campo:            { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333' },
-  campoContenedor:  { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', flexDirection: 'row', alignItems: 'center' },
-  campoInterno:     { flex: 1, fontSize: 14, color: '#333' },
+  campo:            { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
+  campoContenedor:  { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', flexDirection: 'row', alignItems: 'center' },
+  campoInterno:     { flex: 1, fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
   campoError:       { borderColor: '#DD331D' },
   textoError:       { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 12 },
   enlaceOlvide:     { alignItems: 'flex-end', marginBottom: 10, marginTop: -6 },

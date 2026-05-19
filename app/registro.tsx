@@ -147,6 +147,7 @@ export default function RegistroScreen() {
                   value={form.nombre}
                   onChangeText={t => actualizar('nombre', t)}
                   autoCapitalize="words"
+                  underlineColorAndroid="transparent"
                 />
                 {errores.nombre ? <Text style={estilos.textoError}>⚠ {errores.nombre}</Text> : null}
               </View>
@@ -160,6 +161,7 @@ export default function RegistroScreen() {
                   value={form.nombre_usuario}
                   onChangeText={t => actualizar('nombre_usuario', t)}
                   autoCapitalize="none"
+                  underlineColorAndroid="transparent"
                 />
                 {errores.nombre_usuario ? <Text style={estilos.textoError}>⚠ {errores.nombre_usuario}</Text> : null}
               </View>
@@ -174,6 +176,7 @@ export default function RegistroScreen() {
                   onChangeText={t => actualizar('correo', t)}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  underlineColorAndroid="transparent"
                 />
                 {errores.correo ? <Text style={estilos.textoError}>⚠ {errores.correo}</Text> : null}
               </View>
@@ -187,6 +190,7 @@ export default function RegistroScreen() {
                   value={form.telefono}
                   onChangeText={t => actualizar('telefono', t)}
                   keyboardType="phone-pad"
+                  underlineColorAndroid="transparent"
                 />
                 {errores.telefono ? <Text style={estilos.textoError}>⚠ {errores.telefono}</Text> : null}
               </View>
@@ -201,6 +205,7 @@ export default function RegistroScreen() {
                     value={form.contrasena}
                     onChangeText={t => actualizar('contrasena', t)}
                     secureTextEntry={!verContrasena}
+                    underlineColorAndroid="transparent"
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
@@ -270,11 +275,11 @@ const estilos = StyleSheet.create({
   titulo:           { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6, color: '#222' },
   subtitulo:        { fontSize: 14, textAlign: 'center', color: '#666', marginBottom: 20 },
   grupoCampo:       { marginBottom: 14 },
-  campo:            { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333' },
-  campoFila:        { flexDirection: 'row', alignItems: 'center', height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, backgroundColor: '#f9f9f9' },
+  campo:            { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
+  campoFila:        { flexDirection: 'row', alignItems: 'center', height: 48, borderWidth: 0, borderRadius: 25, backgroundColor: '#f9f9f9' },
   campoError:       { borderColor: '#DD331D' },
   textoError:       { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 12 },
-  inputOjo:         { flex: 1, fontSize: 14, color: '#333', paddingHorizontal: 16, height: 48 },
+  inputOjo:         { flex: 1, fontSize: 14, color: '#333', paddingHorizontal: 16, height: 48, outlineStyle: 'none' } as any,
   botonOjo:         { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
   boton:            { backgroundColor: '#DD331D', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 6, elevation: 6 },
   botonDesactivado: { opacity: 0.6 },

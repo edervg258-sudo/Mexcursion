@@ -90,7 +90,7 @@ export function TabChrome({
   );
 
   const bottomBar = (
-    <View style={[styles.envolturaBarra, { paddingBottom: Math.max(bottom, 8), backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
+    <View style={[styles.envolturaBarra, { paddingBottom: bottom, backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
       <View style={[styles.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
         {PESTANAS.map(p => {
           const active = isActive(p.ruta);

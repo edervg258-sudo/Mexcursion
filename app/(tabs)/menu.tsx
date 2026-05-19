@@ -225,6 +225,7 @@ export default function MenuScreen() {
               placeholderTextColor={Tema.textoMuted}
               value={busqueda}
               onChangeText={setBusqueda}
+              underlineColorAndroid="transparent"
             />
             {busqueda.length > 0 && (
               <TouchableOpacity onPress={() => setBusqueda('')}>
@@ -368,7 +369,7 @@ export default function MenuScreen() {
           <SafeAreaView style={estilos.areaSeguraMovil}>{renderContenido()}</SafeAreaView>
 
           {/* Barra inferior de pestañas */}
-          <View style={[estilos.envolturaBarra, { backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, paddingBottom: Math.max(bottomInset, 10), ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
+          <View style={[estilos.envolturaBarra, { backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, paddingBottom: bottomInset, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
             <View style={[estilos.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
               {Array.isArray(PESTANAS) &&
                 PESTANAS.map((p) => {
@@ -441,8 +442,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Tema.superficieBlanca,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Tema.borde,
+    borderWidth: 0,
     paddingHorizontal: 14,
     height: 46,
     ...Platform.select({
@@ -456,7 +456,7 @@ const estilos = StyleSheet.create({
     }),
   },
   iconoBusquedaImg: { width: 18, height: 18, marginRight: 6 },
-  inputBusqueda: { flex: 1, fontSize: 15, color: Tema.texto },
+  inputBusqueda: { flex: 1, fontSize: 15, color: Tema.texto, outlineStyle: 'none' } as any,
 
   // Filtro dropdown
   botonFiltro: {
@@ -582,10 +582,10 @@ const estilos = StyleSheet.create({
     backgroundColor: Tema.superficieBlanca,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 10,
+    paddingBottom: 0,
   },
   barraPestanas: { flexDirection: 'row', backgroundColor: 'transparent', width: '100%', maxWidth: 800, alignSelf: 'center' },
   itemPestana: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
   etiquetaPestana: { fontSize: 10, color: Tema.textoMuted, marginTop: 2, fontWeight: '500' },
-  etiquetaPestanaActiva: { color: Tema.acento, fontWeight: '700' },
+  etiquetaPestanaActiva: { color: Tema.primario, fontWeight: '700' },
 });
