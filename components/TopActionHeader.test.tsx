@@ -6,6 +6,7 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { TopActionHeader } from './TopActionHeader';
 
 jest.mock('./NotificationIconButton', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const { TouchableOpacity } = require('react-native');
   return {
     NotificationIconButton: ({ onPress }: { onPress: () => void }) => (
