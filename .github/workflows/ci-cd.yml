@@ -136,6 +136,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Accept Android SDK licenses and install emulator image
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;android-33;default;x86_64" "emulator"
+
       - name: Build E2E app
         run: npm run build:e2e
         env:
@@ -145,6 +150,10 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
+          arch: x86_64
+          target: default
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
           script: npm run test:e2e
         env:
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
