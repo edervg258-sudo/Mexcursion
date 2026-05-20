@@ -19,9 +19,10 @@ interface ToastItem {
 
 interface ToastContextValue {
   mostrar: (mensaje: string, tipo?: TipoToast, duracion?: number) => void;
+  showToast: (mensaje: string, tipo?: TipoToast, duracion?: number) => void;
 }
 
-const ToastContext = createContext<ToastContextValue>({ mostrar: () => {} });
+const ToastContext = createContext<ToastContextValue>({ mostrar: () => {}, showToast: () => {} });
 
 export function useToast() {
   return useContext(ToastContext);
@@ -76,7 +77,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ToastContext.Provider value={{ mostrar }}>
+    <ToastContext.Provider value={{ mostrar, showToast: mostrar }}>
       {children}
       <View
         style={[s.pila, { bottom: Math.max(bottom, 16) + 8 }]}

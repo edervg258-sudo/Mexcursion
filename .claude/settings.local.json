@@ -22,7 +22,13 @@
       "Read(//c/Users/usuario/AppData/Local/Programs/**)",
       "Read(//c/Program Files/**)",
       "Read(//c/Users/usuario/**)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(git rm *)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(npm audit *)",
+      "Bash(git fetch *)",
+      "Bash(npx eslint *)"
     ]
   }
 }
