@@ -3,9 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator, Alert,
-    Image,
     Platform,
-    ScrollView,
     StyleSheet, Text,
     TouchableOpacity,
     useWindowDimensions,
@@ -34,7 +32,7 @@ import {
 import { useTemaContext } from '../../lib/TemaContext';
 
 // ── Colores de estado de reserva ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 const _C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
   confirmada: { fondo: '#E8F5F2', texto: '#3AB7A5', label: 'Confirmada'  },
   completada: { fondo: '#F0F0F0', texto: '#666',    label: 'Completada'  },
@@ -198,7 +196,7 @@ export default function AdminScreen() {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`${titulo}\n\n${mensaje}`)) ejecutar();
+      if (window.confirm(`${titulo}\n\n${mensaje}`)) {ejecutar();}
     } else {
       Alert.alert(titulo, mensaje, [
         { text: 'No, volver', style: 'cancel' },

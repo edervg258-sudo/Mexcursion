@@ -70,9 +70,9 @@ export function SeccionRutas() {
 
   const guardar = async () => {
     const errs: Record<string, string> = {};
-    if (!fTitulo.trim())  errs.titulo = 'El título es requerido';
-    if (!fEstado.trim())  errs.estado = 'El estado es requerido';
-    if (!fNivel)          errs.nivel  = 'El nivel es requerido';
+    if (!fTitulo.trim())  {errs.titulo = 'El título es requerido';}
+    if (!fEstado.trim())  {errs.estado = 'El estado es requerido';}
+    if (!fNivel)          {errs.nivel  = 'El nivel es requerido';}
     if (Object.keys(errs).length) { setErrores(errs); return; }
     setErrores({});
 

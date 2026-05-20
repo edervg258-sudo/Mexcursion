@@ -38,7 +38,6 @@ import { TraduccionClave } from '../../lib/traducciones';
 
 type Estado = typeof TODOS_LOS_ESTADOS[0] & { favorito: boolean };
 type TipoOrden = 'mas_caro' | 'mas_barato' | 'az';
-type RangoPrecio = 'todos' | 'bajo' | 'medio' | 'alto';
 
 export default function MenuScreen() {
   const { width } = useWindowDimensions();

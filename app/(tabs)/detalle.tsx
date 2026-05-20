@@ -158,7 +158,7 @@ export default function DetalleScreen() {
       setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
       setModalVisible(false);
     } catch (error) {
-      if (__DEV__) console.error('Error al actualizar itinerario:', error);
+      if (__DEV__) {console.error('Error al actualizar itinerario:', error);}
       showToast(t('error_itinerario') || 'No se pudo actualizar el itinerario', 'error');
     }
   };
@@ -177,7 +177,7 @@ export default function DetalleScreen() {
       setNuevoNombre('');
       showToast(t('itinerario_creado') || 'Itinerario creado', 'success');
     } catch (error) {
-      if (__DEV__) console.error('Error al crear itinerario:', error);
+      if (__DEV__) {console.error('Error al crear itinerario:', error);}
       showToast(t('error_crear_itinerario') || 'No se pudo crear el itinerario', 'error');
     }
   };
@@ -189,7 +189,7 @@ export default function DetalleScreen() {
         message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\nDescarga la app y reserva tu próxima aventura.`,
       });
     } catch (error) {
-      if (__DEV__) console.error('Error al compartir:', error);
+      if (__DEV__) {console.error('Error al compartir:', error);}
       // El usuario canceló o el sistema no soporta Share — no se requiere acción
     }
   };

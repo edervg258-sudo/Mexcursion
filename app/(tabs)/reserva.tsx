@@ -253,7 +253,7 @@ export default function ReservaScreen() {
         params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
       } as never);
     } catch (error) {
-      if (__DEV__) console.error('Error navigating to payment:', error);
+      if (__DEV__) {console.error('Error navigating to payment:', error);}
       showToast(t('rsv_error_continuar') || 'Error al continuar', 'error');
     } finally {
       setEnviando(false);
@@ -420,9 +420,6 @@ const es = StyleSheet.create({
   btnContinuar:      { backgroundColor: '#3AB7A5', borderRadius: 25, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginBottom: 24, ...sombra({ opacity: 0.2, radius: 6, offsetY: 3, elevation: 4 }) },
   btnContinuarDisabled: { backgroundColor: '#9DB8B3', opacity: 0.7 },
   textoContinuar:    { color: '#fff', fontSize: 15, fontWeight: '700' },
-
-  btnContinuar:      { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginTop: 8, ...sombra({ color: '#DD331D', opacity: 0.3, radius: 8, offsetY: 4, elevation: 5 }) },
-  textoContinuar:    { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Calendario ──────────────────────────────────────────────────────────────
   calOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 16 },

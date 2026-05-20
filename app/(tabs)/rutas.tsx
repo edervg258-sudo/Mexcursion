@@ -52,8 +52,8 @@ const extraerMonto = (precio: string) => {
 
 const validarNombre = (nombre: string): string | null => {
   const n = nombre.trim();
-  if (n.length < 3) return 'El nombre debe tener al menos 3 caracteres.';
-  if (n.length > 60) return 'El nombre no puede superar los 60 caracteres.';
+  if (n.length < 3) {return 'El nombre debe tener al menos 3 caracteres.';}
+  if (n.length > 60) {return 'El nombre no puede superar los 60 caracteres.';}
   return null;
 };
 
@@ -107,7 +107,7 @@ export default function RutasScreen() {
         setFavoritos(idsFav);
         setItinerarios(itinerariosUsuario);
       } catch (e) {
-        if (__DEV__) console.error('Error cargando rutas:', e);
+        if (__DEV__) {console.error('Error cargando rutas:', e);}
         toast.mostrar(t('error_cargar_rutas') || 'No se pudieron cargar tus itinerarios', 'error');
       } finally {
         setCargandoPantalla(false);
@@ -119,7 +119,7 @@ export default function RutasScreen() {
 
   // ─── Favoritos ────────────────────────────────────────────────────────────
   const toggleFavorito = useCallback(async (estadoId: number) => {
-    if (!usuarioId || favoritosEnVuelo.current.has(estadoId)) return;
+    if (!usuarioId || favoritosEnVuelo.current.has(estadoId)) {return;}
     favoritosEnVuelo.current.add(estadoId);
 
     const yaEraFavorito = favoritos.includes(estadoId);
@@ -130,7 +130,7 @@ export default function RutasScreen() {
     try {
       await alternarFavorito(usuarioId, estadoId);
     } catch (e) {
-      if (__DEV__) console.error('Error actualizando favorito:', e);
+      if (__DEV__) {console.error('Error actualizando favorito:', e);}
       // Revertir si el servidor falló
       setFavoritos(prev =>
         yaEraFavorito ? [...prev, estadoId] : prev.filter(id => id !== estadoId)
@@ -164,7 +164,7 @@ export default function RutasScreen() {
           color:            paquete?.color ?? NIVEL_COLOR[nivel] ?? COLOR_RUTA,
           latitude:         estadoEncontrado?.latitude,
           longitude:        estadoEncontrado?.longitude,
-          tieneCoordenadas: estadoEncontrado?.latitude != null && estadoEncontrado?.longitude != null,
+          tieneCoordenadas: estadoEncontrado?.latitude !== null && estadoEncontrado?.latitude !== undefined && estadoEncontrado?.longitude !== null && estadoEncontrado?.longitude !== undefined,
           estadoCompleto:   estadoEncontrado,
         };
       });
@@ -180,7 +180,7 @@ export default function RutasScreen() {
 
   // ─── Crear itinerario ─────────────────────────────────────────────────────
   const crearNuevoItinerario = useCallback(async () => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     const nombre = nuevoNombre.trim();
     const err    = validarNombre(nombre);
     if (err) { Alert.alert('Nombre inválido', err); return; }
@@ -190,14 +190,14 @@ export default function RutasScreen() {
       const actualizados = await crearItinerario(usuarioId, nombre);
       // Buscar por ID nuevo — evita ambigüedad cuando ya existe un itinerario con el mismo nombre
       const creado = actualizados.find(it => !idsPrevios.has(it.id));
-      if (!creado) throw new Error('No se recibió confirmación del servidor.');
+      if (!creado) {throw new Error('No se recibió confirmación del servidor.');}
       setItinerarios(actualizados);
       setItinerarioExpandidoId(creado.id);
       setNuevoNombre('');
       setCreandoNuevo(false);
       toast.mostrar(t('rut_toast_creado'), 'success');
     } catch (e: any) {
-      if (__DEV__) console.error('Error creando itinerario:', e);
+      if (__DEV__) {console.error('Error creando itinerario:', e);}
       toast.mostrar(e?.message ?? (t('error_crear_viaje') || 'No se pudo crear el itinerario'), 'error');
     } finally {
       setGuardandoAccion(false);
@@ -211,7 +211,7 @@ export default function RutasScreen() {
   }, []);
 
   const confirmarEdicion = useCallback(async (itinerarioId: number) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     const nombre = nombreEditado.trim();
     const actual = itinerarios.find(it => it.id === itinerarioId)?.nombre ?? '';
     if (nombre === actual) { cancelarEdicion(); return; }
@@ -222,13 +222,13 @@ export default function RutasScreen() {
       const actualizados = await renombrarItinerario(usuarioId, itinerarioId, nombre);
       const ok = actualizados.find(it => it.id === itinerarioId && it.nombre === nombre);
       // Si no encontramos el item renombrado, algo falló — dejamos el input abierto
-      if (!ok) throw new Error('No se recibió confirmación del servidor.');
+      if (!ok) {throw new Error('No se recibió confirmación del servidor.');}
       setItinerarios(actualizados);
       setEditandoId(null);
       setNombreEditado('');
       toast.mostrar(t('rut_toast_renombrado'), 'success');
     } catch (e: any) {
-      if (__DEV__) console.error('Error renombrando itinerario:', e);
+      if (__DEV__) {console.error('Error renombrando itinerario:', e);}
       toast.mostrar((e?.message ?? (t('error_renombrar_viaje') || 'No se pudo renombrar')) + '. Intenta de nuevo', 'error');
     } finally {
       setGuardandoAccion(false);
@@ -242,12 +242,12 @@ export default function RutasScreen() {
 
   // ─── Eliminar itinerario ──────────────────────────────────────────────────
   const borrarItinerario = useCallback((itinerario: Itinerario) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     setConfirmarBorrado(itinerario);
   }, [usuarioId, guardandoAccion]);
 
   const ejecutarBorrado = useCallback(async () => {
-    if (!usuarioId || !confirmarBorrado) return;
+    if (!usuarioId || !confirmarBorrado) {return;}
     const id = confirmarBorrado.id;
     setConfirmarBorrado(null);
     setGuardandoAccion(true);
@@ -257,10 +257,10 @@ export default function RutasScreen() {
         throw new Error('No se pudo eliminar. Intenta de nuevo.');
       }
       setItinerarios(actualizados);
-      if (itinerarioExpandidoId === id) setItinerarioExpandidoId(null);
+      if (itinerarioExpandidoId === id) {setItinerarioExpandidoId(null);}
       toast.mostrar(t('rut_toast_eliminado'), 'info');
     } catch (e: any) {
-      if (__DEV__) console.error('Error eliminando itinerario:', e);
+      if (__DEV__) {console.error('Error eliminando itinerario:', e);}
       toast.mostrar(e?.message ?? (t('error_eliminar_viaje') || 'No se pudo eliminar el itinerario'), 'error');
     } finally {
       setGuardandoAccion(false);
@@ -269,14 +269,14 @@ export default function RutasScreen() {
 
   // ─── Duplicar itinerario ──────────────────────────────────────────────────
   const duplicar = useCallback(async (itinerario: Itinerario) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     setGuardandoAccion(true);
     try {
       const actualizados = await duplicarItinerario(usuarioId, itinerario.id, `${itinerario.nombre} (copia)`);
       setItinerarios(actualizados);
       toast.mostrar(t('rut_toast_duplicado'), 'success');
     } catch (e) {
-      if (__DEV__) console.error('Error duplicando itinerario:', e);
+      if (__DEV__) {console.error('Error duplicando itinerario:', e);}
       toast.mostrar(t('error_duplicar_viaje') || 'No se pudo duplicar el itinerario', 'error');
     } finally {
       setGuardandoAccion(false);
@@ -304,13 +304,13 @@ export default function RutasScreen() {
 
   // ─── Quitar / agregar destinos ────────────────────────────────────────────
   const quitarDestinoDeItinerario = useCallback(async (itinerarioId: number, clave: string) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     setGuardandoAccion(true);
     try {
       const actualizados = await alternarDestinoItinerario(usuarioId, itinerarioId, clave);
       setItinerarios(actualizados);
     } catch (e) {
-      if (__DEV__) console.error('Error quitando destino:', e);
+      if (__DEV__) {console.error('Error quitando destino:', e);}
       toast.mostrar(t('error_quitar_destino') || 'No se pudo quitar el destino', 'error');
     } finally {
       setGuardandoAccion(false);
@@ -322,7 +322,7 @@ export default function RutasScreen() {
     estadoNombre: string,
     nivel: 'economico' | 'medio' | 'premium',
   ) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     const clave = generarClaveRuta(estadoNombre, nivel);
     setGuardandoAccion(true);
     try {
@@ -332,7 +332,7 @@ export default function RutasScreen() {
       setBusquedaModal('');
       toast.mostrar(t('rut_toast_agregado') || 'Destino agregado', 'success');
     } catch (e) {
-      if (__DEV__) console.error('Error agregando destino:', e);
+      if (__DEV__) {console.error('Error agregando destino:', e);}
       toast.mostrar(t('error_agregar_destino') || 'No se pudo agregar el destino', 'error');
     } finally {
       setGuardandoAccion(false);
@@ -346,17 +346,17 @@ export default function RutasScreen() {
     index: number,
     direccion: 'up' | 'down',
   ) => {
-    if (!usuarioId || guardandoAccion) return;
+    if (!usuarioId || guardandoAccion) {return;}
     const nuevoIndex = direccion === 'up' ? index - 1 : index + 1;
-    if (nuevoIndex < 0 || nuevoIndex >= items.length) return;
+    if (nuevoIndex < 0 || nuevoIndex >= items.length) {return;}
     const nuevas = [...items];
     [nuevas[index], nuevas[nuevoIndex]] = [nuevas[nuevoIndex], nuevas[index]];
     setGuardandoAccion(true);
     try {
       const actualizados = await reordenarItinerarioItems(usuarioId, itinerarioId, nuevas);
-      if (actualizados.length > 0) setItinerarios(actualizados);
+      if (actualizados.length > 0) {setItinerarios(actualizados);}
     } catch (e) {
-      if (__DEV__) console.error('Error reordenando destinos:', e);
+      if (__DEV__) {console.error('Error reordenando destinos:', e);}
       toast.mostrar(t('error_reordenar') || 'No se pudo reordenar los destinos', 'error');
     } finally {
       setGuardandoAccion(false);
@@ -374,8 +374,8 @@ export default function RutasScreen() {
   }, []);
 
   const obtenerEtiquetaNivel = useCallback((nivel: string) => {
-    if (nivel === 'economico') return t('rut_economico');
-    if (nivel === 'premium')   return t('rut_premium');
+    if (nivel === 'economico') {return t('rut_economico');}
+    if (nivel === 'premium')   {return t('rut_premium');}
     return t('rut_medio');
   }, [t]);
 
@@ -385,7 +385,7 @@ export default function RutasScreen() {
 
   // ─── Datos del modal de agregar destino ──────────────────────────────────
   const itinerarioActivoParaAgregar = useMemo(() => {
-    if (!modalAgregarDestino) return null;
+    if (!modalAgregarDestino) {return null;}
     return itinerariosResumen.find(it => it.id === modalAgregarDestino.itinerarioId) ?? null;
   }, [modalAgregarDestino, itinerariosResumen]);
 
@@ -396,7 +396,7 @@ export default function RutasScreen() {
 
   const estadosFiltradosModal = useMemo(() => {
     const q = busquedaModal.trim().toLowerCase();
-    if (!q) return TODOS_LOS_ESTADOS;
+    if (!q) {return TODOS_LOS_ESTADOS;}
     return TODOS_LOS_ESTADOS.filter(e =>
       e.nombre.toLowerCase().includes(q) || e.categoria.toLowerCase().includes(q)
     );
@@ -404,7 +404,7 @@ export default function RutasScreen() {
 
   const sinResultadosEnModal = estadosFiltradosModal.length === 0;
   const todosYaAgregadosEnModal = useMemo(() => {
-    if (sinResultadosEnModal) return false;
+    if (sinResultadosEnModal) {return false;}
     const niveles: ('economico' | 'medio' | 'premium')[] = ['economico', 'medio', 'premium'];
     return estadosFiltradosModal.every(estado =>
       niveles.every(n => clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n)))
@@ -544,7 +544,7 @@ export default function RutasScreen() {
                 const expandido  = itinerarioExpandidoId === itinerario.id;
                 const tabActivo  = tabPorItinerario[itinerario.id] ?? 'destinos';
                 const polylineCoords = itinerario.destinos
-                  .filter(d => d.latitude != null && d.longitude != null)
+                  .filter(d => d.latitude !== null && d.latitude !== undefined && d.longitude !== null && d.longitude !== undefined)
                   .map(d => ({ latitude: d.latitude!, longitude: d.longitude! }));
                 const todasSinCoordenadas =
                   itinerario.destinos.length > 0 && polylineCoords.length === 0;
@@ -841,10 +841,10 @@ export default function RutasScreen() {
                                     rutaNombre={itinerario.nombre}
                                     estadosRuta={itinerario.destinos
                                       .map(d => d.estadoCompleto)
-                                      .filter((e): e is Estado => e != null)}
+                                      .filter((e): e is Estado => e !== null && e !== undefined)}
                                     numerosEstados={itinerario.destinos
-                                      .map((d, i) => d.estadoCompleto != null ? i + 1 : null)
-                                      .filter((n): n is number => n != null)}
+                                      .map((d, i) => d.estadoCompleto !== null && d.estadoCompleto !== undefined ? i + 1 : null)
+                                      .filter((n): n is number => n !== null && n !== undefined)}
                                     polylineCoords={polylineCoords}
                                     favoritos={favoritos}
                                     isDark={isDark}
@@ -937,7 +937,7 @@ export default function RutasScreen() {
                 const nivelesDisponibles = niveles.filter(
                   n => !clavesYaIncluidas.has(generarClaveRuta(estado.nombre, n))
                 );
-                if (nivelesDisponibles.length === 0) return null;
+                if (nivelesDisponibles.length === 0) {return null;}
                 return (
                   <View
                     style={[es.estadoPickerFila, { backgroundColor: tema.superficie, borderColor: tema.borde }]}

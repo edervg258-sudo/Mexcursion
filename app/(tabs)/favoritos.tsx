@@ -132,7 +132,7 @@ export default function FavoritosScreen() {
         setEstadosFavoritos(mapeados);
         Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
       } catch (error) {
-        if (__DEV__) console.error('Error cargando favoritos:', error);
+        if (__DEV__) {console.error('Error cargando favoritos:', error);}
         showToast(t('error_cargar_favoritos') || 'No se pudieron cargar los favoritos', 'error');
       } finally {
         setCargando(false);
@@ -155,7 +155,7 @@ export default function FavoritosScreen() {
       setEstadosFavoritos(mapeados);
       setItinerariosCount(itinerarios.length);
     } catch (error) {
-      if (__DEV__) console.error('Error refrescando favoritos:', error);
+      if (__DEV__) {console.error('Error refrescando favoritos:', error);}
       showToast(t('error_refrescar') || 'Error al actualizar favoritos', 'error');
     } finally {
       setRecargando(false);

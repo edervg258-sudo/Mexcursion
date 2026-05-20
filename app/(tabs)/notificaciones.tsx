@@ -76,7 +76,7 @@ export default function NotificacionesScreen() {
       setNotifs(nuevas);
       setHayMas(nuevas.length === LIMITE);
     } catch (error) {
-      if (__DEV__) console.error('Error cargando notificaciones:', error);
+      if (__DEV__) {console.error('Error cargando notificaciones:', error);}
       setErrorCarga(true);
     } finally {
       setCargando(false);
@@ -93,7 +93,7 @@ export default function NotificacionesScreen() {
       setNotifs(prev => [...prev, ...mas]);
       setHayMas(mas.length === LIMITE);
     } catch (error) {
-      if (__DEV__) console.error('Error cargando más notificaciones:', error);
+      if (__DEV__) {console.error('Error cargando más notificaciones:', error);}
     } finally {
       setCargandoMas(false);
     }

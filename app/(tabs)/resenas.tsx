@@ -53,7 +53,7 @@ export default function ResenasScreen() {
   const [enviado, setEnviado]         = useState(false);
 
   const cargarPagina = useCallback(async (offset: number, append = false) => {
-    if (!nombre) return;
+    if (!nombre) {return;}
     try {
       const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
       if (append) {
@@ -64,9 +64,9 @@ export default function ResenasScreen() {
       }
       setTotalResenas(result.total);
     } catch (error) {
-      if (__DEV__) console.error('Error cargando reseñas:', error);
-      if (!append) setErrorCarga(true);
-      else showToast('No se pudieron cargar más reseñas', 'error');
+      if (__DEV__) {console.error('Error cargando reseñas:', error);}
+      if (!append) {setErrorCarga(true);}
+      else {showToast('No se pudieron cargar más reseñas', 'error');}
     }
   }, [nombre, showToast]);
 
@@ -88,7 +88,7 @@ export default function ResenasScreen() {
   };
 
   const cargarMas = async () => {
-    if (cargandoMas || resenas.length >= totalResenas) return;
+    if (cargandoMas || resenas.length >= totalResenas) {return;}
     setCargandoMas(true);
     await cargarPagina(resenas.length, true);
     setCargandoMas(false);
@@ -114,7 +114,7 @@ export default function ResenasScreen() {
         showToast(t('res_error_enviar') || 'No se pudo publicar la reseña', 'error');
       }
     } catch (error) {
-      if (__DEV__) console.error('Error enviando reseña:', error);
+      if (__DEV__) {console.error('Error enviando reseña:', error);}
       showToast(t('res_error_enviar') || 'Error al enviar la reseña', 'error');
     } finally {
       setEnviando(false);

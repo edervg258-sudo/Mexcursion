@@ -115,7 +115,7 @@ export default function MapaRutas({
 
             {/* Marcadores numerados — usa el índice original del timeline */}
             {estadosRuta.map((estado, i) => {
-              if (estado.latitude == null || estado.longitude == null) return null;
+              if (estado.latitude === null || estado.latitude === undefined || estado.longitude === null || estado.longitude === undefined) {return null;}
               const numero = numerosEstados?.[i] ?? i + 1;
               return (
                 <Marker
