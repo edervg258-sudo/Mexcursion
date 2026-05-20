@@ -19,7 +19,7 @@ type AnalyticsEvent = {
 
 let currentUserId: string | null = null;
 let flushing = false;
-let flushTimer: NodeJS.Timeout | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let eventsSinceFlush = 0;
 
 export const AnalyticsEvents = {
