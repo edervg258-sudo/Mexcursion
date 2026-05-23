@@ -38,13 +38,13 @@ export default function ConfirmacionScreen() {
   }, [escala, opacidad, slideY]);
 
   const detallesBase: DetalleItem[] = [
-    { label: t('conf_viajero'),  valor: nombre_viajero, icono: 'person-outline'    },
-    { label: t('conf_telefono'), valor: telefono,       icono: 'call-outline'      },
-    { label: t('conf_destino'),  valor: nombre,         icono: 'location-outline'  },
-    { label: t('conf_paquete'),  valor: paquete,        icono: 'briefcase-outline' },
-    { label: t('conf_fecha'),    valor: fecha,          icono: 'calendar-outline'  },
-    { label: t('conf_personas'), valor: personas,       icono: 'people-outline'    },
-    { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: 'card-outline' },
+    { label: t('conf_viajero'),  valor: nombre_viajero, icono: 'person-outline' as const    },
+    { label: t('conf_telefono'), valor: telefono,       icono: 'call-outline' as const      },
+    { label: t('conf_destino'),  valor: nombre,         icono: 'location-outline' as const  },
+    { label: t('conf_paquete'),  valor: paquete,        icono: 'briefcase-outline' as const },
+    { label: t('conf_fecha'),    valor: fecha,          icono: 'calendar-outline' as const  },
+    { label: t('conf_personas'), valor: personas,       icono: 'people-outline' as const    },
+    { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: 'card-outline' as const },
   ];
   const detalles = detallesBase.filter(d => d.valor);
 
