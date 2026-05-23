@@ -1,10 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList,
+  ActivityIndicator, Animated, FlatList, Platform,
   StyleSheet, Text, TouchableOpacity, View, useWindowDimensions
 } from 'react-native';
+import { EmptyState } from '../../components/EmptyState';
 import { SkeletonFilas } from './skeletonloader';
 import { TabChrome } from '../../components/TabChrome';
 import { useIdioma } from '../../lib/IdiomaContext';
@@ -23,8 +25,11 @@ type Notif = {
   titulo: string; mensaje: string; creado_en: string; leida: number;
 };
 
-const EMOJI: Record<string, string> = {
-  reserva: '📋', oferta: '🏷️', sistema: '⚙️', resena: '⭐',
+const ICONO: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  reserva:  'reader-outline',
+  oferta:   'pricetag-outline',
+  sistema:  'settings-outline',
+  resena:   'star-outline',
 };
 
 const COLOR: Record<string, string> = {
@@ -56,35 +61,55 @@ export default function NotificacionesScreen() {
   const esPC                  = width >= 768;
   const { t }                 = useIdioma();
   const { tema }              = useTemaContext();
+
+  // ── Animación fade al cargar contenido ───────────────────────────────────
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [notifs, setNotifs]     = useState<Notif[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [hayMas, setHayMas]     = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [filtro, setFiltro]     = useState<'todas' | 'no_leidas'>('todas');
 
-  useFocusEffect(useCallback(() => {
-    const cargar = async () => {
-      setCargando(true);
-      limpiarBadge();
+  const cargarNotifs = useCallback(async () => {
+    setCargando(true);
+    setErrorCarga(false);
+    limpiarBadge();
+    try {
       const usuario = await obtenerUsuarioActivo();
       if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
       setUsuarioId(usuario.id);
       const nuevas = await cargarNotificaciones(usuario.id, LIMITE, 0);
       setNotifs(nuevas);
       setHayMas(nuevas.length === LIMITE);
+    } catch (error) {
+      if (__DEV__) {console.error('Error cargando notificaciones:', error);}
+      setErrorCarga(true);
+    } finally {
       setCargando(false);
-    };
-    cargar();
-  }, []));
+      // Fade-in del contenido al reemplazar el skeleton
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: Platform.OS !== 'web' }).start();
+    }
+  }, [fadeAnim]);
+
+  useFocusEffect(useCallback(() => { cargarNotifs(); }, [cargarNotifs]));
 
   const cargarMas = async () => {
     if (!usuarioId || cargandoMas) { return; }
     setCargandoMas(true);
-    const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
-    setNotifs(prev => [...prev, ...mas]);
-    setHayMas(mas.length === LIMITE);
-    setCargandoMas(false);
+    try {
+      const mas = await cargarNotificaciones(usuarioId, LIMITE, notifs.length);
+      setNotifs(prev => [...prev, ...mas]);
+      setHayMas(mas.length === LIMITE);
+    } catch (error) {
+      if (__DEV__) {console.error('Error cargando más notificaciones:', error);}
+    } finally {
+      setCargandoMas(false);
+    }
   };
 
   const noLeidas = notifs.filter(n => !n.leida).length;
@@ -107,7 +132,7 @@ export default function NotificacionesScreen() {
       activeOpacity={0.8}
     >
       <View style={[s.iconoCirculo, { backgroundColor: (COLOR[item.tipo] ?? '#888') + '22' }]}>
-        <Text style={s.iconoEmoji}>{EMOJI[item.tipo] ?? '🔔'}</Text>
+        <Ionicons name={ICONO[item.tipo] ?? 'notifications-outline'} size={22} color={COLOR[item.tipo] ?? '#888'} />
       </View>
       <View style={{ flex: 1, gap: 3 }}>
         <View style={s.itemHeader}>
@@ -136,12 +161,21 @@ export default function NotificacionesScreen() {
       </View>
       {cargando ? (
         <SkeletonFilas cantidad={6} />
+      ) : errorCarga ? (
+        <EmptyState
+          icono="cloud-offline-outline"
+          titulo="Error al cargar"
+          subtitulo="Revisa tu conexión e intenta de nuevo."
+          colorIcono="#DD331D"
+          btnLabel="Reintentar"
+          onBtnPress={cargarNotifs}
+        />
       ) : visibles.length === 0 ? (
-        <View style={s.vacio}>
-          <Text style={s.vacioemoji}>🔔</Text>
-          <Text style={[s.vacioTitulo, { color: tema.texto }]}>{t('notif_vacio')}</Text>
-          <Text style={[s.vacioSub, { color: tema.textoMuted }]}>{filtro === 'no_leidas' ? t('notif_leidas_sub') : t('notif_vacio_sub')}</Text>
-        </View>
+        <EmptyState
+          icono="notifications-off-outline"
+          titulo={t('notif_vacio')}
+          subtitulo={filtro === 'no_leidas' ? t('notif_leidas_sub') : t('notif_vacio_sub')}
+        />
       ) : (
         <FlatList
           data={visibles}
@@ -178,7 +212,9 @@ export default function NotificacionesScreen() {
         )
       }
     >
-      {contenido}
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+        {contenido}
+      </Animated.View>
     </TabChrome>
   );
 }
@@ -199,7 +235,6 @@ const s = StyleSheet.create({
   item:            { flexDirection: 'row', gap: 12, paddingVertical: 14, paddingHorizontal: 4, backgroundColor: '#FAF7F0' },
   itemNoLeida:     { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 12, marginHorizontal: -4 },
   iconoCirculo:    { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  iconoEmoji:      { fontSize: 22 },
   itemHeader:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemTitulo:      { fontSize: 14, fontWeight: '600', color: '#555', flex: 1 },
   puntito:         { width: 8, height: 8, borderRadius: 4 },
@@ -207,8 +242,4 @@ const s = StyleSheet.create({
   itemFecha:       { fontSize: 11, color: '#bbb' },
   btnCargarMas:    { marginHorizontal: 16, marginTop: 8, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtCargarMas:    { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },
-  vacio:           { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  vacioemoji:      { fontSize: 52 },
-  vacioTitulo:     { fontSize: 18, fontWeight: '700', color: '#333' },
-  vacioSub:        { fontSize: 13, color: '#888' },
 });

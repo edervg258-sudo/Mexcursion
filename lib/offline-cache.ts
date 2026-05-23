@@ -5,7 +5,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Estado, Sugerencia } from './tipos';
-import { addBreadcrumb, captureApiError } from './sentry';
 
 // Keys para AsyncStorage
 const CACHE_KEYS = {
@@ -129,11 +128,6 @@ class OfflineQueue {
       const op: OfflineOperation = { ...operation, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: Date.now(), attempts: operation.attempts ?? 0 };
       this.queue.push(op);
       await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(this.queue));
-      addBreadcrumb({
-        category: 'offline_queue',
-        message: 'operation_enqueued',
-        data: { type: op.type, id: op.id },
-      });
     } catch (error) {
       console.warn('Error agregando a queue offline:', error);
     }
@@ -151,25 +145,19 @@ class OfflineQueue {
           // Procesar cada operación
           await this.processOperation(operation);
         } catch (error) {
-          console.warn('Error procesando operación offline:', error);
           const nextAttempts = (operation.attempts ?? 0) + 1;
           if (nextAttempts < 5) {
             // Re-agregar al queue si falla (máximo 5 intentos)
             this.queue.push({ ...operation, attempts: nextAttempts });
           } else {
-            captureApiError({
-              feature: 'offline_queue',
-              action: 'drop_failed_operation',
-              error,
-              metadata: { type: operation.type, id: operation.id },
-            });
+            console.error('Offline operation dropped after max retries:', operation.type, operation.id);
           }
         }
       }
 
       await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(this.queue));
     } catch (error) {
-      console.warn('Error procesando queue offline:', error);
+      // Queue processing error already handled by operation-level try/catch
     }
   }
 
@@ -226,7 +214,6 @@ export const withOfflineSupport = async <T>(
     try {
       return await onlineOperation();
     } catch (error) {
-      console.warn('Error en operación online, usando fallback:', error);
       if (offlineFallback) return offlineFallback();
       throw error;
     }

@@ -442,44 +442,8 @@ CREATE POLICY "historial_all_own"
 
 
 -- ════════════════════════════════════════════════════════════
---  11. ANALYTICS_EVENTOS
--- ════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS public.analytics_eventos (
-  id           BIGSERIAL PRIMARY KEY,
-  user_id      UUID NULL REFERENCES public.usuarios(id) ON DELETE SET NULL,
-  event_name   TEXT NOT NULL,
-  properties   JSONB NOT NULL DEFAULT '{}'::jsonb,
-  platform     TEXT NOT NULL DEFAULT 'unknown',
-  app_version  TEXT NOT NULL DEFAULT '1.0.0',
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-ALTER TABLE public.analytics_eventos ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "analytics_insert_auth" ON public.analytics_eventos;
-DROP POLICY IF EXISTS "analytics_insert_anon" ON public.analytics_eventos;
-DROP POLICY IF EXISTS "analytics_select_own" ON public.analytics_eventos;
-DROP POLICY IF EXISTS "analytics_select_admin" ON public.analytics_eventos;
-
-CREATE POLICY "analytics_insert_auth"
-  ON public.analytics_eventos FOR INSERT TO authenticated
-  WITH CHECK (user_id IS NULL OR user_id = auth.uid());
-
-CREATE POLICY "analytics_insert_anon"
-  ON public.analytics_eventos FOR INSERT TO anon
-  WITH CHECK (user_id IS NULL);
-
-CREATE POLICY "analytics_select_own"
-  ON public.analytics_eventos FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
-
-CREATE POLICY "analytics_select_admin"
-  ON public.analytics_eventos FOR SELECT TO authenticated
-  USING (es_admin());
-
--- ════════════════════════════════════════════════════════════
 -- MIGRATION TRACKING: Log this migration as applied
 -- ════════════════════════════════════════════════════════════
 INSERT INTO schema_migrations (version, description, type, success)
-VALUES ('20260424_120000', 'Initialize core schema with 11 tables, RLS policies, and functions', 'schema', true)
+VALUES ('20260424_120000', 'Initialize core schema with tables, RLS policies, and functions', 'schema', true)
 ON CONFLICT (version) DO NOTHING;

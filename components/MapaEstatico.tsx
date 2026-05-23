@@ -2,6 +2,7 @@
 //  components/MapaEstatico.tsx  —  Mapa estático simple (sin APIs)
 // ============================================================
 
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useTemaContext } from '../lib/TemaContext';
@@ -24,7 +25,7 @@ export function MapaEstatico({
   return (
     <View style={[estilos.container, style, { backgroundColor: isDark ? '#2a2a2a' : '#f0f0f0' }]}>
       <View style={estilos.mapPlaceholder}>
-        <Text style={[estilos.mapIcon, { color: isDark ? '#fff' : '#666' }]}>🗺️</Text>
+        <Ionicons name="map-outline" size={48} color={isDark ? '#fff' : '#666'} style={{ marginBottom: 12 }} />
         <Text style={[estilos.title, { color: isDark ? '#fff' : '#333' }]}>
           {title}
         </Text>
@@ -55,10 +56,6 @@ const estilos = StyleSheet.create({
   mapPlaceholder: {
     alignItems: 'center',
     padding: 20,
-  },
-  mapIcon: {
-    fontSize: 48,
-    marginBottom: 12,
   },
   title: {
     fontSize: 18,

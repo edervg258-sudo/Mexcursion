@@ -1,6 +1,7 @@
 // components/AdminDashboard.tsx - Dashboard mejorado para panel admin
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SkeletonFilas } from '../app/(tabs)/skeletonloader';
 import { Tema } from '../lib/tema';
 
@@ -8,6 +9,9 @@ interface DashboardStats {
   totalReservas: number;
   ingresos: number;
   confirmadas: number;
+  pendientes: number;
+  completadas: number;
+  canceladas: number;
   usuarios: number;
   destinosActivos: number;
   reservasHoy: number;
@@ -22,9 +26,10 @@ interface AdminDashboardProps {
   stats: DashboardStats;
   cargando: boolean;
   esPC: boolean;
+  onIrAPendientes?: () => void;
 }
 
-export function AdminDashboard({ stats, cargando, esPC }: AdminDashboardProps) {
+export function AdminDashboard({ stats, cargando, esPC, onIrAPendientes }: AdminDashboardProps) {
   const StatCard = ({ label, valor, color, trend }: { 
     label: string; 
     valor: string | number; 
@@ -101,12 +106,37 @@ export function AdminDashboard({ stats, cargando, esPC }: AdminDashboardProps) {
   return (
     <ScrollView contentContainerStyle={estilos.seccionScroll}>
       <Text style={estilos.seccionTitulo}>Panel de administración</Text>
-      
+
+      {/* Alerta de reservas pendientes */}
+      {stats.pendientes > 0 && (
+        <TouchableOpacity
+          onPress={onIrAPendientes}
+          activeOpacity={0.8}
+          style={estilos.alertaPendientes}
+        >
+          <View style={estilos.alertaPendientesLeft}>
+            <Ionicons name="time-outline" size={28} color="#b8860b" />
+            <View>
+              <Text style={estilos.alertaPendientesTitulo}>
+                {stats.pendientes} reserva{stats.pendientes !== 1 ? 's' : ''} pendiente{stats.pendientes !== 1 ? 's' : ''} de confirmar
+              </Text>
+              <Text style={estilos.alertaPendientesSub}>
+                Reservas esperando verificación
+              </Text>
+            </View>
+          </View>
+          <Text style={estilos.alertaPendientesFlecha}>›</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Stats principales */}
       <View style={[estilos.gridStats, esPC && estilos.gridStatsPC]}>
         <StatCard label="Reservas totales"  valor={stats.totalReservas}                    color={Tema.primario}      trend={stats.trendReservas} />
         <StatCard label="Ingresos MXN"      valor={`$${stats.ingresos.toLocaleString()}`}  color="#27AE60"            trend={stats.trendIngresos} />
-        <StatCard label="Confirmadas"       valor={stats.confirmadas}                       color="#9A7118" />
+        <StatCard label="Confirmadas"       valor={stats.confirmadas}                       color={Tema.primario} />
+        <StatCard label="Pendientes"        valor={stats.pendientes}                        color="#9A7118" />
+        <StatCard label="Completadas"       valor={stats.completadas}                       color="#3E5FA8" />
+        <StatCard label="Canceladas"        valor={stats.canceladas}                        color="#DD331D" />
         <StatCard label="Usuarios activos"  valor={stats.usuarios}                          color="#3E5FA8"            trend={stats.crecimientoUsuarios} />
         <StatCard label="Destinos activos"  valor={stats.destinosActivos}                   color={Tema.primarioOscuro} />
         <StatCard label="Reservas hoy"      valor={stats.reservasHoy}                       color="#E91E63" />
@@ -152,6 +182,38 @@ const estilos = StyleSheet.create({
   seccionScroll: {
     padding: 20,
     paddingBottom: 100,
+  },
+  alertaPendientes: {
+    backgroundColor: '#FEF8E8',
+    borderWidth: 1,
+    borderColor: '#9A7118',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  alertaPendientesLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  alertaPendientesTitulo: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7A5A10',
+  },
+  alertaPendientesSub: {
+    fontSize: 12,
+    color: '#9A7118',
+    marginTop: 2,
+  },
+  alertaPendientesFlecha: {
+    fontSize: 24,
+    color: '#9A7118',
+    fontWeight: '700',
   },
   seccionTitulo: {
     fontSize: 28,

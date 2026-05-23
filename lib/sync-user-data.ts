@@ -168,7 +168,7 @@ export async function sincronizarDatosUsuario(): Promise<void> {
     await secureSet(SYNC_KEYS.LAST_SYNC, now);
 
   } catch (error) {
-    console.error('Error sincronizando datos de usuario:', error);
+    // Sync errors are not critical - app continues with local data
   }
 }
 

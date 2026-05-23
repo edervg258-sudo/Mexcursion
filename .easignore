@@ -1,20 +1,41 @@
-# EAS Build ignore file
-# Reduce upload size by excluding unnecessary files
-
-node_modules/
+# Git history — no se necesita para el build remoto
 .git/
-.gitignore
+
+# Dependencias — EAS las reinstala
+node_modules/
+
+# Build artifacts Android
 android/build/
+android/app/build/
 android/.gradle/
-ios/Pods/
+android/.idea/
+android/captures/
+
+# iOS
 ios/build/
-.expo/
+ios/Pods/
+
+# Web build
 dist/
-build/
-.env.local
-.env.*.local
-*.log
-.DS_Store
-.turbo/
+web-build/
+
+# IDEs y herramientas locales
+.claude/
+.cursor/
+.kilo/
+.claire/
+.vs/
+.idea/
+.expo/
+.expo-shared/
+.vscode/
+
+# Tests y cobertura
 coverage/
-.jest/
+e2e/
+
+# Misceláneos
+docs/
+*.log
+*.pid
+npm-debug.log*

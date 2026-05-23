@@ -18,6 +18,15 @@ allprojects {
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
   }
+  afterEvaluate {
+    if (it.hasProperty('android')) {
+      android.packagingOptions {
+        jniLibs {
+          pickFirsts += ['**/libfbjni.so']
+        }
+      }
+    }
+  }
 }
 
 apply plugin: "expo-root-project"

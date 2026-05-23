@@ -2,12 +2,14 @@
 //  components/DestinoCard.tsx
 // ============================================================
 
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  Animated, Image, Platform, StyleSheet,
+  Animated, Image, Platform, Share, StyleSheet,
   Text, TouchableOpacity, View, type ImageSourcePropType,
 } from 'react-native';
+import { crearUrlDestino } from '../lib/constantes/deep-links';
 
 interface Destino {
   id: number;
@@ -31,6 +33,17 @@ interface Props {
 }
 
 export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, animFav, onToggleFavorito, resumenResenas }: Props) {
+  const compartir = async () => {
+    const url = crearUrlDestino(item.nombre, item.categoria);
+    try {
+      await Share.share({
+        title: `${item.nombre} — Mexcursión`,
+        message: `Descubre ${item.nombre} con Mexcursión.\n${item.descripcion}\n\n${url}`,
+        url,
+      });
+    } catch { /* silencioso */ }
+  };
+
   return (
     <Animated.View style={{
       opacity: fadeAnim,
@@ -59,8 +72,9 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
           </View>
           {resumenResenas?.total ? (
             <View style={s.badgeResenas}>
+              <Ionicons name="star" size={10} color="#fff" />
               <Text style={s.textoBadgeResenas}>
-                {resumenResenas.promedio.toFixed(1)} ★ · {resumenResenas.total} reseñas
+                {resumenResenas.promedio.toFixed(1)} · {resumenResenas.total} reseñas
               </Text>
             </View>
           ) : null}
@@ -84,6 +98,16 @@ export const DestinoCard = React.memo(function DestinoCard({ item, fadeAnim, ani
               resizeMode="contain"
             />
           </Animated.View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={s.botonCompartir}
+          onPress={compartir}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Compartir ${item.nombre}`}
+        >
+          <Ionicons name="share-social-outline" size={18} color="#3AB7A5" />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -112,12 +136,23 @@ const s = StyleSheet.create({
   textoBadge:       { color: '#fff', fontSize: 11, fontWeight: '700' },
   badgePrecio:      { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 11, paddingVertical: 5, borderRadius: 14 },
   textoPrecio:      { color: '#fff', fontSize: 11, fontWeight: '600' },
-  badgeResenas:     { position: 'absolute', top: 12, left: 92, backgroundColor: 'rgba(0,0,0,0.42)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, maxWidth: '58%' },
+  badgeResenas:     { position: 'absolute', top: 12, left: 92, backgroundColor: 'rgba(0,0,0,0.42)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, maxWidth: '58%', flexDirection: 'row', alignItems: 'center', gap: 4 },
   textoBadgeResenas:{ color: '#fff', fontSize: 10, fontWeight: '700' },
   nombreTarjeta:    { position: 'absolute', bottom: 32, left: 14, fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.3, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   descripcionTarjeta:{ position: 'absolute', bottom: 12, left: 14, fontSize: 12, color: 'rgba(255,255,255,0.92)', width: '72%', lineHeight: 16 },
   botonFavorito:    {
     position: 'absolute', top: 12, right: 12,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 },
+      default: { elevation: 4 },
+    }),
+  },
+  botonCompartir:   {
+    position: 'absolute', top: 58, right: 12,
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.94)',
     alignItems: 'center', justifyContent: 'center',

@@ -24,9 +24,9 @@ const mockDestino = {
   categoria: 'Playa',
   descripcion: '天堂 tropical con ruinas mayas',
   precio: 1500,
-  imagen: { uri: 'https://example.com/cancun.jpg' } as ReturnType<typeof require>,
+  imagen: { uri: 'https://example.com/cancun.jpg' },
   favorito: false,
-};
+} as any;
 
 describe('DestinoCard', () => {
   const mockFadeAnim = { interpolate: jest.fn(() => ({ translateY: jest.fn() })) } as unknown as Animated.Value;
@@ -94,6 +94,6 @@ describe('DestinoCard', () => {
         resumenResenas={{ promedio: 4.7, total: 18 }}
       />
     );
-    expect(getByText('4.7 ★ · 18 reseñas')).toBeTruthy();
+    expect(getByText('4.7 · 18 reseñas')).toBeTruthy();
   });
 });
