@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DestinoCard } from '../../components/DestinoCard';
+import { NotificationIconButton } from '../../components/NotificationIconButton';
 import { SkeletonLista } from './skeletonloader';
 import {
     Animated,
@@ -119,7 +121,7 @@ export default function MenuScreen() {
     setRefreshing(false);
   }, [usuarioId]);
 
-  const manejarFavorito = async (id: number) => {
+  const manejarFavorito = useCallback(async (id: number) => {
     if (!usuarioId) {return;}
     // Animación spring: crece y vuelve
     const anim = obtenerAnimFav(id);
@@ -133,33 +135,34 @@ export default function MenuScreen() {
     } catch {
       // silencioso — el estado local no se actualiza y el usuario puede reintentar
     }
-  };
+  }, [usuarioId, obtenerAnimFav]);
 
-  const estadosFiltrados = estados
+  const estadosFiltrados = useMemo(() => estados
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     .filter((e) => categoriaActiva === 'Todos' || e.categoria === categoriaActiva)
     .sort((a, b) => {
       if (orden === 'mas_caro') {return b.precio - a.precio;}
       if (orden === 'mas_barato') {return a.precio - b.precio;}
       return a.nombre.localeCompare(b.nombre);
-    });
+    }), [estados, busqueda, categoriaActiva, orden]);
 
   const { data: resumenesResenas = {} } = useQuery({
     queryKey: ['resumen-resenas-menu'],
     queryFn: () => cargarResumenResenas(TODOS_LOS_ESTADOS.map(estado => estado.nombre)),
     staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
   });
 
-  const navegarPestana = (ruta: string) => router.replace(ruta as any);
+  const navegarPestana = useCallback((ruta: string) => router.replace(ruta as any), []);
 
-  const estaActiva = (ruta: string) => {
+  const estaActiva = useCallback((ruta: string) => {
     const segmento = ruta.replace('/(tabs)', '');
     return rutaActual.endsWith(segmento);
-  };
+  }, [rutaActual]);
 
   const etiquetaOrdenActual = OPCIONES_ORDEN.find((o) => o.clave === orden)?.etiqueta ?? t('menu_orden_az');
 
-  const renderizarEstado = ({ item }: { item: Estado }) => (
+  const renderizarEstado = useCallback(({ item }: { item: Estado }) => (
     <DestinoCard
       item={item}
       fadeAnim={fadeAnim}
@@ -167,7 +170,7 @@ export default function MenuScreen() {
       onToggleFavorito={manejarFavorito}
       resumenResenas={resumenesResenas[item.nombre]}
     />
-  );
+  ), [fadeAnim, obtenerAnimFav, manejarFavorito, resumenesResenas]);
 
   // Sidebar (PC)
   const renderSidebar = () => (
@@ -206,18 +209,7 @@ export default function MenuScreen() {
         </View>
 
         <View style={estilos.iconosEncabezado}>
-          <TouchableOpacity
-            style={[
-              estilos.botonIcono,
-              {
-                backgroundColor: isDark ? tema.superficie : tema.superficieBlanca,
-                borderColor: isDark ? tema.borde : tema.bordeInput,
-              },
-            ]}
-            onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)}
-          >
-            <Image source={require('../../assets/images/notificaciones.png')} style={estilos.iconoEncabezado} resizeMode="contain" />
-          </TouchableOpacity>
+          <NotificationIconButton onPress={() => router.push(RUTAS_APP.NOTIFICACIONES as any)} />
         </View>
       </View>
 
@@ -233,10 +225,11 @@ export default function MenuScreen() {
               placeholderTextColor={Tema.textoMuted}
               value={busqueda}
               onChangeText={setBusqueda}
+              underlineColorAndroid="transparent"
             />
             {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda('')}>
-                <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
+              <TouchableOpacity onPress={() => setBusqueda('')} style={{ paddingHorizontal: 4 }}>
+                <Ionicons name="close" size={16} color={Tema.textoMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -251,7 +244,7 @@ export default function MenuScreen() {
               <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>
                 {etiquetaOrdenActual}
               </Text>
-              <Text style={[estilos.chevron, dropdownAbierto && { color: '#fff' }]}>{dropdownAbierto ? '▲' : '▼'}</Text>
+              <Ionicons name={dropdownAbierto ? 'chevron-up' : 'chevron-down'} size={14} color={dropdownAbierto ? '#fff' : Tema.textoMuted} />
             </TouchableOpacity>
 
             {/* Dropdown: posicionado relativo al botón, con zIndex alto */}
@@ -273,7 +266,7 @@ export default function MenuScreen() {
                     <Text style={[estilos.textoDropdown, orden === op.clave && estilos.textoDropdownActivo]}>
                       {op.etiqueta}
                     </Text>
-                    {orden === op.clave && <Text style={{ color: Tema.primario, fontSize: 14 }}>✓</Text>}
+                    {orden === op.clave && <Ionicons name="checkmark" size={14} color={Tema.primario} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -326,7 +319,7 @@ export default function MenuScreen() {
           <SkeletonLista cantidad={4} />
         ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>
-            <Text style={estilos.textoVacio}>🗺️</Text>
+            <Ionicons name="map-outline" size={52} color="#3AB7A5" style={{ marginBottom: 8 }} />
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
             <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>
@@ -376,7 +369,7 @@ export default function MenuScreen() {
           <SafeAreaView style={estilos.areaSeguraMovil}>{renderContenido()}</SafeAreaView>
 
           {/* Barra inferior de pestañas */}
-          <View style={[estilos.envolturaBarra, { backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, paddingBottom: Math.max(bottomInset, 10), ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
+          <View style={[estilos.envolturaBarra, { backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, paddingBottom: bottomInset, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
             <View style={[estilos.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
               {Array.isArray(PESTANAS) &&
                 PESTANAS.map((p) => {
@@ -439,27 +432,6 @@ const estilos = StyleSheet.create({
   saludo: { fontSize: 12, color: Platform.OS === 'android' ? Tema.primario : Tema.textoMuted, fontWeight: '600' },
   tituloEncabezado: { fontSize: 20, fontWeight: '800', color: Platform.OS === 'android' ? Tema.primario : Tema.texto, letterSpacing: -0.4 },
   iconosEncabezado: { flexDirection: 'row', alignItems: 'center' },
-  botonIcono: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Tema.superficieBlanca,
-    borderWidth: 1.5,
-    borderColor: Tema.bordeInput,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#1A3D38',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      default: { elevation: 3 },
-    }),
-  },
-  iconoEncabezado: { width: 26, height: 26 },
-
   contenedorCentrado: { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
 
   // Búsqueda
@@ -470,8 +442,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Tema.superficieBlanca,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Tema.borde,
+    borderWidth: 0,
     paddingHorizontal: 14,
     height: 46,
     ...Platform.select({
@@ -485,7 +456,7 @@ const estilos = StyleSheet.create({
     }),
   },
   iconoBusquedaImg: { width: 18, height: 18, marginRight: 6 },
-  inputBusqueda: { flex: 1, fontSize: 15, color: Tema.texto },
+  inputBusqueda: { flex: 1, fontSize: 15, color: Tema.texto, outlineStyle: 'none' } as any,
 
   // Filtro dropdown
   botonFiltro: {
@@ -611,10 +582,10 @@ const estilos = StyleSheet.create({
     backgroundColor: Tema.superficieBlanca,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 10,
+    paddingBottom: 0,
   },
   barraPestanas: { flexDirection: 'row', backgroundColor: 'transparent', width: '100%', maxWidth: 800, alignSelf: 'center' },
   itemPestana: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, height: 56 },
   etiquetaPestana: { fontSize: 10, color: Tema.textoMuted, marginTop: 2, fontWeight: '500' },
-  etiquetaPestanaActiva: { color: Tema.acento, fontWeight: '700' },
+  etiquetaPestanaActiva: { color: Tema.primario, fontWeight: '700' },
 });

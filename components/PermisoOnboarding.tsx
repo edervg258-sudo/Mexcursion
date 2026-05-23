@@ -33,7 +33,6 @@ interface Props {
 }
 
 type ConfigPermiso = {
-  emoji: string;
   icono: React.ComponentProps<typeof Ionicons>['name'];
   titulo: string;
   descripcion: string;
@@ -43,7 +42,6 @@ type ConfigPermiso = {
 
 const CONFIG: Record<TipoPermiso, ConfigPermiso> = {
   notificaciones: {
-    emoji: '🔔',
     icono: 'notifications-outline',
     titulo: 'Activa las notificaciones',
     descripcion: 'Mantente al tanto de tu próximo viaje y no te pierdas nada importante.',
@@ -55,7 +53,6 @@ const CONFIG: Record<TipoPermiso, ConfigPermiso> = {
     btnAceptar: 'Activar notificaciones',
   },
   ubicacion: {
-    emoji: '📍',
     icono: 'location-outline',
     titulo: 'Usa tu ubicación',
     descripcion: 'Encontramos los destinos más cercanos a ti y estimamos tiempos de traslado.',
@@ -96,7 +93,7 @@ export function PermisoOnboarding({ visible, tipo, onAceptar, onRechazar }: Prop
 
         {/* Ícono grande */}
         <View style={[es.iconoCirculo, { backgroundColor: isDark ? '#1e3a38' : '#e8f8f5' }]}>
-          <Text style={es.emoji}>{cfg.emoji}</Text>
+          <Ionicons name={cfg.icono} size={36} color="#3AB7A5" />
         </View>
 
         {/* Textos */}
@@ -114,9 +111,10 @@ export function PermisoOnboarding({ visible, tipo, onAceptar, onRechazar }: Prop
         </View>
 
         {/* Privacidad */}
-        <Text style={[es.privacidad, { color: tema.textoMuted }]}>
-          🔒 Tus datos nunca se comparten con terceros.
-        </Text>
+        <View style={es.privacidadRow}>
+          <Ionicons name="lock-closed-outline" size={13} color={tema.textoMuted} />
+          <Text style={[es.privacidad, { color: tema.textoMuted }]}>Tus datos nunca se comparten con terceros.</Text>
+        </View>
 
         {/* Botones */}
         <TouchableOpacity style={es.btnAceptar} onPress={onAceptar} activeOpacity={0.85}>
@@ -162,7 +160,12 @@ const es = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
   },
-  emoji: { fontSize: 36 },
+  privacidadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 20,
+  },
   titulo: {
     fontSize: 22,
     fontWeight: '800',
@@ -197,8 +200,6 @@ const es = StyleSheet.create({
   },
   privacidad: {
     fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 20,
   },
   btnAceptar: {
     width: '100%',

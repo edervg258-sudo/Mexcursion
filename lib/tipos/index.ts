@@ -76,7 +76,6 @@ export type LA = { es: string[]; en: string[] };
 export interface Paquete {
   nivel: Nivel;
   color: string;
-  emoji: string;
   precioTotal: string;
   hotel: string;
   estrellas: number;

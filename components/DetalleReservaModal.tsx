@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIdioma } from '../lib/IdiomaContext';
 import { useTemaContext } from '../lib/TemaContext';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseFecha(fecha: string): Date | null {
-  if (!fecha) { return null; }
+  if (!fecha) {return null;}
   // ISO → Date
   if (fecha.includes('T') || fecha.includes('-')) {
     const d = new Date(fecha);
@@ -52,20 +53,20 @@ function parseFecha(fecha: string): Date | null {
   }
   // DD/MM/YYYY
   const [dd, mm, yyyy] = fecha.split('/');
-  if (!dd || !mm || !yyyy) { return null; }
+  if (!dd || !mm || !yyyy) {return null;}
   const d = new Date(`${yyyy}-${mm}-${dd}`);
   return isNaN(d.getTime()) ? null : d;
 }
 
 function formatearFechaLarga(fecha: string): string {
   const d = parseFecha(fecha);
-  if (!d) { return fecha; }
+  if (!d) {return fecha;}
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function diasHastaViaje(fecha: string): number {
   const d = parseFecha(fecha);
-  if (!d) { return 0; }
+  if (!d) {return 0;}
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const ms = d.getTime() - hoy.getTime();
@@ -78,30 +79,30 @@ function politicaCancelacion(dias: number): {
   color: string;
   icono: 'checkmark-circle' | 'alert-circle' | 'close-circle' | 'information-circle';
 } {
-  if (dias > 30) { return {
+  if (dias > 30) {return {
     titulo: 'Cancelación gratuita',
     descripcion: 'Puedes cancelar sin costo hasta 30 días antes de tu viaje.',
     color: '#3AB7A5',
     icono: 'checkmark-circle',
-  }; }
-  if (dias > 14) { return {
+  };}
+  if (dias > 14) {return {
     titulo: 'Cancelación con 25% de cargo',
     descripcion: 'Entre 15 y 30 días antes del viaje aplica un cargo del 25% del total.',
     color: '#f5a623',
     icono: 'alert-circle',
-  }; }
-  if (dias > 7) { return {
+  };}
+  if (dias > 7) {return {
     titulo: 'Cancelación con 50% de cargo',
     descripcion: 'Entre 8 y 14 días antes aplica un cargo del 50% del total.',
     color: '#f5a623',
     icono: 'alert-circle',
-  }; }
-  if (dias >= 0) { return {
+  };}
+  if (dias >= 0) {return {
     titulo: 'Sin reembolso',
     descripcion: 'A menos de 7 días del viaje no aplican reembolsos.',
     color: '#DD331D',
     icono: 'close-circle',
-  }; }
+  };}
   return {
     titulo: 'Viaje ya realizado',
     descripcion: 'Este viaje ya ocurrió. Gracias por viajar con Mexcursión.',
@@ -129,7 +130,7 @@ function generarICS(r: ReservaDetalle): string {
     'BEGIN:VEVENT',
     `DTSTART;VALUE=DATE:${ymd}`,
     `DTEND;VALUE=DATE:${ymdNext}`,
-    `SUMMARY:✈️ Viaje a ${r.destino}`,
+    `SUMMARY:Viaje a ${r.destino}`,
     `DESCRIPTION:Folio: ${r.folio}\\nPaquete: ${r.paquete}\\nPersonas: ${r.personas}\\nTotal: $${r.total.toLocaleString()} MXN`,
     `LOCATION:${r.destino}\\, México`,
     'STATUS:CONFIRMED',
@@ -140,47 +141,51 @@ function generarICS(r: ReservaDetalle): string {
   ].join('\r\n');
 }
 
-const METODO_LABEL: Record<string, string> = {
-  tarjeta: '💳 Tarjeta',
-  spei:    '🏦 SPEI',
-  oxxo:    '🏪 OXXO Pay',
-};
 
-const COLOR_ESTADO: Record<string, { fondo: string; texto: string; etiqueta: string }> = {
-  confirmada: { fondo: '#e8f8f5', texto: '#3AB7A5', etiqueta: '✓ Confirmada'   },
-  pendiente:  { fondo: '#fff8e1', texto: '#b8860b', etiqueta: '⏳ Pendiente'    },
-  completada: { fondo: '#f0f0f0', texto: '#888',    etiqueta: '✔ Completada'   },
-  cancelada:  { fondo: '#fef0f0', texto: '#DD331D', etiqueta: '✕ Cancelada'    },
+const COLOR_ESTADO_BASE: Record<string, { fondo: string; texto: string }> = {
+  confirmada: { fondo: '#e8f8f5', texto: '#3AB7A5' },
+  pendiente:  { fondo: '#fff8e1', texto: '#b8860b' },
+  completada: { fondo: '#f0f0f0', texto: '#888'    },
+  cancelada:  { fondo: '#fef0f0', texto: '#DD331D' },
 };
 
 // ── Componente ────────────────────────────────────────────────────────────────
-export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
+export const DetalleReservaModal = React.memo(function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   const { tema, isDark } = useTemaContext();
+  const { t } = useIdioma();
   const { bottom } = useSafeAreaInsets();
 
   const dias = useMemo(() => reserva ? diasHastaViaje(reserva.fecha) : 0, [reserva]);
   const politica = useMemo(() => politicaCancelacion(dias), [dias]);
-  const est = reserva ? (COLOR_ESTADO[reserva.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: reserva.estado }) : null;
+
+  const COLOR_ESTADO = useMemo(() => ({
+    confirmada: { ...COLOR_ESTADO_BASE.confirmada, etiqueta: t('res_estado_confirmada') },
+    pendiente:  { ...COLOR_ESTADO_BASE.pendiente,  etiqueta: t('res_estado_pendiente')  },
+    completada: { ...COLOR_ESTADO_BASE.completada, etiqueta: t('res_estado_completada') },
+    cancelada:  { ...COLOR_ESTADO_BASE.cancelada,  etiqueta: t('res_estado_cancelada')  },
+  }), [t]);
+
+  const est = reserva ? (COLOR_ESTADO[reserva.estado as keyof typeof COLOR_ESTADO] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: reserva.estado }) : null;
 
   const compartirReserva = async () => {
-    if (!reserva) { return; }
+    if (!reserva) {return;}
     try {
       await Share.share({
         title: `Reserva ${reserva.folio} — Mexcursión`,
         message:
-          `🌮 *Mi reserva en Mexcursión*\n\n` +
-          `📍 Destino: ${reserva.destino}\n` +
-          `📋 Folio: ${reserva.folio}\n` +
-          `📅 Fecha: ${formatearFechaLarga(reserva.fecha)}\n` +
-          `👥 Personas: ${reserva.personas}\n` +
-          `💰 Total: $${reserva.total.toLocaleString()} MXN\n\n` +
-          `¡Descubre México con Mexcursión! 🇲🇽`,
+          `Mi reserva en Mexcursión\n\n` +
+          `Destino: ${reserva.destino}\n` +
+          `Folio: ${reserva.folio}\n` +
+          `Fecha: ${formatearFechaLarga(reserva.fecha)}\n` +
+          `Personas: ${reserva.personas}\n` +
+          `Total: $${reserva.total.toLocaleString()} MXN\n\n` +
+          `Descubre México con Mexcursión`,
       });
     } catch { /* silencioso */ }
   };
 
   const agregarAlCalendario = async () => {
-    if (!reserva) { return; }
+    if (!reserva) {return;}
     const ics = generarICS(reserva);
     try {
       await Share.share({
@@ -193,7 +198,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
   };
 
   const copiarFolio = () => {
-    if (!reserva) { return; }
+    if (!reserva) {return;}
     Alert.alert(
       'Folio copiado',
       reserva.folio,
@@ -201,7 +206,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
     );
   };
 
-  if (!reserva) { return null; }
+  if (!reserva) {return null;}
 
   return (
     <Modal
@@ -257,16 +262,22 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
 
           {/* Datos del viaje */}
           <View style={[es.seccion, { borderColor: tema.borde }]}>
-            <Text style={[es.seccionTitulo, { color: tema.texto }]}>📋 Datos del viaje</Text>
+            <View style={es.tituloSeccionRow}>
+              <Ionicons name="reader-outline" size={16} color={tema.texto} />
+              <Text style={[es.seccionTitulo, { color: tema.texto }]}>Datos del viaje</Text>
+            </View>
             <View style={es.cuadricula}>
               <DatoItem label="Fecha" valor={formatearFechaLarga(reserva.fecha)} tema={tema} />
               <DatoItem label="Personas" valor={String(reserva.personas)} tema={tema} />
               <DatoItem label="Total" valor={`$${reserva.total.toLocaleString()} MXN`} colorValor="#3AB7A5" tema={tema} />
-              <DatoItem label="Método" valor={METODO_LABEL[reserva.metodo] ?? reserva.metodo} tema={tema} />
+              <DatoItem label="Paquete" valor={reserva.paquete} tema={tema} />
             </View>
             {!!reserva.notas && (
               <View style={[es.notaBox, { backgroundColor: tema.superficie, borderLeftColor: '#3AB7A5' }]}>
-                <Text style={[es.notaLabel, { color: '#3AB7A5' }]}>📝 Notas del viajero</Text>
+                <View style={es.tituloSeccionRow}>
+                  <Ionicons name="document-text-outline" size={13} color="#3AB7A5" />
+                  <Text style={[es.notaLabel, { color: '#3AB7A5' }]}>Notas del viajero</Text>
+                </View>
                 <Text style={[es.notaTxt, { color: tema.textoSecundario }]}>{reserva.notas}</Text>
               </View>
             )}
@@ -320,7 +331,7 @@ export function DetalleReservaModal({ reserva, visible, onClose }: Props) {
       </View>
     </Modal>
   );
-}
+});
 
 // ── Sub-componente DatoItem ───────────────────────────────────────────────────
 function DatoItem({ label, valor, colorValor, tema }: { label: string; valor: string; colorValor?: string; tema: any }) {
@@ -385,6 +396,7 @@ const es = StyleSheet.create({
 
   seccion: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
   seccionTitulo: { fontSize: 14, fontWeight: '700' },
+  tituloSeccionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   cuadricula: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   datoItem: { minWidth: '44%', flex: 1 },

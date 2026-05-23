@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -17,6 +18,7 @@ import { ModalSeleccionItinerario } from '../../components/ModalSeleccionItinera
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Estrellas } from '../../components/Estrellas';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { useToast } from '../../components/Toast';
 import { MapaInteractivo } from '../../components/MapView';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { PAQUETES_POR_ESTADO, PESTANAS, Paquete, TODOS_LOS_ESTADOS } from '../../lib/constantes';
@@ -25,6 +27,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
+import { crearUrlDestino } from '../../lib/constantes/deep-links';
 import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 const { width: W } = Dimensions.get('window');
@@ -75,6 +78,7 @@ export default function DetalleScreen() {
   const { bottom: bottomInset } = useSafeAreaInsets();
   const { t, idioma } = useIdioma();
   const { tema, isDark } = useTemaContext();
+  const { showToast } = useToast();
 
   // Obtener datos del estado
   const estado = TODOS_LOS_ESTADOS.find(e => e.nombre === nombre);
@@ -107,6 +111,7 @@ export default function DetalleScreen() {
     queryKey: ['resumen-resenas-detalle', nombre],
     queryFn: () => cargarResumenResenas(nombre ? [nombre] : []),
     staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
   });
   const resumenDestino = nombre ? resumenResenas[nombre] : undefined;
   const paqueteAnims  = useRef(paquetes.map(() => new Animated.Value(0))).current;
@@ -120,8 +125,8 @@ export default function DetalleScreen() {
   // Rastrea qué paquetes se han expandido alguna vez (para no desmontar el contenido animado)
   const [paquetesVistos, setPaquetesVistos] = useState<Set<string>>(new Set(['economico']));
 
-  const spring = (anim: Animated.Value, to: number) =>
-    Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start();
+  const spring = useCallback((anim: Animated.Value, to: number) =>
+    Animated.spring(anim, { toValue: to, useNativeDriver: Platform.OS !== 'web', speed: 50, bounciness: to < 1 ? 2 : 7 }).start(), []);
 
   useEffect(() => {
     Animated.stagger(90, paqueteAnims.map(anim =>
@@ -151,41 +156,54 @@ export default function DetalleScreen() {
 
   const agregarAItinerario = async (id_itinerario: number) => {
     if (!usuarioId || !paqueteSeleccionado) { return; }
-    setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
-    setModalVisible(false);
+    try {
+      setItinerarios(await alternarDestinoItinerario(usuarioId, id_itinerario, paqueteSeleccionado));
+      setModalVisible(false);
+    } catch (error) {
+      if (__DEV__) {console.error('Error al actualizar itinerario:', error);}
+      showToast(t('error_itinerario') || 'No se pudo actualizar el itinerario', 'error');
+    }
   };
 
   const crearYNuevoItinerario = async () => {
     if (!usuarioId || !paqueteSeleccionado || !nuevoNombre.trim()) { return; }
     const nombreNuevo = nuevoNombre.trim();
-    setItinerarios(await crearItinerarioYAgregarDestino({
-      usuarioId,
-      nombreNuevo,
-      claveDestino: paqueteSeleccionado,
-      itinerariosActuales: itinerarios,
-    }));
-    setModalVisible(false);
-    setNuevoNombre('');
-  };
-
-  const compartir = async () => {
     try {
-      await Share.share({
-        title: `${nombre ?? ''} — Mexcursión`,
-        message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\nDescarga la app y reserva tu próxima aventura.`,
-      });
-    } catch {
-      // El usuario canceló o el sistema no soporta Share — no se requiere acción
+      setItinerarios(await crearItinerarioYAgregarDestino({
+        usuarioId,
+        nombreNuevo,
+        claveDestino: paqueteSeleccionado,
+        itinerariosActuales: itinerarios,
+      }));
+      setModalVisible(false);
+      setNuevoNombre('');
+      showToast(t('itinerario_creado') || 'Itinerario creado', 'success');
+    } catch (error) {
+      if (__DEV__) {console.error('Error al crear itinerario:', error);}
+      showToast(t('error_crear_itinerario') || 'No se pudo crear el itinerario', 'error');
     }
   };
 
-  const irAReserva = (paquete: Paquete) => {
-    setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
+  const compartir = async () => {
+    const url = crearUrlDestino(nombre ?? '', categoria ?? '');
+    try {
+      await Share.share({
+        title: `${nombre ?? ''} — Mexcursión`,
+        message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\n${url}`,
+        url,
+      });
+    } catch (error) {
+      if (__DEV__) { console.error('Error al compartir:', error); }
+    }
   };
 
-  const irAResenas = () => {
+  const irAReserva = useCallback((paquete: Paquete) => {
+    setTimeout(() => router.push({ pathname:'/(tabs)/reserva' as never, params:{ nombre, precio:extraerPrecio(paquete.precioTotal), paquete:t(('rut_' + paquete.nivel) as TraduccionClave) } }), 0);
+  }, [nombre, t]);
+
+  const irAResenas = useCallback(() => {
     setTimeout(() => router.push({ pathname:'/(tabs)/resenas' as never, params:{ nombre } }), 0);
-  };
+  }, [nombre]);
 
   // ── Contenido ──────────────────────────────────────────────────────────
   const contenidoJSX = (
@@ -208,8 +226,9 @@ export default function DetalleScreen() {
               </View>
               {resumenDestino?.total ? (
                 <View style={estilos.heroBadgeResenas}>
+                  <Ionicons name="star" size={11} color="#27897b" />
                   <Text style={estilos.heroBadgeResenasTexto}>
-                    {resumenDestino.promedio.toFixed(1)} ★ · {resumenDestino.total} reseñas
+                    {resumenDestino.promedio.toFixed(1)} · {resumenDestino.total} reseñas
                   </Text>
                 </View>
               ) : null}
@@ -268,7 +287,11 @@ export default function DetalleScreen() {
                 >
                   <Animated.View style={[{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', flex:1 }, { transform:[{ scale: cabAnims[idx] }] }]}>
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-                      <Text style={estilos.emojiPaquete}>{paquete.emoji}</Text>
+                      <Ionicons
+                        name={paquete.nivel === 'economico' ? 'wallet-outline' : paquete.nivel === 'medio' ? 'star-outline' : 'diamond-outline'}
+                        size={20}
+                        color="#fff"
+                      />
                       <View>
                         <Text style={estilos.etiquetaPaquete}>{t(('rut_' + paquete.nivel) as TraduccionClave)}</Text>
                         <Text style={estilos.precioPaquete}>{paquete.precioTotal}</Text>
@@ -276,7 +299,7 @@ export default function DetalleScreen() {
                     </View>
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
                       <Text style={estilos.diasPaquete}>{paquete.diasRecomendados} {t(paquete.diasRecomendados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}</Text>
-                      <Text style={estilos.chevron}>{expandido ? '▲' : '▼'}</Text>
+                      <Ionicons name={expandido ? 'chevron-up' : 'chevron-down'} size={14} color="#fff" />
                     </View>
                   </Animated.View>
                 </TouchableOpacity>
@@ -297,8 +320,9 @@ export default function DetalleScreen() {
                       <Text style={estilos.precioLinea}>{paquete.precioHotel}</Text>
                       <View style={estilos.listaIncluye}>
                         {paquete.incluye[idioma].map(inc => (
-                          <View key={inc} style={estilos.chipIncluye}>
-                            <Text style={estilos.textoChipIncluye}>✓ {inc}</Text>
+                          <View key={inc} style={[estilos.chipIncluye, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                            <Ionicons name="checkmark" size={11} color="#3AB7A5" />
+                            <Text style={estilos.textoChipIncluye}>{inc}</Text>
                           </View>
                         ))}
                       </View>
@@ -492,8 +516,7 @@ const estilos = StyleSheet.create({
   subtitulo:             { fontSize:18, fontWeight:'800', color:'#333', marginBottom:14 },
   tarjetaPaquete:        { borderRadius:18, borderWidth:2, marginBottom:16, overflow:'hidden', backgroundColor:'#fff' },
   cabeceraPaquete:       { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:16, paddingVertical:14 },
-  emojiPaquete:          { fontSize:20, color:'#fff', fontWeight:'800' },
-  etiquetaPaquete:       { fontSize:16, fontWeight:'800', color:'#fff' },
+etiquetaPaquete:       { fontSize:16, fontWeight:'800', color:'#fff' },
   precioPaquete:         { fontSize:12, color:'rgba(255,255,255,0.85)', marginTop:2 },
   diasPaquete:           { fontSize:12, color:'#fff', fontWeight:'600', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:3, borderRadius:10 },
   chevron:               { fontSize:12, color:'#fff', fontWeight:'700' },

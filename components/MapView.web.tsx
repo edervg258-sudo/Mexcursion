@@ -47,6 +47,7 @@ export function MapaInteractivo({ latitude = 19.4326, longitude = -99.1332, titl
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   return (
+    // @ts-ignore — MapContainer usa props de React DOM
     <MapContainer
       center={[latitude, longitude]}
       zoom={zoom}

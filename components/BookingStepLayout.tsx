@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -26,7 +27,7 @@ const StepIndicator = ({ currentStep, steps }: { currentStep: number; steps: str
             <View style={styles.filaPaso}>
               <View style={[styles.circuloPaso, { backgroundColor: tema.superficie }, active && styles.circuloActivo, complete && styles.circuloCompleto]}>
                 {complete ? (
-                  <Text style={styles.checkPaso}>✓</Text>
+                  <Ionicons name="checkmark" size={14} color="#fff" />
                 ) : (
                   <Text style={[styles.numPaso, active && styles.numPasoActivo]}>{index + 1}</Text>
                 )}
@@ -68,7 +69,7 @@ export function BookingStepLayout({
           ) : (
             <>
               <TouchableOpacity onPress={() => router.back()} style={[styles.btnVolver, { backgroundColor: tema.superficie }]}>
-                <Text style={styles.chevron}>‹</Text>
+                <Ionicons name="chevron-back" size={22} color="#3AB7A5" />
               </TouchableOpacity>
               <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
               <View style={styles.headerTextWrap}>

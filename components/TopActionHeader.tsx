@@ -11,7 +11,7 @@ type TopActionHeaderProps = {
   maxWidth?: number;
 };
 
-export function TopActionHeader({
+export const TopActionHeader = React.memo(function TopActionHeader({
   title,
   subtitle,
   showInlineLogo = false,
@@ -40,7 +40,7 @@ export function TopActionHeader({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   encabezado: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, gap: 8, width: '100%', minHeight: 72, alignSelf: 'center' },

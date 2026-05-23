@@ -1,7 +1,6 @@
 // lib/supabase-db.ts — API compatible con todas las pantallas
 import { supabase } from './supabase';
 import { enqueueOfflineOperation, registerOfflineHandler } from './offline-cache';
-import { addBreadcrumb, captureApiError } from './sentry';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  TIPOS
@@ -97,7 +96,7 @@ export async function registrarUsuario(
     // Guardamos el perfil si hay usuario (con o sin sesión activa)
     // Sin sesión = email pendiente de confirmación, pero el row se crea igualmente
     if (data?.user) {
-      await supabase.from('usuarios').insert({
+      const { error: insertError } = await supabase.from('usuarios').insert({
         id: data.user.id,
         email,
         nombre,
@@ -108,13 +107,17 @@ export async function registrarUsuario(
         tipo: 'normal',
         activo: 1,
       });
+      if (insertError) {
+        if (__DEV__) console.error('registrarUsuario: fallo al crear perfil', insertError);
+        return { exito: false, error: 'Cuenta creada pero no se pudo guardar el perfil. Contacta soporte.' };
+      }
       if (data.session) return { exito: true };
       return { exito: true, confirmar: true };
     }
 
     return { exito: true, confirmar: true };
   } catch (err) {
-    console.error('registrarUsuario error', err);
+    if (__DEV__) console.error('registrarUsuario error', err);
     return { exito: false, error: 'Error al registrar.' };
   }
 }
@@ -130,8 +133,8 @@ export async function iniciarSesion(
     });
 
     if (error) {
-      console.log('❌ Error de login:', error.message);
-      
+      if (__DEV__) console.log('Error de login:', error.message);
+
       // Manejar específicamente errores de refresh token
       if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
         return { exito: false, error: 'Sesión expirada. Por favor inicia sesión nuevamente.' };
@@ -140,21 +143,19 @@ export async function iniciarSesion(
       return { exito: false, error: 'Correo o contraseña incorrectos.' };
     }
 
-    console.log('✅ Login exitoso para:', correo);
-    
     // Obtener usuario activo inmediatamente
     const usuario = await obtenerUsuarioActivo();
     
     return { exito: true, usuario: usuario ?? undefined };
   } catch (error) {
-    console.log('❌ Error inesperado en login:', error);
+    if (__DEV__) console.log('Error inesperado en login:', error);
     return { exito: false, error: 'Error al iniciar sesión.' };
   }
 }
 
 export async function cerrarSesion(): Promise<void> {
   _sessionCache = null; // invalidar caché al cerrar sesión
-  try { await supabase.auth.signOut(); } catch (err) { console.error('cerrarSesion error:', err); }
+  try { await supabase.auth.signOut(); } catch (err) { if (__DEV__) console.error('cerrarSesion error:', err); }
 }
 
 // ── Verificación rápida — solo auth, sin query a BD (para routing inicial) ─
@@ -243,7 +244,6 @@ export async function obtenerUsuarioActivo(): Promise<Usuario | null> {
     return fallback;
 
   } catch (e) {
-    console.error('obtenerUsuarioActivo error:', e);
     return null;
   }
 }
@@ -298,13 +298,14 @@ export async function resetContrasena(
 
 export async function actualizarPerfil(
   usuario_id: string,
-  campos: { nombre?: string; nombre_usuario?: string; telefono?: string }
+  campos: { nombre?: string; nombre_usuario?: string; telefono?: string; foto_url?: string | null }
 ): Promise<{ exito: boolean; error?: string }> {
   try {
     const update: Record<string, any> = {};
     if (campos.nombre          !== undefined) update.nombre          = campos.nombre;
     if (campos.nombre_usuario  !== undefined) update.nombre_usuario  = campos.nombre_usuario;
     if (campos.telefono        !== undefined) update.telefono        = campos.telefono;
+    if (campos.foto_url        !== undefined) update.foto_url        = campos.foto_url;
 
     const { error } = await supabase.from('usuarios').update(update).eq('id', usuario_id);
     if (error) return { exito: false, error: 'Error al actualizar perfil.' };
@@ -313,6 +314,57 @@ export async function actualizarPerfil(
   } catch (err) {
     console.error('actualizarPerfil error:', err);
     return { exito: false, error: 'Error al actualizar perfil.' };
+  }
+}
+
+// Lee una URI local (file://, content://, data:) y la devuelve como Blob.
+// fetch() falla en Android con URIs locales; XMLHttpRequest las maneja correctamente
+// en todas las plataformas (iOS, Android, web).
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload  = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error('No se pudo leer la imagen'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
+
+// Sube una imagen a Supabase Storage (bucket "avatares") y guarda la URL en usuarios.foto_url.
+// Recibe el URI local (file://, content:// o data:) y el id del usuario; devuelve la URL pública.
+export async function subirAvatar(
+  usuario_id: string,
+  uriLocal: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const blob = await uriToBlob(uriLocal);
+    const ext  = (blob.type?.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg');
+    const mime = blob.type || 'image/jpeg';
+    const path = `${usuario_id}/${Date.now()}.${ext}`;
+
+    const { error: errSubida } = await supabase.storage
+      .from('avatares')
+      .upload(path, blob, { contentType: mime, upsert: true });
+    if (errSubida) {
+      console.error('subirAvatar upload error:', errSubida);
+      return { exito: false, error: 'No se pudo subir la imagen.' };
+    }
+
+    const { data } = supabase.storage.from('avatares').getPublicUrl(path);
+    const url = data?.publicUrl;
+    if (!url) {
+      return { exito: false, error: 'No se obtuvo la URL pública.' };
+    }
+
+    const r = await actualizarPerfil(usuario_id, { foto_url: url });
+    if (!r.exito) {
+      return { exito: false, error: r.error ?? 'No se pudo guardar el avatar.' };
+    }
+    return { exito: true, url };
+  } catch (err) {
+    console.error('subirAvatar error:', err);
+    return { exito: false, error: 'Error al subir avatar.' };
   }
 }
 
@@ -437,8 +489,8 @@ export async function obtenerItinerarios(usuario_id: string): Promise<Itinerario
 
 // ── Helper: cualquier mutación + refresco automático de la lista
 const mutarItinerarios = async (usuario_id: string, fn: () => any): Promise<Itinerario[]> => {
-  try { await fn(); return obtenerItinerarios(usuario_id); }
-  catch (err) { console.error('mutarItinerarios error:', err); return []; }
+  await fn();
+  return obtenerItinerarios(usuario_id);
 };
 
 export const crearItinerario = (usuario_id: string, nombre: string) =>
@@ -624,65 +676,45 @@ export async function guardarReserva(
       ? fecha.split('/').reverse().join('-')
       : fecha;
 
-    // Idempotencia: si el folio ya existe para este usuario, consideramos éxito.
-    const { data: existente } = await supabase
-      .from('reservas')
-      .select('id')
-      .eq('usuario_id', usuario_id)
-      .eq('folio', folioNormalizado)
-      .maybeSingle();
-    if (existente?.id) {
-      addBreadcrumb({
-        category: 'booking',
-        message: 'guardarReserva idempotent hit',
-        data: { usuario_id, folio: folioNormalizado },
-      });
-      return 'idempotent';
-    }
+    // Delega a la Edge Function: valida, inserta atómicamente, crea notificación y envía email
+    const { data, error } = await supabase.functions.invoke<{ resultado: string; error?: string }>(
+      'confirmar-reserva',
+      {
+        body: {
+          folio:    folioNormalizado,
+          destino:  destino.trim(),
+          paquete:  paquete.trim(),
+          fecha:    fechaISO,
+          personas,
+          total,
+          metodo:   metodo.toLowerCase(),
+          estado:   estado.toLowerCase(),
+          notas:    notas?.trim() ?? '',
+        },
+      },
+    );
 
-    const fila: Record<string, any> = {
-      usuario_id,
-      folio: folioNormalizado,
-      destino: destino.trim(),
-      paquete: paquete.trim(),
-      fecha: fechaISO,
-      personas,
-      total,
-      metodo: metodo.toLowerCase(),
-      estado: estado.toLowerCase(),
-    };
-    if (notas?.trim()) fila.notas = notas.trim();
-
-    const { error } = await supabase.from('reservas').insert(fila);
     if (error) {
-      // 23505: unique_violation (folio duplicado). Es un caso idempotente.
-      if ((error as { code?: string }).code === '23505') {
-        return 'idempotent';
-      }
       if (isNetworkLikeError(error)) {
+        // Sin red: encolar para reintentar offline
         await enqueueOfflineOperation({
           type: 'CREAR_RESERVA',
-          payload: fila,
+          payload: { usuario_id, folio: folioNormalizado, destino, paquete, fecha: fechaISO, personas, total, metodo, estado, notas },
         });
         return 'queued_offline';
       }
-      captureApiError({
-        feature: 'reservas',
-        action: 'insert',
-        error,
-        metadata: { usuario_id, folio: folioNormalizado },
-      });
+      console.error('guardarReserva error:', error);
       return 'failed';
     }
+
+    const resultado = data?.resultado;
+    if (resultado === 'idempotent') {
+      return 'idempotent';
+    }
+    if (resultado !== 'saved') return 'failed';
     return 'saved';
   } catch (err) {
     console.error('guardarReserva error:', err);
-    captureApiError({
-      feature: 'reservas',
-      action: 'insert',
-      error: err,
-      metadata: { usuario_id, folio },
-    });
     return 'failed';
   }
 }
@@ -720,10 +752,23 @@ export async function cargarTodasLasReservas(): Promise<any[]> {
   }
 }
 
-export async function actualizarEstadoReserva(id: number, estado: string): Promise<void> {
+export async function actualizarEstadoReserva(id: number, estado: string): Promise<{ exito: boolean; error?: string }> {
   try {
-    await supabase.from('reservas').update({ estado }).eq('id', id);
-  } catch (err) { console.error('actualizarEstadoReserva error:', err); }
+    const { error } = await supabase.from('reservas').update({ estado }).eq('id', id);
+    if (error) {
+      console.error('actualizarEstadoReserva error:', error.message);
+      return { exito: false, error: error.message };
+    }
+    if (estado === 'confirmada' || estado === 'cancelada') {
+      supabase.functions
+        .invoke('enviar-email-reserva', { body: { reserva_id: id, tipo: estado } })
+        .catch(e => console.warn('email invoke failed:', e));
+    }
+    return { exito: true };
+  } catch (err) {
+    console.error('actualizarEstadoReserva exception:', err);
+    return { exito: false, error: String(err) };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -828,6 +873,44 @@ export async function guardarResena(
   }
 }
 
+export async function editarResena(
+  id: number,
+  usuario_id: string,
+  calificacion: number,
+  comentario: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('resenas')
+      .update({ calificacion, comentario })
+      .eq('id', id)
+      .eq('usuario_id', usuario_id);
+    if (error) return { exito: false, error: 'Error al editar reseña.' };
+    return { exito: true };
+  } catch (err) {
+    console.error('editarResena error:', err);
+    return { exito: false, error: 'Error al editar reseña.' };
+  }
+}
+
+export async function borrarResena(
+  id: number,
+  usuario_id: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('resenas')
+      .delete()
+      .eq('id', id)
+      .eq('usuario_id', usuario_id);
+    if (error) return { exito: false, error: 'Error al borrar reseña.' };
+    return { exito: true };
+  } catch (err) {
+    console.error('borrarResena error:', err);
+    return { exito: false, error: 'Error al borrar reseña.' };
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 //  HISTORIAL
 // ══════════════════════════════════════════════════════════════════════════
@@ -839,10 +922,11 @@ export async function agregarHistorial(
   detalle: string
 ): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from('historial')
-      .insert({ usuario_id, tipo, titulo, detalle, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('agregarHistorial error:', err); }
+      .insert({ usuario_id, tipo, titulo, detalle });
+    if (error) console.warn('agregarHistorial warn:', error.message);
+  } catch (err) { console.warn('agregarHistorial error (ignorado):', err); }
 }
 
 export async function cargarHistorial(usuario_id: string, limite = 30, offset = 0): Promise<any[]> {
@@ -866,16 +950,12 @@ export async function cargarHistorial(usuario_id: string, limite = 30, offset = 
 // ══════════════════════════════════════════════════════════════════════════
 
 export async function crearNotificacion(
-  usuario_id: string,
-  tipo: string,
-  titulo: string,
-  mensaje: string
+  _usuario_id: string,
+  _tipo: string,
+  _titulo: string,
+  _mensaje: string
 ): Promise<void> {
-  try {
-    await supabase
-      .from('notificaciones')
-      .insert({ usuario_id, tipo, titulo, mensaje, leida: false, creado_en: new Date().toISOString() });
-  } catch (err) { console.error('crearNotificacion error:', err); }
+  // Las notificaciones se crean server-side en la Edge Function confirmar-reserva
 }
 
 export async function cargarNotificaciones(usuario_id: string, limite = 20, offset = 0): Promise<any[]> {
@@ -921,12 +1001,17 @@ export async function cargarTodosLosUsuarios(): Promise<any[]> {
 
     const { data: reservas } = await supabase.from('reservas').select('usuario_id');
 
+    const conteoReservas = new Map<string, number>();
+    for (const r of reservas ?? []) {
+      conteoReservas.set(r.usuario_id, (conteoReservas.get(r.usuario_id) ?? 0) + 1);
+    }
+
     return usuarios.map((u: any) => ({
       ...u,
       correo: u.email,
       tipo: u.tipo ?? 'normal',
       activo: u.activo ?? 1,
-      reservas_count: (reservas ?? []).filter((r: any) => r.usuario_id === u.id).length,
+      reservas_count: conteoReservas.get(u.id) ?? 0,
     }));
   } catch (err) {
     console.error('cargarTodosLosUsuarios error:', err);

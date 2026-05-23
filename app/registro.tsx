@@ -1,9 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+    Animated,
     Image,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
@@ -18,6 +21,19 @@ type FormType = {
 type ErroresType = Partial<Record<keyof FormType, string>>;
 
 export default function RegistroScreen() {
+  // ── Animación de entrada ──────────────────────────────────────────────────
+  const opacidad = useRef(new Animated.Value(0)).current;
+  const slideY   = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacidad, { toValue: 1, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideY,   { toValue: 0, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [form, setForm]                       = useState<FormType>({ nombre: '', nombre_usuario: '', correo: '', telefono: '', contrasena: '' });
   const [errores, setErrores]                 = useState<ErroresType>({});
   const [errorGeneral, setErrorGeneral]       = useState('');
@@ -132,7 +148,7 @@ export default function RegistroScreen() {
       <Image source={require('../assets/images/mapa.png')} style={estilos.imagenMapa} resizeMode="contain" />
       <SafeAreaView style={estilos.areaSegura}>
         <ScrollView contentContainerStyle={estilos.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={estilos.centrado}>
+          <Animated.View style={[estilos.centrado, { opacity: opacidad, transform: [{ translateY: slideY }] }]}>
             <Image source={require('../assets/images/logo.png')} style={estilos.logo} resizeMode="contain" />
             <View style={estilos.tarjeta}>
               <Text style={estilos.titulo}>Registro</Text>
@@ -147,8 +163,9 @@ export default function RegistroScreen() {
                   value={form.nombre}
                   onChangeText={t => actualizar('nombre', t)}
                   autoCapitalize="words"
+                  underlineColorAndroid="transparent"
                 />
-                {errores.nombre ? <Text style={estilos.textoError}>⚠ {errores.nombre}</Text> : null}
+                {errores.nombre ? <Text style={estilos.textoError}>{errores.nombre}</Text> : null}
               </View>
 
               {/* Usuario */}
@@ -160,8 +177,9 @@ export default function RegistroScreen() {
                   value={form.nombre_usuario}
                   onChangeText={t => actualizar('nombre_usuario', t)}
                   autoCapitalize="none"
+                  underlineColorAndroid="transparent"
                 />
-                {errores.nombre_usuario ? <Text style={estilos.textoError}>⚠ {errores.nombre_usuario}</Text> : null}
+                {errores.nombre_usuario ? <Text style={estilos.textoError}>{errores.nombre_usuario}</Text> : null}
               </View>
 
               {/* Correo */}
@@ -174,8 +192,9 @@ export default function RegistroScreen() {
                   onChangeText={t => actualizar('correo', t)}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  underlineColorAndroid="transparent"
                 />
-                {errores.correo ? <Text style={estilos.textoError}>⚠ {errores.correo}</Text> : null}
+                {errores.correo ? <Text style={estilos.textoError}>{errores.correo}</Text> : null}
               </View>
 
               {/* Teléfono */}
@@ -187,8 +206,9 @@ export default function RegistroScreen() {
                   value={form.telefono}
                   onChangeText={t => actualizar('telefono', t)}
                   keyboardType="phone-pad"
+                  underlineColorAndroid="transparent"
                 />
-                {errores.telefono ? <Text style={estilos.textoError}>⚠ {errores.telefono}</Text> : null}
+                {errores.telefono ? <Text style={estilos.textoError}>{errores.telefono}</Text> : null}
               </View>
 
               {/* Contraseña con ojo */}
@@ -201,23 +221,27 @@ export default function RegistroScreen() {
                     value={form.contrasena}
                     onChangeText={t => actualizar('contrasena', t)}
                     secureTextEntry={!verContrasena}
+                    underlineColorAndroid="transparent"
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
-                {errores.contrasena ? <Text style={estilos.textoError}>⚠ {errores.contrasena}</Text> : null}
+                {errores.contrasena ? <Text style={estilos.textoError}>{errores.contrasena}</Text> : null}
               </View>
 
               {errorGeneral ? (
                 <View style={estilos.bannerError}>
-                  <Text style={estilos.bannerErrorTexto}>⚠ {errorGeneral}</Text>
+                  <Text style={estilos.bannerErrorTexto}>{errorGeneral}</Text>
                 </View>
               ) : null}
 
               {mensajeExito ? (
                 <View style={estilos.bannerExito}>
-                  <Text style={estilos.bannerExitoTexto}>✓ {mensajeExito}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="checkmark-circle" size={14} color="#1A9B8A" />
+                    <Text style={estilos.bannerExitoTexto}>{mensajeExito}</Text>
+                  </View>
                   <TouchableOpacity onPress={() => router.replace('/login')} style={{ marginTop: 10 }}>
                     <Text style={[estilos.textoEnlaceColor, { textAlign: 'center', fontWeight: '700' }]}>Ir a iniciar sesión</Text>
                   </TouchableOpacity>
@@ -228,7 +252,7 @@ export default function RegistroScreen() {
                 <>
                   <TouchableOpacity style={estilos.checkboxFila} onPress={() => setAceptoTerminos(v => !v)} activeOpacity={0.7}>
                     <View style={[estilos.checkbox, aceptoTerminos && estilos.checkboxActivo]}>
-                      {aceptoTerminos && <Text style={estilos.checkboxCheck}>✓</Text>}
+                      {aceptoTerminos && <Ionicons name="checkmark" size={14} color="#fff" />}
                     </View>
                     <Text style={estilos.checkboxTexto}>
                       Acepto los{' '}
@@ -252,7 +276,7 @@ export default function RegistroScreen() {
                 <Text style={estilos.textoEnlace}>¿Ya tienes cuenta? <Text style={estilos.textoEnlaceColor}>Inicia sesión</Text></Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -270,11 +294,11 @@ const estilos = StyleSheet.create({
   titulo:           { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6, color: '#222' },
   subtitulo:        { fontSize: 14, textAlign: 'center', color: '#666', marginBottom: 20 },
   grupoCampo:       { marginBottom: 14 },
-  campo:            { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333' },
-  campoFila:        { flexDirection: 'row', alignItems: 'center', height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, backgroundColor: '#f9f9f9' },
+  campo:            { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
+  campoFila:        { flexDirection: 'row', alignItems: 'center', height: 48, borderWidth: 0, borderRadius: 25, backgroundColor: '#f9f9f9' },
   campoError:       { borderColor: '#DD331D' },
   textoError:       { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 12 },
-  inputOjo:         { flex: 1, fontSize: 14, color: '#333', paddingHorizontal: 16, height: 48 },
+  inputOjo:         { flex: 1, fontSize: 14, color: '#333', paddingHorizontal: 16, height: 48, outlineStyle: 'none' } as any,
   botonOjo:         { paddingHorizontal: 12, height: 48, justifyContent: 'center' },
   boton:            { backgroundColor: '#DD331D', paddingVertical: 14, borderRadius: 25, alignItems: 'center', marginTop: 6, elevation: 6 },
   botonDesactivado: { opacity: 0.6 },

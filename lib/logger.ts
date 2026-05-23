@@ -2,8 +2,6 @@
 //  lib/logger.ts  —  Logging estructurado
 // ============================================================
 
-import * as Sentry from '@sentry/react-native';
-
 type LogLevel = 'debug' | 'info' | 'warning' | 'error';
 
 type LogContext = {
@@ -28,23 +26,14 @@ export const logger = {
 
   info: (message: string, ctx?: LogContext) => {
     console.info(formatMessage(message, ctx), ctx);
-    Sentry.captureMessage(formatMessage(message, ctx), 'info');
   },
 
   warning: (message: string, ctx?: LogContext) => {
     console.warn(formatMessage(message, ctx), ctx);
-    Sentry.captureMessage(formatMessage(message, ctx), 'warning');
   },
 
   error: (error: unknown, ctx?: LogContext) => {
     console.error(formatMessage('Error', ctx), error);
-    Sentry.withScope(scope => {
-      if (ctx?.feature) scope.setTag('feature', ctx.feature);
-      if (ctx?.action) scope.setTag('action', ctx.action);
-      if (ctx?.userId) scope.setUser({ id: ctx.userId });
-      if (ctx) scope.setContext('extra', ctx);
-      Sentry.captureException(error);
-    });
   },
 
   startTimer: (name: string) => {
@@ -54,12 +43,6 @@ export const logger = {
         const duration = Date.now() - start;
         const msg = `${name} took ${duration}ms`;
         __DEV__ ? console.debug(msg) : console.info(msg, ctx);
-        Sentry.addBreadcrumb({
-          category: 'performance',
-          message: msg,
-          level: 'info',
-          data: ctx as Record<string, string>,
-        });
       },
     };
   },
@@ -69,10 +52,5 @@ export const track = (
   eventName: string,
   properties?: Record<string, unknown>
 ) => {
-  Sentry.addBreadcrumb({
-    category: 'track',
-    message: eventName,
-    level: 'info',
-    data: properties as Record<string, string>,
-  });
+  console.info(`Track: ${eventName}`, properties);
 };

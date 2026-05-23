@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
@@ -21,9 +22,9 @@ type ItinerarioItem = { clave: string; titulo: string; estado: string; nivel: st
 // ─────────────────────────────────────────────────────────────
 // Chip de estadística
 // ─────────────────────────────────────────────────────────────
-const StatChip = ({ emoji, label }: { emoji: string; label: string }) => (
+const StatChip = ({ icono, label }: { icono: React.ComponentProps<typeof Ionicons>['name']; label: string }) => (
   <View style={s.statChip}>
-    <Text style={s.statEmoji}>{emoji}</Text>
+    <Ionicons name={icono} size={14} color="#3AB7A5" />
     <Text style={s.statLabel}>{label}</Text>
   </View>
 );
@@ -163,25 +164,23 @@ export function VistaDetalleItinerario({
     >
       <View style={{ flex: 1 }}>
 
-        {/* 📊 Stats */}
+        {/* Stats */}
         {items.length > 0 && (
           <View style={s.statsBanner}>
             <StatChip
-              emoji="📍"
-              label={`${items.length} ${
-                items.length === 1 ? t('rut_destino') : t('rut_destinos')
-              }`}
+              icono="location-outline"
+              label={`${items.length} ${items.length === 1 ? t('rut_destino') : t('rut_destinos')}`}
             />
             <View style={s.statDivisor} />
-            <StatChip emoji="⌛" label={`~${diasTotales} días`} />
+            <StatChip icono="time-outline" label={`~${diasTotales} días`} />
             <View style={s.statDivisor} />
-            <StatChip emoji="💰" label={`$${costoTotal.toLocaleString()} MXN`} />
+            <StatChip icono="cash-outline" label={`$${costoTotal.toLocaleString()} MXN`} />
             <View style={s.statDivisor} />
-            <StatChip emoji="✨" label={nivelTop} />
+            <StatChip icono="sparkles-outline" label={nivelTop} />
           </View>
         )}
 
-        {/* 🧾 Acciones */}
+        {/* Acciones */}
         <View style={s.accionesBarra}>
           <TouchableOpacity
             style={s.accionBtn}
@@ -204,10 +203,10 @@ export function VistaDetalleItinerario({
           </TouchableOpacity>
         </View>
 
-        {/* 📭 Vacío */}
+        {/* Vacío */}
         {items.length === 0 ? (
           <View style={s.vacio}>
-            <Text style={s.textoVacioEmoji}>✈️</Text>
+            <Ionicons name="airplane-outline" size={48} color="#3AB7A5" style={{ marginBottom: 10 }} />
             <Text style={s.tituloVacio}>{t('rut_viaje_vacio')}</Text>
             <Text style={s.subtituloVacio}>
               {t('rut_viaje_vacio_msg')}

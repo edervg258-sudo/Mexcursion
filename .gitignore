@@ -20,6 +20,7 @@ web-build/
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 
@@ -58,3 +59,13 @@ expo-env.d.ts
 
 # Metro config (generated)
 metro.config.js
+
+.vercel
+
+# IDE & Editor
+.vs/
+.idea/
+
+# Worktrees
+.claire/
+.git/worktrees/

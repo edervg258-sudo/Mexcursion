@@ -1,8 +1,11 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { Href, router, usePathname } from 'expo-router';
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
+    Animated,
     Image,
     ImageSourcePropType,
+    Platform,
     StatusBar,
     StyleSheet,
     Text,
@@ -44,6 +47,22 @@ export function TabChrome({
   const { bottom } = useSafeAreaInsets();
   const { t } = useIdioma();
   const { tema, isDark } = useTemaContext();
+
+  // ── Transición de entrada al cambiar de pantalla ──────────────────────────
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useFocusEffect(
+    useCallback(() => {
+      fadeAnim.setValue(0);
+      const anim = Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: Platform.OS !== 'web',
+      });
+      anim.start();
+      return () => anim.stop();
+    }, [fadeAnim])
+  );
+  // ─────────────────────────────────────────────────────────────────────────
 
   const navigateTab = (ruta: string) => setTimeout(() => router.push(ruta as Href), 0);
   const isActive = (ruta: string) => !!pathname && pathname.endsWith(ruta.replace('/(tabs)', ''));
@@ -90,7 +109,7 @@ export function TabChrome({
   );
 
   const bottomBar = (
-    <View style={[styles.envolturaBarra, { paddingBottom: Math.max(bottom, 8), backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
+    <View style={[styles.envolturaBarra, { paddingBottom: bottom, backgroundColor: tema.superficieBlanca, borderTopColor: tema.borde, ...(isDark ? sombraBarraInferiorOscura : sombraBarraInferior) }]}>
       <View style={[styles.barraPestanas, { backgroundColor: tema.superficieBlanca }]}>
         {PESTANAS.map(p => {
           const active = isActive(p.ruta);
@@ -114,7 +133,7 @@ export function TabChrome({
   );
 
   return (
-    <View style={[styles.contenedor, { backgroundColor: tema.fondo }]} testID={testID}>
+    <Animated.View style={[styles.contenedor, { backgroundColor: tema.fondo, opacity: fadeAnim }]} testID={testID}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={tema.fondo} />
       <Image source={backgroundImage} style={[styles.imagenMapa, { opacity: tema.mapaOverlay }]} resizeMode="contain" />
 
@@ -135,7 +154,7 @@ export function TabChrome({
           {bottomBar}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

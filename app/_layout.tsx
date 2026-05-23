@@ -17,8 +17,8 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { ToastProvider } from '../components/Toast';
 import { configurarBarraAndroid } from '../lib/android-ui';
-import { logEvent, setUserId, AnalyticsEvents } from '../lib/analytics';
 import { getFeatureFlags } from '../lib/feature-flags';
 import { IdiomaProvider } from '../lib/IdiomaContext';
 import { initPerformanceMonitoring, preloadCriticalResources } from '../lib/performance';
@@ -30,7 +30,6 @@ import {
 import '../lib/react-19-filter';
 import { supabase } from '../lib/supabase';
 import { TemaProvider } from '../lib/TemaContext';
-import { initSentry, setUser } from '../lib/sentry';
 
 type NotificationSubscription = { remove: () => void };
 
@@ -86,14 +85,12 @@ export default function RootLayout() {
 
   useEffect(() => { configurarBarraAndroid(); }, []);
   useEffect(() => { configurarNotificaciones(); }, []);
-  useEffect(() => { initSentry(); }, []);
 
   useEffect(() => {
     const initRuntime = async () => {
       const flags = await getFeatureFlags();
       preloadCriticalResources();
       if (flags.enablePerfTracking) { initPerformanceMonitoring(); }
-      if (flags.enableRealtimeAnalytics) { await logEvent(AnalyticsEvents.APP_OPEN, { source: 'root_layout' }); }
     };
     initRuntime();
   }, []);
@@ -106,14 +103,9 @@ export default function RootLayout() {
       }
       if (event === 'SIGNED_OUT') {
         setTimeout(() => router.push('/login'), 0);
-        setUserId('');
-        setUser({ id: '', email: '' });
       }
       if (event === 'SIGNED_IN' && session?.user?.id) {
         const uid = session.user.id;
-        setUserId(uid);
-        logEvent(AnalyticsEvents.LOGIN, { method: 'email' });
-        setUser({ id: uid, email: session.user.email ?? undefined });
 
         // Verificar si ya tiene permiso de push; si no, mostrar onboarding primero
         const Notifications = getNotifications();
@@ -160,12 +152,14 @@ export default function RootLayout() {
             <TemaProvider>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <BottomSheetModalProvider>
+                  <ToastProvider>
                   <OfflineBanner />
-                  <Stack screenOptions={{ headerShown: false }}>
+                  <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
                     <Stack.Screen name="registro"         options={{ headerShown: false }} />
                     <Stack.Screen name="login"            options={{ headerShown: false }} />
                     <Stack.Screen name="nueva-contrasena" options={{ headerShown: false }} />
-                    <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
+                    {/* Sin animación en el Stack para (tabs): TabChrome gestiona su propio fade */}
+                    <Stack.Screen name="(tabs)"           options={{ headerShown: false, animation: 'none' }} />
                   </Stack>
                   <StatusBar style="auto" />
                   {/* Onboarding de permisos antes de pedir push al SO */}
@@ -178,6 +172,7 @@ export default function RootLayout() {
                     }}
                     onRechazar={() => setPendingPushUid(null)}
                   />
+                  </ToastProvider>
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </TemaProvider>
