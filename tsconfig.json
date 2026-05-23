@@ -19,7 +19,6 @@
     "supabase/functions/**",
     ".claude/**",
     ".claire/**",
-    ".kilo/**",
     "dist/**",
     "node_modules/**"
   ]

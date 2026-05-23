@@ -54,9 +54,6 @@ expo-env.d.ts
 # Claude AI local settings
 .claude/
 
-# Kilo AI plans (temporary)
-.kilo/
-
 # Metro config (generated)
 metro.config.js
 

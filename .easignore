@@ -22,7 +22,6 @@ web-build/
 # IDEs y herramientas locales
 .claude/
 .cursor/
-.kilo/
 .claire/
 .vs/
 .idea/
