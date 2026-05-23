@@ -1,5 +1,5 @@
 {
-  "setupFilesAfterEnv": ["<rootDir>/e2e/init.js"],
+  "setupFilesAfterEnv": ["<rootDir>/init.js"],
   "testEnvironment": "detox/runners/jest",
   "testTimeout": 120000,
   "testRegex": "\\.e2e\\.js$",
