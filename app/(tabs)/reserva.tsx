@@ -226,6 +226,7 @@ const Campo = React.memo(({
     {error ? <Text style={es.textoError}>{error}</Text> : null}
   </View>
 ));
+Campo.displayName = 'Campo';
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function ReservaScreen() {
