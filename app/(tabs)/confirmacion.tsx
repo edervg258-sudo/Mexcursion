@@ -37,7 +37,7 @@ export default function ConfirmacionScreen() {
     ]).start();
   }, [escala, opacidad, slideY]);
 
-  const detalles: DetalleItem[] = [
+  const detallesBase: DetalleItem[] = [
     { label: t('conf_viajero'),  valor: nombre_viajero, icono: 'person-outline'    },
     { label: t('conf_telefono'), valor: telefono,       icono: 'call-outline'      },
     { label: t('conf_destino'),  valor: nombre,         icono: 'location-outline'  },
@@ -45,7 +45,8 @@ export default function ConfirmacionScreen() {
     { label: t('conf_fecha'),    valor: fecha,          icono: 'calendar-outline'  },
     { label: t('conf_personas'), valor: personas,       icono: 'people-outline'    },
     { label: t('conf_total'),    valor: `$${parseInt(precio ?? '0').toLocaleString()} MXN`, icono: 'card-outline' },
-  ].filter(d => d.valor);
+  ];
+  const detalles = detallesBase.filter(d => d.valor);
 
   return (
     <BookingStepLayout
