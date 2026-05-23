@@ -83,10 +83,10 @@ export const SeccionReservas = React.memo(function SeccionReservas({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
             <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
               {[
-                { id: 'todos',   label: 'Todos' },
-                { id: 'tarjeta', label: '💳 Tarjeta' },
-                { id: 'spei',    label: '🏦 SPEI' },
-                { id: 'oxxo',    label: '🏪 OXXO' },
+                { id: 'todos',   label: 'Todos'   },
+                { id: 'tarjeta', label: 'Tarjeta' },
+                { id: 'spei',    label: 'SPEI'    },
+                { id: 'oxxo',    label: 'OXXO'    },
               ].map(m => (
                 <TouchableOpacity
                   key={m.id}

@@ -1,11 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated, FlatList, Image, ImageSourcePropType, LayoutAnimation, Platform,
-    RefreshControl, StyleSheet, Text,
+    RefreshControl, Share, StyleSheet, Text,
     TouchableOpacity, UIManager, View, useWindowDimensions,
 } from 'react-native';
+import { crearUrlDestino } from '../../lib/constantes/deep-links';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
 import { useToast } from '../../components/Toast';
@@ -25,10 +27,11 @@ if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).native
 }
 
 // ─── FavCard — igual que las tarjetas de menu.tsx ─────────────────────────────
-const FavCard = ({ item, idx, t, onPress, onRemove }: {
+const FavCard = ({ item, idx, t, onPress, onRemove, onShare }: {
   item: FavoritoItem; idx: number; t: (clave: TraduccionClave, vars?: Record<string, string | number>) => string;
   onPress: (item: FavoritoItem) => void;
   onRemove: (id: number) => void;
+  onShare: (item: FavoritoItem) => void;
 }) => {
   const entradaAnim = useRef(new Animated.Value(0)).current;
   const escalaCard  = useRef(new Animated.Value(1)).current;
@@ -77,6 +80,15 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
         <Animated.View style={{ transform: [{ scale: escalaFav }] }}>
           <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
         </Animated.View>
+      </TouchableOpacity>
+      {/* Botón compartir */}
+      <TouchableOpacity
+        style={s.botonCompartir}
+        onPress={() => onShare(item)}
+        activeOpacity={0.7}
+        accessibilityLabel={`Compartir ${item.nombre}`}
+      >
+        <Ionicons name="share-social-outline" size={18} color="#3AB7A5" />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -162,6 +174,17 @@ export default function FavoritosScreen() {
     }
   }, [usuarioId, showToast, t]);
 
+  const compartirFavorito = async (item: FavoritoItem) => {
+    const url = crearUrlDestino(item.nombre, item.categoria);
+    try {
+      await Share.share({
+        title: `${item.nombre} — Mexcursión`,
+        message: `Mira este destino en Mexcursión: ${item.nombre}\n${url}`,
+        url,
+      });
+    } catch { /* silencioso */ }
+  };
+
   const quitarFavorito = async (id: number) => {
     if (!usuarioId) { return; }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -201,6 +224,7 @@ export default function FavoritosScreen() {
                     params: { nombre: it.nombre, categoria: it.categoria },
                   }), 0)}
                   onRemove={quitarFavorito}
+                  onShare={compartirFavorito}
                 />
               )}
               ListHeaderComponent={
@@ -271,6 +295,7 @@ const s = StyleSheet.create({
   nombreTarjeta:         { position: 'absolute', bottom: 28, left: 14, fontSize: 22, fontWeight: '700', color: '#fff' },
   precioTarjeta:         { position: 'absolute', bottom: 10, left: 14, fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
   botonFavorito:         { position: 'absolute', top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
+  botonCompartir:        { position: 'absolute', top: 54, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
 
   // Estado vacío
   vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, marginHorizontal: 16, borderRadius: 20, padding: 32, borderWidth: 1 },

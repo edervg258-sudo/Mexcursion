@@ -1,6 +1,7 @@
 // MapaRutas.web.tsx — mapa real con Leaflet + OpenStreetMap
 // Muestra los destinos del itinerario sobre un mapa interactivo con una
 // polilínea que los conecta en orden de visita.
+import { Ionicons } from '@expo/vector-icons';
 import L from 'leaflet';
 import React, { useEffect } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
@@ -87,7 +88,7 @@ export default function MapaRutas({
       <View style={s.mapaContenedor}>
         {estadosRuta.length === 0 ? (
           <View style={[s.mapaVacio, { backgroundColor: tema.superficie as string }]}>
-            <Text style={{ fontSize: 36, marginBottom: 8 }}>🗺️</Text>
+            <Ionicons name="map-outline" size={36} color="#3AB7A5" style={{ marginBottom: 8 }} />
             <Text style={[s.mapaVacioTxt, { color: tema.textoSecundario as string }]}>
               Agrega destinos para ver tu ruta en el mapa.
             </Text>

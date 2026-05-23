@@ -1,4 +1,5 @@
 // components/Admin/SeccionRutas.tsx — CRUD de sugerencias_rutas
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   Alert, ScrollView, Text, TextInput,
@@ -247,7 +248,10 @@ export function SeccionRutas() {
                       <Text style={[adminS.badgeTxt, { color: cn.texto }]}>{r.nivel}</Text>
                     </View>
                   </View>
-                  <Text style={[adminS.itemSub, { color: tema.textoMuted }]}>📍 {r.estado}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="location-outline" size={12} color={tema.textoMuted} />
+                    <Text style={[adminS.itemSub, { color: tema.textoMuted }]}>{r.estado}</Text>
+                  </View>
                   <View style={adminS.tipoRow}>
                     <TouchableOpacity
                       style={[adminS.btnAccion, { backgroundColor: r.activo ? '#FEF0EE' : '#E8F5F2' }]}

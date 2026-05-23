@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useQuery } from '@tanstack/react-query';
@@ -227,8 +228,8 @@ export default function MenuScreen() {
               underlineColorAndroid="transparent"
             />
             {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda('')}>
-                <Text style={{ fontSize: 16, color: Tema.textoMuted, paddingHorizontal: 4 }}>✕</Text>
+              <TouchableOpacity onPress={() => setBusqueda('')} style={{ paddingHorizontal: 4 }}>
+                <Ionicons name="close" size={16} color={Tema.textoMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -243,7 +244,7 @@ export default function MenuScreen() {
               <Text style={[estilos.textoFiltro, dropdownAbierto && { color: '#fff' }]} numberOfLines={1}>
                 {etiquetaOrdenActual}
               </Text>
-              <Text style={[estilos.chevron, dropdownAbierto && { color: '#fff' }]}>{dropdownAbierto ? '▲' : '▼'}</Text>
+              <Ionicons name={dropdownAbierto ? 'chevron-up' : 'chevron-down'} size={14} color={dropdownAbierto ? '#fff' : Tema.textoMuted} />
             </TouchableOpacity>
 
             {/* Dropdown: posicionado relativo al botón, con zIndex alto */}
@@ -265,7 +266,7 @@ export default function MenuScreen() {
                     <Text style={[estilos.textoDropdown, orden === op.clave && estilos.textoDropdownActivo]}>
                       {op.etiqueta}
                     </Text>
-                    {orden === op.clave && <Text style={{ color: Tema.primario, fontSize: 14 }}>✓</Text>}
+                    {orden === op.clave && <Ionicons name="checkmark" size={14} color={Tema.primario} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -318,7 +319,7 @@ export default function MenuScreen() {
           <SkeletonLista cantidad={4} />
         ) : estadosFiltrados.length === 0 ? (
           <View style={estilos.vacio}>
-            <Text style={estilos.textoVacio}>🗺️</Text>
+            <Ionicons name="map-outline" size={52} color="#3AB7A5" style={{ marginBottom: 8 }} />
             <Text style={estilos.tituloVacio}>{t('menu_sin_resultados')}</Text>
             <Text style={estilos.subtituloVacio}>{t('menu_sin_resultados2')}</Text>
             <TouchableOpacity onPress={() => { setBusqueda(''); setCategoriaActiva('Todos'); }}>

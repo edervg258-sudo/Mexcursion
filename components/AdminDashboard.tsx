@@ -1,4 +1,5 @@
 // components/AdminDashboard.tsx - Dashboard mejorado para panel admin
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SkeletonFilas } from '../app/(tabs)/skeletonloader';
@@ -114,13 +115,13 @@ export function AdminDashboard({ stats, cargando, esPC, onIrAPendientes }: Admin
           style={estilos.alertaPendientes}
         >
           <View style={estilos.alertaPendientesLeft}>
-            <Text style={estilos.alertaPendientesIcono}>⏳</Text>
+            <Ionicons name="time-outline" size={28} color="#b8860b" />
             <View>
               <Text style={estilos.alertaPendientesTitulo}>
                 {stats.pendientes} reserva{stats.pendientes !== 1 ? 's' : ''} pendiente{stats.pendientes !== 1 ? 's' : ''} de confirmar
               </Text>
               <Text style={estilos.alertaPendientesSub}>
-                Pagos SPEI u OXXO esperando verificación
+                Reservas esperando verificación
               </Text>
             </View>
           </View>
@@ -198,9 +199,6 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
-  },
-  alertaPendientesIcono: {
-    fontSize: 28,
   },
   alertaPendientesTitulo: {
     fontSize: 14,

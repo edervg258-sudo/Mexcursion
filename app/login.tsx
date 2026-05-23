@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
-    Image, Modal, ScrollView,
+    Animated,
+    Image, Modal, Platform, ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +12,19 @@ import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } 
 
 export default function LoginScreen() {
   const router = useRouter();
+
+  // ── Animación de entrada ──────────────────────────────────────────────────
+  const opacidad = useRef(new Animated.Value(0)).current;
+  const slideY   = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacidad, { toValue: 1, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideY,   { toValue: 0, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -112,7 +126,7 @@ export default function LoginScreen() {
 
       <SafeAreaView style={estilos.areaSegura}>
         <ScrollView contentContainerStyle={estilos.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={estilos.centrado}>
+          <Animated.View style={[estilos.centrado, { opacity: opacidad, transform: [{ translateY: slideY }] }]}>
             <Image source={require('../assets/images/logo.png')} style={estilos.logo} resizeMode="contain" />
 
             <View style={estilos.tarjeta}>
@@ -132,7 +146,7 @@ export default function LoginScreen() {
                   onChangeText={t => { setCorreo(t); if (errorCorreo) {setErrorCorreo('');} }}
                   underlineColorAndroid="transparent"
                 />
-                {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
+                {errorCorreo ? <Text style={estilos.textoError}>{errorCorreo}</Text> : null}
               </View>
 
               {/* Contraseña */}
@@ -152,7 +166,7 @@ export default function LoginScreen() {
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
-                {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
+                {errorContrasena ? <Text style={estilos.textoError}>{errorContrasena}</Text> : null}
               </View>
 
               <TouchableOpacity
@@ -175,7 +189,7 @@ export default function LoginScreen() {
                 <Text style={estilos.textoEnlace}>¿No tienes cuenta? <Text style={estilos.textoEnlaceColor}>Regístrate</Text></Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
 
@@ -198,7 +212,7 @@ export default function LoginScreen() {
                 onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) {setErrorCorreoRecup('');} }}
                 underlineColorAndroid="transparent"
               />
-              {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
+              {errorCorreoRecup ? <Text style={estilos.textoError}>{errorCorreoRecup}</Text> : null}
             </View>
 
             <TouchableOpacity style={estilos.boton} onPress={handleRecuperar}>

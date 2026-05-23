@@ -98,7 +98,6 @@ Deno.serve(async (req) => {
         <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Fecha</td><td style="padding:8px">${fecha}</td></tr>
         <tr><td style="padding:8px;color:#666">Personas</td><td style="padding:8px">${personas}</td></tr>
         <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Total</td><td style="padding:8px;font-weight:700;color:#27AE60">$${(total ?? 0).toLocaleString('es-MX')} MXN</td></tr>
-        ${tipo === 'nueva' ? `<tr><td style="padding:8px;color:#666">Método de pago</td><td style="padding:8px">${metodo}</td></tr>` : ''}
       </table>
     `;
 
@@ -107,19 +106,17 @@ Deno.serve(async (req) => {
     let cuerpoExtra = '';
 
     if (tipo === 'confirmada') {
-      asunto      = `✅ Reserva ${folio} confirmada — Mexcursión`;
+      asunto      = `Reserva ${folio} confirmada — Mexcursión`;
       encabezado  = `¡Tu reserva ha sido confirmada, ${nombre}!`;
-      cuerpoExtra = '<p style="color:#3AB7A5;font-weight:600">Nuestro equipo revisó tu pago y todo está listo. ¡Prepárate para tu aventura! 🌮🗺️</p>';
+      cuerpoExtra = '<p style="color:#3AB7A5;font-weight:600">Nuestro equipo revisó tu reserva y todo está listo. ¡Prepárate para tu aventura!</p>';
     } else if (tipo === 'cancelada') {
       asunto      = `Reserva ${folio} cancelada — Mexcursión`;
       encabezado  = `Tu reserva fue cancelada, ${nombre}`;
       cuerpoExtra = '<p style="color:#DD331D">Si tienes dudas sobre el motivo, contáctanos.</p>';
     } else {
-      asunto      = `🎉 Recibimos tu reserva ${folio} — Mexcursión`;
+      asunto      = `Recibimos tu reserva ${folio} — Mexcursión`;
       encabezado  = `¡Gracias por reservar con Mexcursión, ${nombre}!`;
-      cuerpoExtra = (estado === 'pendiente')
-        ? '<p style="color:#9A7118;font-weight:600">⏳ Tu pago está pendiente de verificación. Te notificaremos cuando sea confirmado.</p>'
-        : '<p style="color:#27AE60;font-weight:600">✅ ¡Tu reserva está confirmada y lista!</p>';
+      cuerpoExtra = '<p style="color:#27AE60;font-weight:600">¡Tu reserva está confirmada y lista!</p>';
     }
 
     const html = `

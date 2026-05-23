@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, {
   createContext,
   useCallback,
@@ -28,11 +29,11 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const COLORES: Record<TipoToast, { fondo: string; borde: string; icono: string }> = {
-  success: { fondo: '#1A7A6E', borde: '#15655B', icono: '✓' },
-  error:   { fondo: '#C0392B', borde: '#A93226', icono: '✕' },
-  warning: { fondo: '#D35400', borde: '#B94600', icono: '⚠' },
-  info:    { fondo: '#2471A3', borde: '#1F618D', icono: 'ℹ' },
+const COLORES: Record<TipoToast, { fondo: string; borde: string; icono: React.ComponentProps<typeof Ionicons>['name'] }> = {
+  success: { fondo: '#1A7A6E', borde: '#15655B', icono: 'checkmark-circle'    },
+  error:   { fondo: '#C0392B', borde: '#A93226', icono: 'close-circle'        },
+  warning: { fondo: '#D35400', borde: '#B94600', icono: 'warning'             },
+  info:    { fondo: '#2471A3', borde: '#1F618D', icono: 'information-circle'  },
 };
 
 function ToastBurbuja({ item }: { item: ToastItem }) {
@@ -54,7 +55,7 @@ function ToastBurbuja({ item }: { item: ToastItem }) {
         { backgroundColor: c.fondo, borderColor: c.borde, opacity: opacidad, transform: [{ translateY }] },
       ]}
     >
-      <Text style={s.icono}>{c.icono}</Text>
+      <Ionicons name={c.icono} size={18} color="#fff" />
       <Text style={s.mensaje} numberOfLines={3}>{item.mensaje}</Text>
     </Animated.View>
   );
@@ -120,6 +121,5 @@ const s = StyleSheet.create({
       default: { elevation: 8 },
     }),
   },
-  icono:   { fontSize: 16, color: '#fff', fontWeight: '700', minWidth: 18, textAlign: 'center' },
   mensaje: { flex: 1, fontSize: 14, color: '#fff', fontWeight: '500', lineHeight: 19 },
 });

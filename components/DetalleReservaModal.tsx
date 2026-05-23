@@ -130,7 +130,7 @@ function generarICS(r: ReservaDetalle): string {
     'BEGIN:VEVENT',
     `DTSTART;VALUE=DATE:${ymd}`,
     `DTEND;VALUE=DATE:${ymdNext}`,
-    `SUMMARY:✈️ Viaje a ${r.destino}`,
+    `SUMMARY:Viaje a ${r.destino}`,
     `DESCRIPTION:Folio: ${r.folio}\\nPaquete: ${r.paquete}\\nPersonas: ${r.personas}\\nTotal: $${r.total.toLocaleString()} MXN`,
     `LOCATION:${r.destino}\\, México`,
     'STATUS:CONFIRMED',
@@ -141,11 +141,6 @@ function generarICS(r: ReservaDetalle): string {
   ].join('\r\n');
 }
 
-const METODO_LABEL: Record<string, string> = {
-  tarjeta: '💳 Tarjeta',
-  spei:    '🏦 SPEI',
-  oxxo:    '🏪 OXXO Pay',
-};
 
 const COLOR_ESTADO_BASE: Record<string, { fondo: string; texto: string }> = {
   confirmada: { fondo: '#e8f8f5', texto: '#3AB7A5' },
@@ -178,13 +173,13 @@ export const DetalleReservaModal = React.memo(function DetalleReservaModal({ res
       await Share.share({
         title: `Reserva ${reserva.folio} — Mexcursión`,
         message:
-          `🌮 *Mi reserva en Mexcursión*\n\n` +
-          `📍 Destino: ${reserva.destino}\n` +
-          `📋 Folio: ${reserva.folio}\n` +
-          `📅 Fecha: ${formatearFechaLarga(reserva.fecha)}\n` +
-          `👥 Personas: ${reserva.personas}\n` +
-          `💰 Total: $${reserva.total.toLocaleString()} MXN\n\n` +
-          `¡Descubre México con Mexcursión! 🇲🇽`,
+          `Mi reserva en Mexcursión\n\n` +
+          `Destino: ${reserva.destino}\n` +
+          `Folio: ${reserva.folio}\n` +
+          `Fecha: ${formatearFechaLarga(reserva.fecha)}\n` +
+          `Personas: ${reserva.personas}\n` +
+          `Total: $${reserva.total.toLocaleString()} MXN\n\n` +
+          `Descubre México con Mexcursión`,
       });
     } catch { /* silencioso */ }
   };
@@ -267,16 +262,22 @@ export const DetalleReservaModal = React.memo(function DetalleReservaModal({ res
 
           {/* Datos del viaje */}
           <View style={[es.seccion, { borderColor: tema.borde }]}>
-            <Text style={[es.seccionTitulo, { color: tema.texto }]}>📋 Datos del viaje</Text>
+            <View style={es.tituloSeccionRow}>
+              <Ionicons name="reader-outline" size={16} color={tema.texto} />
+              <Text style={[es.seccionTitulo, { color: tema.texto }]}>Datos del viaje</Text>
+            </View>
             <View style={es.cuadricula}>
               <DatoItem label="Fecha" valor={formatearFechaLarga(reserva.fecha)} tema={tema} />
               <DatoItem label="Personas" valor={String(reserva.personas)} tema={tema} />
               <DatoItem label="Total" valor={`$${reserva.total.toLocaleString()} MXN`} colorValor="#3AB7A5" tema={tema} />
-              <DatoItem label="Método" valor={METODO_LABEL[reserva.metodo] ?? reserva.metodo} tema={tema} />
+              <DatoItem label="Paquete" valor={reserva.paquete} tema={tema} />
             </View>
             {!!reserva.notas && (
               <View style={[es.notaBox, { backgroundColor: tema.superficie, borderLeftColor: '#3AB7A5' }]}>
-                <Text style={[es.notaLabel, { color: '#3AB7A5' }]}>📝 Notas del viajero</Text>
+                <View style={es.tituloSeccionRow}>
+                  <Ionicons name="document-text-outline" size={13} color="#3AB7A5" />
+                  <Text style={[es.notaLabel, { color: '#3AB7A5' }]}>Notas del viajero</Text>
+                </View>
                 <Text style={[es.notaTxt, { color: tema.textoSecundario }]}>{reserva.notas}</Text>
               </View>
             )}
@@ -395,6 +396,7 @@ const es = StyleSheet.create({
 
   seccion: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
   seccionTitulo: { fontSize: 14, fontWeight: '700' },
+  tituloSeccionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   cuadricula: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   datoItem: { minWidth: '44%', flex: 1 },

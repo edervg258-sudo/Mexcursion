@@ -1,7 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
+  Platform,
   ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
@@ -11,6 +14,19 @@ import { sombraBotonPrimario, sombraTarjeta, subtituloAuth, Tema, tituloAuth } f
 
 export default function NuevaContrasenaScreen() {
   const { correo } = useLocalSearchParams<{ correo: string }>();
+
+  // ── Animación de entrada ──────────────────────────────────────────────────
+  const opacidad = useRef(new Animated.Value(0)).current;
+  const slideY   = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacidad, { toValue: 1, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideY,   { toValue: 0, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [nueva, setNueva] = useState('');
   const [confirmar, setConfirmar] = useState('');
@@ -54,16 +70,16 @@ export default function NuevaContrasenaScreen() {
       <View style={estilos.contenedor}>
         <Image source={require('../assets/images/mapa.png')} style={estilos.imagenMapa} resizeMode="contain" />
         <SafeAreaView style={estilos.areaSegura}>
-          <View style={estilos.centrado}>
+          <Animated.View style={[estilos.centrado, { opacity: opacidad, transform: [{ translateY: slideY }] }]}>
             <View style={estilos.tarjeta}>
-              <Text style={estilos.emoji}>✅</Text>
+              <Ionicons name="checkmark-circle" size={64} color="#3AB7A5" style={{ marginBottom: 14 }} />
               <Text style={estilos.titulo}>Contraseña actualizada</Text>
               <Text style={estilos.subtitulo}>Ya puedes iniciar sesión con tu nueva contraseña</Text>
               <TouchableOpacity style={estilos.boton} onPress={() => router.replace('/login')}>
                 <Text style={estilos.textoBoton}>Ir al inicio de sesión</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </View>
     );
@@ -74,7 +90,7 @@ export default function NuevaContrasenaScreen() {
       <Image source={require('../assets/images/mapa.png')} style={estilos.imagenMapa} resizeMode="contain" />
       <SafeAreaView style={estilos.areaSegura}>
         <ScrollView contentContainerStyle={estilos.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={estilos.centrado}>
+          <Animated.View style={[estilos.centrado, { opacity: opacidad, transform: [{ translateY: slideY }] }]}>
             <Image source={require('../assets/images/logo.png')} style={estilos.logo} resizeMode="contain" />
             <View style={estilos.tarjeta}>
               <Text style={estilos.titulo}>Nueva contraseña</Text>
@@ -94,7 +110,7 @@ export default function NuevaContrasenaScreen() {
                     <Text style={estilos.textoOjo}>{verNueva ? '◎' : '◉'}</Text>
                   </TouchableOpacity>
                 </View>
-                {errorNueva ? <Text style={estilos.textoError}>⚠ {errorNueva}</Text> : null}
+                {errorNueva ? <Text style={estilos.textoError}>{errorNueva}</Text> : null}
               </View>
 
               <View style={estilos.grupoCampo}>
@@ -111,7 +127,7 @@ export default function NuevaContrasenaScreen() {
                     <Text style={estilos.textoOjo}>{verConfirmar ? '◎' : '◉'}</Text>
                   </TouchableOpacity>
                 </View>
-                {errorConfirmar ? <Text style={estilos.textoError}>⚠ {errorConfirmar}</Text> : null}
+                {errorConfirmar ? <Text style={estilos.textoError}>{errorConfirmar}</Text> : null}
               </View>
 
               <TouchableOpacity
@@ -126,7 +142,7 @@ export default function NuevaContrasenaScreen() {
                 <Text style={estilos.textoEnlace}>Cancelar</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -150,7 +166,6 @@ const estilos = StyleSheet.create({
     borderColor: Tema.borde,
     ...sombraTarjeta,
   },
-  emoji:            { fontSize: 52, textAlign: 'center', marginBottom: 14 },
   titulo:           { ...tituloAuth, textAlign: 'center', marginBottom: 8 },
   subtitulo:        { ...subtituloAuth, textAlign: 'center', marginBottom: 22 },
   grupoCampo:       { marginBottom: 15 },

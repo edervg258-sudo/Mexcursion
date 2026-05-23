@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -26,6 +27,7 @@ import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
 import { TraduccionClave } from '../../lib/traducciones';
 import { crearItinerarioYAgregarDestino } from '../../lib/itinerarios';
+import { crearUrlDestino } from '../../lib/constantes/deep-links';
 import { Itinerario, alternarDestinoItinerario, cargarResumenResenas, obtenerItinerarios, obtenerUsuarioActivo } from '../../lib/supabase-db';
 
 const { width: W } = Dimensions.get('window');
@@ -183,14 +185,15 @@ export default function DetalleScreen() {
   };
 
   const compartir = async () => {
+    const url = crearUrlDestino(nombre ?? '', categoria ?? '');
     try {
       await Share.share({
         title: `${nombre ?? ''} — Mexcursión`,
-        message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\nDescarga la app y reserva tu próxima aventura.`,
+        message: `Descubre ${nombre ?? ''} con Mexcursión.\n${estado?.descripcion ?? ''}\n\n${url}`,
+        url,
       });
     } catch (error) {
-      if (__DEV__) {console.error('Error al compartir:', error);}
-      // El usuario canceló o el sistema no soporta Share — no se requiere acción
+      if (__DEV__) { console.error('Error al compartir:', error); }
     }
   };
 
@@ -223,8 +226,9 @@ export default function DetalleScreen() {
               </View>
               {resumenDestino?.total ? (
                 <View style={estilos.heroBadgeResenas}>
+                  <Ionicons name="star" size={11} color="#27897b" />
                   <Text style={estilos.heroBadgeResenasTexto}>
-                    {resumenDestino.promedio.toFixed(1)} ★ · {resumenDestino.total} reseñas
+                    {resumenDestino.promedio.toFixed(1)} · {resumenDestino.total} reseñas
                   </Text>
                 </View>
               ) : null}
@@ -283,7 +287,11 @@ export default function DetalleScreen() {
                 >
                   <Animated.View style={[{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', flex:1 }, { transform:[{ scale: cabAnims[idx] }] }]}>
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-                      <Text style={estilos.emojiPaquete}>{paquete.emoji}</Text>
+                      <Ionicons
+                        name={paquete.nivel === 'economico' ? 'wallet-outline' : paquete.nivel === 'medio' ? 'star-outline' : 'diamond-outline'}
+                        size={20}
+                        color="#fff"
+                      />
                       <View>
                         <Text style={estilos.etiquetaPaquete}>{t(('rut_' + paquete.nivel) as TraduccionClave)}</Text>
                         <Text style={estilos.precioPaquete}>{paquete.precioTotal}</Text>
@@ -291,7 +299,7 @@ export default function DetalleScreen() {
                     </View>
                     <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
                       <Text style={estilos.diasPaquete}>{paquete.diasRecomendados} {t(paquete.diasRecomendados === 1 ? 'rut_dia_singular' : 'rut_dia_plural')}</Text>
-                      <Text style={estilos.chevron}>{expandido ? '▲' : '▼'}</Text>
+                      <Ionicons name={expandido ? 'chevron-up' : 'chevron-down'} size={14} color="#fff" />
                     </View>
                   </Animated.View>
                 </TouchableOpacity>
@@ -312,8 +320,9 @@ export default function DetalleScreen() {
                       <Text style={estilos.precioLinea}>{paquete.precioHotel}</Text>
                       <View style={estilos.listaIncluye}>
                         {paquete.incluye[idioma].map(inc => (
-                          <View key={inc} style={estilos.chipIncluye}>
-                            <Text style={estilos.textoChipIncluye}>✓ {inc}</Text>
+                          <View key={inc} style={[estilos.chipIncluye, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                            <Ionicons name="checkmark" size={11} color="#3AB7A5" />
+                            <Text style={estilos.textoChipIncluye}>{inc}</Text>
                           </View>
                         ))}
                       </View>
@@ -507,8 +516,7 @@ const estilos = StyleSheet.create({
   subtitulo:             { fontSize:18, fontWeight:'800', color:'#333', marginBottom:14 },
   tarjetaPaquete:        { borderRadius:18, borderWidth:2, marginBottom:16, overflow:'hidden', backgroundColor:'#fff' },
   cabeceraPaquete:       { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:16, paddingVertical:14 },
-  emojiPaquete:          { fontSize:20, color:'#fff', fontWeight:'800' },
-  etiquetaPaquete:       { fontSize:16, fontWeight:'800', color:'#fff' },
+etiquetaPaquete:       { fontSize:16, fontWeight:'800', color:'#fff' },
   precioPaquete:         { fontSize:12, color:'rgba(255,255,255,0.85)', marginTop:2 },
   diasPaquete:           { fontSize:12, color:'#fff', fontWeight:'600', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:3, borderRadius:10 },
   chevron:               { fontSize:12, color:'#fff', fontWeight:'700' },

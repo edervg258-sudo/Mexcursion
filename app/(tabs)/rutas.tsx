@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -509,7 +510,7 @@ export default function RutasScreen() {
             {/* ── Estado vacío: sin sesión ── */}
             {!usuarioId ? (
               <View style={[es.estadoVacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-                <Text style={es.estadoVacioIcono}>🗺️</Text>
+                <Ionicons name="map-outline" size={48} color="#3AB7A5" style={{ marginBottom: 8 }} />
                 <Text style={[es.estadoVacioTitulo, { color: tema.texto }]}>{t('rut_sesion_requerida')}</Text>
                 <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario }]}>
                   {t('rut_sesion_msg') || 'Inicia sesión para crear itinerarios, marcar favoritos y ver tu ruta en el mapa.'}
@@ -526,7 +527,7 @@ export default function RutasScreen() {
             /* ── Estado vacío: sin itinerarios ── */
             ) : itinerariosResumen.length === 0 ? (
               <View style={[es.estadoVacio, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-                <Text style={es.estadoVacioIcono}>✈️</Text>
+                <Ionicons name="airplane-outline" size={48} color="#3AB7A5" style={{ marginBottom: 8 }} />
                 <Text style={[es.estadoVacioTitulo, { color: tema.texto }]}>{t('rut_sin_itis_aun')}</Text>
                 <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario }]}>{t('rut_sin_itis_msg')}</Text>
                 <TouchableOpacity
@@ -577,7 +578,7 @@ export default function RutasScreen() {
                                 disabled={!nombreEditado.trim() || guardandoAccion}
                                 activeOpacity={0.85}
                               >
-                                <Text style={es.edicionBtnGuardarTxt}>{guardandoAccion ? '…' : '✓'}</Text>
+                                {guardandoAccion ? <Text style={es.edicionBtnGuardarTxt}>…</Text> : <Ionicons name="checkmark" size={16} color="#fff" />}
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={[es.edicionBtnCancelar, { borderColor: tema.borde }]}
@@ -585,7 +586,7 @@ export default function RutasScreen() {
                                 disabled={guardandoAccion}
                                 activeOpacity={0.85}
                               >
-                                <Text style={[es.edicionBtnCancelarTxt, { color: tema.textoMuted }]}>✕</Text>
+                                <Ionicons name="close" size={16} color={tema.textoMuted} />
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -593,7 +594,7 @@ export default function RutasScreen() {
                           <TouchableOpacity onPress={() => iniciarEdicion(itinerario)} activeOpacity={0.7}>
                             <View style={es.nombreFila}>
                               <Text style={[es.itinerarioNombre, { color: tema.texto }]}>{itinerario.nombre}</Text>
-                              <Text style={[es.iconoEditar, { color: tema.textoMuted }]}>✏️</Text>
+                              <Ionicons name="create-outline" size={15} color={tema.textoMuted} />
                             </View>
                           </TouchableOpacity>
                         )}
@@ -663,7 +664,7 @@ export default function RutasScreen() {
                         activeOpacity={0.85}
                         hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
                       >
-                        <Text style={[es.btnIconoTxt, { color: tema.textoMuted }]}>↑</Text>
+                        <Ionicons name="arrow-up" size={14} color={tema.textoMuted} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[es.btnEliminar, guardandoAccion && es.btnDisabled]}
@@ -687,11 +688,16 @@ export default function RutasScreen() {
                               onPress={() => cambiarTabItinerario(itinerario.id, tab)}
                               activeOpacity={0.85}
                             >
-                              <Text style={[es.tabItinerarioBtnTxt, { color: tabActivo === tab ? '#fff' : tema.textoMuted }]}>
-                                {tab === 'destinos'
-                                  ? `📍 ${t('rut_destinos_tab') || 'Destinos'}`
-                                  : `🗺️ ${t('rut_mapa_tab') || 'Mapa'}`}
-                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Ionicons
+                                  name={tab === 'destinos' ? 'location-outline' : 'map-outline'}
+                                  size={14}
+                                  color={tabActivo === tab ? '#fff' : tema.textoMuted}
+                                />
+                                <Text style={[es.tabItinerarioBtnTxt, { color: tabActivo === tab ? '#fff' : tema.textoMuted }]}>
+                                  {tab === 'destinos' ? (t('rut_destinos_tab') || 'Destinos') : (t('rut_mapa_tab') || 'Mapa')}
+                                </Text>
+                              </View>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -752,7 +758,7 @@ export default function RutasScreen() {
                                             disabled={esPrimero || guardandoAccion}
                                             hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
                                           >
-                                            <Text style={[es.reordenarBtnTxt, { color: esPrimero ? tema.textoMuted : tema.texto }]}>↑</Text>
+                                            <Ionicons name="arrow-up" size={14} color={esPrimero ? tema.textoMuted : tema.texto} />
                                           </TouchableOpacity>
                                           <TouchableOpacity
                                             style={[es.reordenarBtn, (esUltimo || guardandoAccion) && es.btnDisabled]}
@@ -760,7 +766,7 @@ export default function RutasScreen() {
                                             disabled={esUltimo || guardandoAccion}
                                             hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
                                           >
-                                            <Text style={[es.reordenarBtnTxt, { color: esUltimo ? tema.textoMuted : tema.texto }]}>↓</Text>
+                                            <Ionicons name="arrow-down" size={14} color={esUltimo ? tema.textoMuted : tema.texto} />
                                           </TouchableOpacity>
                                         </View>
                                         <TouchableOpacity
@@ -770,7 +776,7 @@ export default function RutasScreen() {
                                           activeOpacity={0.7}
                                           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                                         >
-                                          <Text style={es.destinoQuitarTxt}>✕</Text>
+                                          <Ionicons name="close" size={14} color="#DD331D" />
                                         </TouchableOpacity>
                                       </View>
                                     </View>
@@ -799,7 +805,7 @@ export default function RutasScreen() {
                           <View style={[es.mapaContenedor, { borderColor: tema.borde }]}>
                             {itinerario.destinos.length === 0 ? (
                               <View style={[es.mapaVacio, { backgroundColor: tema.superficie }]}>
-                                <Text style={es.estadoVacioIcono}>🗺️</Text>
+                                <Ionicons name="map-outline" size={40} color="#3AB7A5" style={{ marginBottom: 6 }} />
                                 <Text style={[es.estadoVacioTitulo, { color: tema.texto, fontSize: 14 }]}>
                                   {t('rut_mapa_vacio_titulo') || 'Sin destinos'}
                                 </Text>
@@ -819,7 +825,7 @@ export default function RutasScreen() {
                               </View>
                             ) : todasSinCoordenadas ? (
                               <View style={[es.mapaVacio, { backgroundColor: tema.superficie }]}>
-                                <Text style={es.estadoVacioIcono}>📍</Text>
+                                <Ionicons name="location-outline" size={40} color="#3AB7A5" style={{ marginBottom: 6 }} />
                                 <Text style={[es.estadoVacioTitulo, { color: tema.texto, fontSize: 14 }]}>Sin coordenadas</Text>
                                 <Text style={[es.estadoVacioTexto, { color: tema.textoSecundario, fontSize: 12 }]}>
                                   Ninguno de tus destinos actuales tiene coordenadas disponibles en el mapa.

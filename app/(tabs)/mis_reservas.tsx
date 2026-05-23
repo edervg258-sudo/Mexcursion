@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import { crearUrlDestino } from '../../lib/constantes/deep-links';
+import { EmptyState } from '../../components/EmptyState';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -196,17 +198,20 @@ export default function MisReservasScreen() {
   };
 
   const compartirReserva = async (item: Reserva) => {
+    const estado = destinosDB.find(e => e.nombre === item.destino)
+      || TODOS_LOS_ESTADOS.find(e => e.nombre === item.destino);
+    const url = crearUrlDestino(item.destino, estado?.categoria ?? 'Cultura');
     try {
       await Share.share({
         title: `Reserva ${item.folio} — Mexcursión`,
         message:
-          `🌮 *Mi reserva en Mexcursión*\n\n` +
-          `📍 Destino: ${item.destino}\n` +
-          `📋 Folio: ${item.folio}\n` +
-          `📅 Fecha: ${item.fecha.split('T')[0]}\n` +
-          `👥 Personas: ${item.personas}\n` +
-          `💰 Total: $${item.total.toLocaleString()} MXN\n\n` +
-          `¡Descubre México con Mexcursión! 🇲🇽`,
+          `Mi reserva en Mexcursión\n\n` +
+          `Destino: ${item.destino}\n` +
+          `Folio: ${item.folio}\n` +
+          `Fecha: ${item.fecha.split('T')[0]}\n` +
+          `Personas: ${item.personas}\n` +
+          `Total: $${item.total.toLocaleString()} MXN\n\n` +
+          `Descubre México con Mexcursión: ${url}`,
       });
     } catch { /* silencioso */ }
   };
@@ -222,11 +227,21 @@ export default function MisReservasScreen() {
     }), 0);
   };
 
+  const irAResenar = (item: Reserva) => {
+    setTimeout(() => router.push({
+      pathname: '/(tabs)/resenas' as never,
+      params: { nombre: item.destino },
+    }), 0);
+  };
+
   // ── Tarjeta de reserva ───────────────────────────────────────
   const renderReserva = ({ item, index }: { item: Reserva; index: number }) => {
     const anim         = getCardAnim(String(item.id) + filtro, index);
     const est          = COLOR_ESTADO[item.estado] ?? { fondo: '#f5f5f5', texto: '#888', etiqueta: item.estado };
     const cancelable   = item.estado === 'confirmada' || item.estado === 'pendiente';
+    const fechaIso     = item.fecha.includes('T') ? item.fecha : item.fecha.split('/').reverse().join('-');
+    const fechaPasada  = !isNaN(Date.parse(fechaIso)) && new Date(fechaIso) < new Date();
+    const resenable    = item.estado === 'completada' || (item.estado === 'confirmada' && fechaPasada);
     const esCancelando = cancelando === item.id;
     const pidioConf    = confirmandoId === item.id;
 
@@ -332,6 +347,13 @@ export default function MisReservasScreen() {
               </TouchableOpacity>
             )}
 
+            {resenable && (
+              <TouchableOpacity style={es.btnResenar} onPress={() => irAResenar(item)} activeOpacity={0.85}>
+                <Ionicons name="star-outline" size={14} color="#fff" />
+                <Text style={es.textoBtnResenar}>Reseñar</Text>
+              </TouchableOpacity>
+            )}
+
             {item.estado === 'cancelada' && (
               <TouchableOpacity style={es.btnReservarOtra} onPress={() => volverAReservar(item)} activeOpacity={0.8}>
                 <Text style={es.textoBtnReservarOtra}>{t('res_btn_reservar')}</Text>
@@ -392,31 +414,24 @@ export default function MisReservasScreen() {
     <SkeletonFilas cantidad={5} />
   ) : errorReservas ? (
     <Animated.View style={[es.vacio, { opacity: fadeAnim }]}>
-      <Text style={es.vacioEmoji}>⚠️</Text>
-      <Text style={[es.tituloVacio, { color: tema.texto }]}>Error al cargar reservas</Text>
-      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>Revisa tu conexión e intenta de nuevo.</Text>
-      <TouchableOpacity style={es.btnExplorar} onPress={() => _refetchReservas()} activeOpacity={0.85}>
-        <Text style={es.txtExplorar}>Reintentar</Text>
-      </TouchableOpacity>
+      <EmptyState
+        icono="cloud-offline-outline"
+        titulo="Error al cargar reservas"
+        subtitulo="Revisa tu conexión e intenta de nuevo."
+        colorIcono="#DD331D"
+        btnLabel="Reintentar"
+        onBtnPress={_refetchReservas}
+      />
     </Animated.View>
   ) : reservasFiltradas.length === 0 ? (
     <Animated.View style={[es.vacio, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      <Text style={es.vacioEmoji}>{filtro === 'todas' ? '🗺️' : '🔍'}</Text>
-      <Text style={[es.tituloVacio, { color: tema.texto }]}>
-        {filtro === 'todas' ? t('res_vacias') : t('res_sin_resultado')}
-      </Text>
-      <Text style={[es.subtituloVacio, { color: tema.textoMuted }]}>
-        {filtro === 'todas' ? t('res_vacias2') : t('res_sin_resultado2')}
-      </Text>
-      {filtro === 'todas' && (
-        <TouchableOpacity
-          style={es.btnExplorar}
-          onPress={() => router.replace('/(tabs)/menu' as never)}
-          activeOpacity={0.85}
-        >
-          <Text style={es.txtExplorar}>Explorar destinos →</Text>
-        </TouchableOpacity>
-      )}
+      <EmptyState
+        icono={filtro === 'todas' ? 'map-outline' : 'search-outline'}
+        titulo={filtro === 'todas' ? t('res_vacias') : t('res_sin_resultado')}
+        subtitulo={filtro === 'todas' ? t('res_vacias2') : t('res_sin_resultado2')}
+        btnLabel={filtro === 'todas' ? 'Explorar destinos' : undefined}
+        onBtnPress={filtro === 'todas' ? () => router.replace('/(tabs)/menu' as never) : undefined}
+      />
     </Animated.View>
   ) : (
     <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
@@ -506,17 +521,14 @@ const es = StyleSheet.create({
   textoBtnCancelar:     { color: '#DD331D', fontWeight: '700', fontSize: 13 },
   btnReservarOtra:      { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 20, backgroundColor: '#3AB7A5' },
   textoBtnReservarOtra: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  btnResenar:           { flex: 1, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderRadius: 20, backgroundColor: '#e9c46a' },
+  textoBtnResenar:      { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   cajaNota:             { backgroundColor: '#f9f9f9', borderRadius: 10, padding: 10, marginTop: 10, borderLeftWidth: 3, borderLeftColor: '#3AB7A5' },
   notaLabel:            { fontSize: 11, fontWeight: '700', color: '#3AB7A5' },
   notaTexto:            { fontSize: 13, color: '#555', lineHeight: 18 },
   btnCargarMas:         { marginHorizontal: 16, marginTop: 4, marginBottom: 20, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5, borderColor: '#3AB7A5' },
   txtCargarMas:         { fontSize: 14, color: '#3AB7A5', fontWeight: '600' },
-  vacio:                { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, paddingHorizontal: 32 },
-  vacioEmoji:           { fontSize: 52, marginBottom: 4 },
-  tituloVacio:          { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  subtituloVacio:       { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  btnExplorar:          { marginTop: 8, backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 13, paddingHorizontal: 28 },
-  txtExplorar:          { color: '#fff', fontWeight: '700', fontSize: 15 },
+  vacio:                { flex: 1, justifyContent: 'center', alignItems: 'center' },
   btnIcono:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
 });

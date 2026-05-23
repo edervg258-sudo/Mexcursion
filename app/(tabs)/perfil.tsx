@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
-    Alert, Animated, Image, Modal, Platform, ScrollView,
+    ActivityIndicator, Alert, Animated, Image, Modal, Platform, ScrollView,
     StyleSheet, Switch, Text, TextInput,
     TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
@@ -13,11 +13,13 @@ import { TopActionHeader } from '../../components/TopActionHeader';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { useIdioma } from '../../lib/IdiomaContext';
 import { useTemaContext } from '../../lib/TemaContext';
+import * as ImagePicker from 'expo-image-picker';
 import {
     actualizarPerfil, actualizarPreferencias,
     cambiarContrasena,
     cerrarSesion,
     obtenerUsuarioActivo,
+    subirAvatar,
 } from '../../lib/supabase-db';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { SkeletonPerfil } from './skeletonloader';
@@ -51,6 +53,7 @@ export default function PerfilScreen() {
   const [modalActivo, setModalActivo]       = useState<TipoModal>(null);
   const [sesion, setSesion]                 = useState<SesionUsuario | null>(null);
   const [cargando, setCargando]             = useState(true);
+  const [subiendoAvatar, setSubiendoAvatar] = useState(false);
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const avatarAnim  = useRef(new Animated.Value(0.6)).current;
   const animsRow    = useRef<Map<string, Animated.Value>>(new Map()).current;
@@ -97,6 +100,31 @@ export default function PerfilScreen() {
 
   const cerrarModal    = () => setModalActivo(null);
   const mensaje        = (txt: string) => Alert.alert('', txt);
+
+  const seleccionarAvatar = async () => {
+    if (!sesion?.id || subiendoAvatar) { return; }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      mensaje('Necesitamos permiso para acceder a tus fotos.');
+      return;
+    }
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (resultado.canceled || !resultado.assets?.[0]?.uri) { return; }
+
+    setSubiendoAvatar(true);
+    const r = await subirAvatar(sesion.id, resultado.assets[0].uri);
+    setSubiendoAvatar(false);
+    if (!r.exito) {
+      mensaje(r.error ?? 'No se pudo actualizar la foto.');
+      return;
+    }
+    setSesion(ant => ant ? ({ ...ant, foto_url: r.url ?? null }) : null);
+  };
 
   const handleCerrarSesion = async () => {
     // Alert.alert no funciona con callbacks en web; usar confirm del navegador
@@ -283,9 +311,36 @@ export default function PerfilScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={estilos.scroll}>
           {sesion && (
             <View style={[estilos.infoUsuario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-              <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
-                <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
-              </Animated.View>
+              <TouchableOpacity
+                onPress={seleccionarAvatar}
+                activeOpacity={0.8}
+                disabled={subiendoAvatar}
+                accessibilityRole="button"
+                accessibilityLabel="Cambiar foto de perfil"
+              >
+                {/* Wrapper relativo: el overflow:hidden está SÓLO en avatarUsuario,
+                    así el badge absoluto se ve sin recortes */}
+                <View style={estilos.avatarWrapper}>
+                  <Animated.View style={[estilos.avatarUsuario, { transform: [{ scale: avatarAnim }] }]}>
+                    {sesion.foto_url ? (
+                      <Image source={{ uri: sesion.foto_url }} style={estilos.avatarImagen} />
+                    ) : (
+                      <Text style={estilos.inicialUsuario}>{sesion.nombre?.charAt(0).toUpperCase()}</Text>
+                    )}
+                    {subiendoAvatar && (
+                      <View style={estilos.avatarOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                      </View>
+                    )}
+                  </Animated.View>
+                  {!subiendoAvatar && (
+                    <View style={estilos.avatarBadge}>
+                      <Ionicons name="camera" size={11} color="#fff" />
+                    </View>
+                  )}
+                </View>
+                <Text style={estilos.avatarCambiarTexto}>Cambiar foto</Text>
+              </TouchableOpacity>
               <View>
                 <Text style={[estilos.nombreUsuario, { color: tema.texto }]}>{sesion.nombre}</Text>
                 {!!sesion.nombre_usuario && (
@@ -406,7 +461,12 @@ const estilos = StyleSheet.create({
   botonIcono:            { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FAF7F0', borderWidth: 1.5, borderColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   iconoEncabezado:       { width: 28, height: 28 },
   infoUsuario:           { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, width: '100%', maxWidth: 900, alignSelf: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E7ECEB', marginBottom: 10 },
-  avatarUsuario:         { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center' },
+  avatarWrapper:         { width: 64, height: 64, position: 'relative' },
+  avatarUsuario:         { width: 60, height: 60, borderRadius: 30, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImagen:          { width: '100%', height: '100%' },
+  avatarOverlay:         { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  avatarBadge:           { position: 'absolute', right: 0, bottom: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: '#3AB7A5', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  avatarCambiarTexto:    { fontSize: 10, color: '#3AB7A5', fontWeight: '600', textAlign: 'center', marginTop: 2 },
   inicialUsuario:        { fontSize: 22, fontWeight: '700', color: '#fff' },
   nombreUsuario:         { fontSize: 16, fontWeight: '700', color: '#333' },
   usernameUsuario:       { fontSize: 13, color: '#3AB7A5', fontWeight: '600', marginTop: 1 },

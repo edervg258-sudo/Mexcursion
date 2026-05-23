@@ -1,6 +1,5 @@
 import { Platform } from 'react-native';
 import * as Performance from './performance';
-import { logEvent } from './analytics';
 
 jest.mock('react-native', () => ({
   InteractionManager: {
@@ -9,10 +8,6 @@ jest.mock('react-native', () => ({
   Platform: {
     OS: 'android',
   },
-}));
-
-jest.mock('./analytics', () => ({
-  logEvent: jest.fn(),
 }));
 
 describe('Performance Module', () => {
@@ -36,12 +31,8 @@ describe('Performance Module', () => {
   });
 
   describe('initPerformanceMonitoring', () => {
-    it('should initialize performance monitoring and log event', () => {
-      Performance.initPerformanceMonitoring();
-
-      expect(logEvent).toHaveBeenCalledWith('perf_monitoring_initialized', {
-        platform: Platform.OS,
-      });
+    it('should not throw', () => {
+      expect(() => Performance.initPerformanceMonitoring()).not.toThrow();
     });
   });
 
@@ -54,80 +45,38 @@ describe('Performance Module', () => {
   });
 
   describe('trackAsyncOperation', () => {
-    it('should track async operation below threshold without logging', async () => {
+    it('should return the result of the operation', async () => {
       const operation = jest.fn().mockResolvedValue('success');
-
       const result = await Performance.trackAsyncOperation('quick-op', operation, 500);
-
       expect(result).toBe('success');
       expect(operation).toHaveBeenCalled();
-      expect(logEvent).not.toHaveBeenCalled();
     });
 
-    it('should log slow operation exceeding threshold', async () => {
-      const operation = jest.fn(
-        () => new Promise((resolve) => {
-          setTimeout(() => resolve('slow'), 400);
-        })
-      );
-
-      const result = await Performance.trackAsyncOperation('slow-op', operation, 300);
-
-      expect(result).toBe('slow');
-      expect(logEvent).toHaveBeenCalledWith(
-        'perf_slow_operation',
-        expect.objectContaining({
-          operationName: 'slow-op',
-        })
-      );
-    });
-
-    it('should log failed operations', async () => {
+    it('should propagate errors from the operation', async () => {
       const error = new Error('Operation failed');
       const operation = jest.fn().mockRejectedValue(error);
-
       await expect(
         Performance.trackAsyncOperation('failed-op', operation, 350)
       ).rejects.toThrow('Operation failed');
-
-      expect(logEvent).toHaveBeenCalledWith(
-        'perf_failed_operation',
-        expect.objectContaining({
-          operationName: 'failed-op',
-        })
-      );
     });
 
-    it('should use default threshold of 350ms', async () => {
-      const operation = jest.fn(
-        () => new Promise((resolve) => {
-          setTimeout(() => resolve('data'), 360);
-        })
-      );
-
-      await Performance.trackAsyncOperation('default-threshold', operation);
-
-      expect(logEvent).toHaveBeenCalledWith(
-        'perf_slow_operation',
-        expect.any(Object)
-      );
+    it('should use default threshold without throwing', async () => {
+      const operation = jest.fn().mockResolvedValue('data');
+      const result = await Performance.trackAsyncOperation('default-threshold', operation);
+      expect(result).toBe('data');
     });
   });
 
   describe('runAfterInteractions', () => {
     it('should execute task after interactions complete', () => {
       const task = jest.fn();
-
       Performance.runAfterInteractions(task);
-
       expect(task).toHaveBeenCalled();
     });
 
     it('should delegate to InteractionManager.runAfterInteractions', () => {
       const task = jest.fn();
-
       Performance.runAfterInteractions(task);
-
       expect(require('react-native').InteractionManager.runAfterInteractions).toHaveBeenCalled();
     });
   });
@@ -135,62 +84,26 @@ describe('Performance Module', () => {
   describe('PerformanceErrorBoundary', () => {
     it('should render children without errors', () => {
       const { PerformanceErrorBoundary } = Performance;
-
-      const boundary = new PerformanceErrorBoundary(
-        { children: 'test' },
-        {}
-      );
-
+      const boundary = new PerformanceErrorBoundary({ children: 'test' }, {});
       expect(boundary.render()).toBeTruthy();
     });
 
-    it('should catch errors and log them', () => {
+    it('should not throw on componentDidCatch', () => {
       const { PerformanceErrorBoundary } = Performance;
       const testError = new Error('Test error');
       const errorInfo = { componentStack: 'Component > Child' };
-
       const boundary = new PerformanceErrorBoundary({ children: null }, {});
-
-      boundary.componentDidCatch(testError, errorInfo);
-
-      expect(logEvent).toHaveBeenCalledWith(
-        'error_boundary_caught',
-        expect.objectContaining({
-          error: 'Test error',
-          stack: 'Component > Child',
-        })
-      );
-    });
-
-    it('should log error boundary with empty stack if not provided', () => {
-      const { PerformanceErrorBoundary } = Performance;
-      const testError = new Error('Test error');
-      const errorInfo = { componentStack: undefined };
-
-      const boundary = new PerformanceErrorBoundary({ children: null }, {});
-
-      boundary.componentDidCatch(testError, errorInfo);
-
-      expect(logEvent).toHaveBeenCalledWith(
-        'error_boundary_caught',
-        expect.objectContaining({
-          error: 'Test error',
-          stack: '',
-        })
-      );
+      expect(() => boundary.componentDidCatch(testError, errorInfo)).not.toThrow();
     });
   });
 
   describe('perfNow fallback', () => {
     it('should handle missing performance.now gracefully', async () => {
       const originalPerformance = global.performance;
-      (global as any).performance = undefined;
-
+      (global as unknown as Record<string, unknown>).performance = undefined;
       const operation = jest.fn().mockResolvedValue('success');
       const result = await Performance.trackAsyncOperation('fallback-test', operation, 100);
-
       expect(result).toBe('success');
-
       global.performance = originalPerformance;
     });
   });

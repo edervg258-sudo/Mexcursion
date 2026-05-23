@@ -1,37 +1,41 @@
-# EAS Build ignore file
-# Reduce upload size by excluding unnecessary files
-
-node_modules/
+# Git history — no se necesita para el build remoto
 .git/
-.gitignore
 
-# Claude Code internal files (14 GB)
-.claude/
+# Dependencias — EAS las reinstala
+node_modules/
 
-# Android build artifacts
+# Build artifacts Android
 android/build/
 android/app/build/
-android/app/.cxx/
 android/.gradle/
+android/.idea/
+android/captures/
 
 # iOS
-ios/Pods/
 ios/build/
+ios/Pods/
 
-# Dev/tooling
-.expo/
+# Web build
 dist/
-build/
-coverage/
-.jest/
+web-build/
+
+# IDEs y herramientas locales
+.claude/
+.cursor/
 .kilo/
+.claire/
 .vs/
 .idea/
+.expo/
+.expo-shared/
+.vscode/
+
+# Tests y cobertura
+coverage/
 e2e/
 
-# Misc
-.env.local
-.env.*.local
+# Misceláneos
+docs/
 *.log
-.DS_Store
-.turbo/
+*.pid
+npm-debug.log*

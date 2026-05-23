@@ -94,6 +94,6 @@ describe('DestinoCard', () => {
         resumenResenas={{ promedio: 4.7, total: 18 }}
       />
     );
-    expect(getByText('4.7 ★ · 18 reseñas')).toBeTruthy();
+    expect(getByText('4.7 · 18 reseñas')).toBeTruthy();
   });
 });

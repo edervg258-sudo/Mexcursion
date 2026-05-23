@@ -2,8 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FeatureFlags = {
   enableOfflineQueue: boolean;
-  enableEnhancedPayments: boolean;
-  enableRealtimeAnalytics: boolean;
   enablePerfTracking: boolean;
 };
 
@@ -11,8 +9,6 @@ const STORAGE_KEY = '@feature_flags_overrides_v1';
 
 const defaults: FeatureFlags = {
   enableOfflineQueue: true,
-  enableEnhancedPayments: true,
-  enableRealtimeAnalytics: true,
   enablePerfTracking: true,
 };
 
@@ -45,4 +41,3 @@ export const resetFeatureFlags = async () => {
   cachedOverrides = {};
   await AsyncStorage.removeItem(STORAGE_KEY);
 };
-
