@@ -298,13 +298,14 @@ export async function resetContrasena(
 
 export async function actualizarPerfil(
   usuario_id: string,
-  campos: { nombre?: string; nombre_usuario?: string; telefono?: string }
+  campos: { nombre?: string; nombre_usuario?: string; telefono?: string; foto_url?: string | null }
 ): Promise<{ exito: boolean; error?: string }> {
   try {
     const update: Record<string, any> = {};
     if (campos.nombre          !== undefined) update.nombre          = campos.nombre;
     if (campos.nombre_usuario  !== undefined) update.nombre_usuario  = campos.nombre_usuario;
     if (campos.telefono        !== undefined) update.telefono        = campos.telefono;
+    if (campos.foto_url        !== undefined) update.foto_url        = campos.foto_url;
 
     const { error } = await supabase.from('usuarios').update(update).eq('id', usuario_id);
     if (error) return { exito: false, error: 'Error al actualizar perfil.' };
@@ -313,6 +314,57 @@ export async function actualizarPerfil(
   } catch (err) {
     console.error('actualizarPerfil error:', err);
     return { exito: false, error: 'Error al actualizar perfil.' };
+  }
+}
+
+// Lee una URI local (file://, content://, data:) y la devuelve como Blob.
+// fetch() falla en Android con URIs locales; XMLHttpRequest las maneja correctamente
+// en todas las plataformas (iOS, Android, web).
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload  = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error('No se pudo leer la imagen'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
+
+// Sube una imagen a Supabase Storage (bucket "avatares") y guarda la URL en usuarios.foto_url.
+// Recibe el URI local (file://, content:// o data:) y el id del usuario; devuelve la URL pública.
+export async function subirAvatar(
+  usuario_id: string,
+  uriLocal: string
+): Promise<{ exito: boolean; url?: string; error?: string }> {
+  try {
+    const blob = await uriToBlob(uriLocal);
+    const ext  = (blob.type?.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg');
+    const mime = blob.type || 'image/jpeg';
+    const path = `${usuario_id}/${Date.now()}.${ext}`;
+
+    const { error: errSubida } = await supabase.storage
+      .from('avatares')
+      .upload(path, blob, { contentType: mime, upsert: true });
+    if (errSubida) {
+      console.error('subirAvatar upload error:', errSubida);
+      return { exito: false, error: 'No se pudo subir la imagen.' };
+    }
+
+    const { data } = supabase.storage.from('avatares').getPublicUrl(path);
+    const url = data?.publicUrl;
+    if (!url) {
+      return { exito: false, error: 'No se obtuvo la URL pública.' };
+    }
+
+    const r = await actualizarPerfil(usuario_id, { foto_url: url });
+    if (!r.exito) {
+      return { exito: false, error: r.error ?? 'No se pudo guardar el avatar.' };
+    }
+    return { exito: true, url };
+  } catch (err) {
+    console.error('subirAvatar error:', err);
+    return { exito: false, error: 'Error al subir avatar.' };
   }
 }
 
@@ -818,6 +870,44 @@ export async function guardarResena(
   } catch (err) {
     console.error('guardarResena error:', err);
     return { exito: false, error: 'Error al guardar reseña.' };
+  }
+}
+
+export async function editarResena(
+  id: number,
+  usuario_id: string,
+  calificacion: number,
+  comentario: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('resenas')
+      .update({ calificacion, comentario })
+      .eq('id', id)
+      .eq('usuario_id', usuario_id);
+    if (error) return { exito: false, error: 'Error al editar reseña.' };
+    return { exito: true };
+  } catch (err) {
+    console.error('editarResena error:', err);
+    return { exito: false, error: 'Error al editar reseña.' };
+  }
+}
+
+export async function borrarResena(
+  id: number,
+  usuario_id: string
+): Promise<{ exito: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('resenas')
+      .delete()
+      .eq('id', id)
+      .eq('usuario_id', usuario_id);
+    if (error) return { exito: false, error: 'Error al borrar reseña.' };
+    return { exito: true };
+  } catch (err) {
+    console.error('borrarResena error:', err);
+    return { exito: false, error: 'Error al borrar reseña.' };
   }
 }
 

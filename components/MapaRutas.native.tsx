@@ -1,5 +1,6 @@
 // MapaRutas.native.tsx — Leaflet embebido en WebView
 // Usa OpenStreetMap (sin API key). Funciona en Expo Go y builds de producción.
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
@@ -151,20 +152,21 @@ export default function MapaRutas({
       {/* Mapa Leaflet en WebView */}
       {estadosRuta.length === 0 ? (
         <View style={[s.mapaVacio, { backgroundColor: tema.superficie as string }]}>
-          <Text style={{ fontSize: 40, marginBottom: 10 }}>🗺️</Text>
+          <Ionicons name="map-outline" size={40} color="#3AB7A5" style={{ marginBottom: 10 }} />
           <Text style={[s.mapaVacioTxt, { color: tema.textoSecundario as string }]}>
             Agrega destinos para ver tu ruta en el mapa.
           </Text>
         </View>
       ) : (
         <WebView
-          source={{ html }}
+          source={{ html, baseUrl: 'https://unpkg.com' }}
           style={s.webview}
           originWhitelist={['*']}
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState
           scrollEnabled={false}
+          mixedContentMode="always"
         />
       )}
 
