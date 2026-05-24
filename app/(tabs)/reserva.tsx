@@ -1,6 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardTypeOptions,
   Modal,
   Platform,
@@ -9,8 +11,11 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import { BookingStepLayout } from '../../components/BookingStepLayout';
+import { useToast } from '../../components/Toast';
 import { sombra } from '../../lib/estilos';
 import { useIdioma } from '../../lib/IdiomaContext';
+import { agregarHistorial, crearNotificacion, guardarReserva, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { normalizeError, userMessageForError } from '../../lib/error-handling';
 
 // ─── Calendario funcional (web + nativo sin dependencias externas) ────────────
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -41,8 +46,8 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   const ac = color ?? '#3AB7A5';
 
   const primerDia = (() => {
-    const d = mesBase.getDay(); // 0=dom
-    return d === 0 ? 6 : d - 1; // lun=0
+    const d = mesBase.getDay();
+    return d === 0 ? 6 : d - 1;
   })();
   const diasEnMes = new Date(mesBase.getFullYear(), mesBase.getMonth() + 1, 0).getDate();
   const celdas: (number | null)[] = [
@@ -61,7 +66,6 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   const prevMes = () => setMesBase(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMes = () => setMesBase(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  // En web: input type="date" nativo; en nativo: modal propio
   if (Platform.OS === 'web') {
     const valorISO = seleccionado
       ? `${seleccionado.getFullYear()}-${String(seleccionado.getMonth()+1).padStart(2,'0')}-${String(seleccionado.getDate()).padStart(2,'0')}`
@@ -107,7 +111,7 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
         <Text style={[es.input, { color: fecha ? '#333' : '#bbb', flex: 1 }]}>
           {fecha || 'DD/MM/AAAA'}
         </Text>
-        <Text style={{ fontSize: 18, marginLeft: 8 }}>📅</Text>
+        <Ionicons name="calendar-outline" size={20} color="#3AB7A5" />
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
@@ -118,19 +122,17 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
         >
           <TouchableOpacity activeOpacity={1} onPress={() => {}}>
             <View style={es.calCaja}>
-              {/* Navegación mes */}
               <View style={es.calNav}>
                 <TouchableOpacity onPress={prevMes} style={es.calNavBtn}>
-                  <Text style={[es.calNavArrow, { color: ac }]}>‹</Text>
+                  <Ionicons name="chevron-back" size={22} color={ac} />
                 </TouchableOpacity>
                 <Text style={es.calNavTitulo}>
                   {MESES_ES[mesBase.getMonth()]} {mesBase.getFullYear()}
                 </Text>
                 <TouchableOpacity onPress={nextMes} style={es.calNavBtn}>
-                  <Text style={[es.calNavArrow, { color: ac }]}>›</Text>
+                  <Ionicons name="chevron-forward" size={22} color={ac} />
                 </TouchableOpacity>
               </View>
-              {/* Cabecera días */}
               <View style={es.calFilaDias}>
                 {DIAS_ES.map(d => (
                   <View key={d} style={es.calCeldaDia}>
@@ -138,7 +140,6 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
                   </View>
                 ))}
               </View>
-              {/* Grid */}
               <View style={es.calGrid}>
                 {celdas.map((dia, i) => {
                   if (!dia) { return <View key={`v${i}`} style={es.calCelda} />; }
@@ -178,12 +179,61 @@ const CalendarioPicker = ({ fecha, onSelect, color }: { fecha: string; onSelect:
   );
 };
 
+// ─── Campo de formulario (fuera del componente para evitar remount en cada render) ─
+interface CampoProps {
+  label: string;
+  valor: string;
+  onChange: (v: string) => void;
+  onLimpiarError?: () => void;
+  error?: string;
+  placeholder?: string;
+  teclado?: KeyboardTypeOptions;
+  seguro?: boolean;
+  testID?: string;
+  isValid?: boolean;
+}
+
+const Campo = React.memo(({
+  label, valor, onChange, onLimpiarError, error,
+  placeholder, teclado = 'default', seguro = false, testID, isValid,
+}: CampoProps) => (
+  <View style={es.grupoCampo}>
+    <Text style={es.label}>{label}</Text>
+    <View style={[
+      es.cajaInput,
+      !!error   && es.cajaInputError,
+      !!isValid && es.cajaInputValido,
+    ]}>
+      <TextInput
+        testID={testID}
+        accessibilityLabel={label}
+        accessibilityHint="Campo del formulario de reserva"
+        style={es.input}
+        value={valor}
+        onChangeText={(v: string) => {
+          onChange(v);
+          onLimpiarError?.();
+        }}
+        placeholder={placeholder}
+        placeholderTextColor="#bbb"
+        keyboardType={teclado}
+        secureTextEntry={seguro}
+        autoCapitalize="none"
+        underlineColorAndroid="transparent"
+      />
+      {isValid ? <Ionicons name="checkmark-circle" size={18} color="#1A9B8A" /> : null}
+    </View>
+    {error ? <Text style={es.textoError}>{error}</Text> : null}
+  </View>
+));
+Campo.displayName = 'Campo';
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function ReservaScreen() {
   const { nombre, paquete, precio } =
     useLocalSearchParams<{ nombre: string; paquete: string; precio: string }>();
   const { t } = useIdioma();
-  const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_pago'), t('rsv_paso_confirmacion')];
+  const PASOS = [t('rsv_paso_reserva'), t('rsv_paso_confirmacion')];
 
   const [nombre_viajero, setNombreViajero] = useState('');
   const [email, setEmail]                 = useState('');
@@ -192,6 +242,9 @@ export default function ReservaScreen() {
   const [fecha, setFecha]                 = useState('');
   const [notas, setNotas]                 = useState('');
   const [errores, setErrores]             = useState<Record<string, string>>({});
+  const [enviando, setEnviando]           = useState(false);
+  const { showToast } = useToast();
+  const procesandoRef = useRef(false);
 
   const precioUnitario = parseInt(precio ?? '0');
   const total          = precioUnitario * personas;
@@ -237,50 +290,86 @@ export default function ReservaScreen() {
     return Object.keys(e).length === 0;
   };
 
-  const continuar = () => {
-    if (!validar()) { return; }
-    router.push({
-      pathname: '/(tabs)/pago',
-      params: { nombre, paquete, precio: String(total), personas: String(personas), fecha, nombre_viajero, email, telefono, notas },
-    } as never);
+  const confirmar = async () => {
+    if (!validar()) {
+      showToast(t('rsv_completa_datos'), 'error');
+      return;
+    }
+    if (procesandoRef.current) { return; }
+    procesandoRef.current = true;
+    setEnviando(true);
+
+    const folio = 'MX' + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+    try {
+      const usuario = await obtenerUsuarioActivo();
+      if (!usuario) {
+        showToast(t('sesion_requerida'), 'error');
+        return;
+      }
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 30_000)
+      );
+
+      await Promise.race([
+        (async () => {
+          let resultado = await guardarReserva(
+            usuario.id, folio, nombre ?? '', paquete ?? '',
+            fecha, personas, total, 'tarjeta', 'confirmada', notas
+          );
+          if (resultado === 'failed') {
+            await new Promise(r => setTimeout(r, 800));
+            resultado = await guardarReserva(
+              usuario.id, folio, nombre ?? '', paquete ?? '',
+              fecha, personas, total, 'tarjeta', 'confirmada', notas
+            );
+          }
+          if (resultado === 'failed') { throw new Error('save_failed'); }
+
+          await crearNotificacion(
+            usuario.id, 'pago_exitoso',
+            `Reserva confirmada - Folio: ${folio}`,
+            JSON.stringify({ folio, estado: 'confirmada' })
+          );
+          await agregarHistorial(
+            usuario.id, 'reserva',
+            `Reserva confirmada en ${nombre ?? ''} - Folio: ${folio}`,
+            JSON.stringify({ folio, monto: total, estado: 'confirmada' })
+          );
+        })(),
+        timeoutPromise,
+      ]);
+
+      router.push({
+        pathname: '/(tabs)/confirmacion',
+        params: {
+          nombre, paquete,
+          precio: String(total),
+          personas: String(personas),
+          fecha,
+          nombre_viajero,
+          telefono,
+          notas,
+          folio,
+        },
+      } as never);
+    } catch (err) {
+      if (__DEV__) { console.error('Reservation error:', err); }
+      const normalized = normalizeError(err);
+      if (err instanceof Error && err.message === 'timeout') {
+        showToast('La conexión tardó demasiado. Verifica tu internet e intenta de nuevo.', 'error');
+      } else if (err instanceof Error && err.message === 'save_failed') {
+        showToast('No se pudo guardar la reserva. Intenta de nuevo.', 'error');
+      } else {
+        showToast(userMessageForError(normalized), 'error');
+      }
+    } finally {
+      procesandoRef.current = false;
+      setEnviando(false);
+    }
   };
 
-  const Campo = ({ label, valor, onChange, error, placeholder, teclado = 'default', seguro = false, testID, campoKey }: {
-    label: string; valor: string; onChange: (v: string) => void;
-    error?: string; placeholder?: string; teclado?: KeyboardTypeOptions; seguro?: boolean; testID?: string; campoKey?: string;
-  }) => {
-    const valido = campoKey && valor.length > 0 && !error && !validarCampo(campoKey, valor);
-    return (
-      <View style={es.grupoCampo}>
-        <Text style={es.label}>{label}</Text>
-        <View style={[
-          es.cajaInput,
-          !!error  && es.cajaInputError,
-          !!valido && es.cajaInputValido,
-        ]}>
-          <TextInput
-            testID={testID}
-            accessibilityLabel={label}
-            accessibilityHint="Campo del formulario de reserva"
-            style={es.input}
-            value={valor}
-            onChangeText={(v: string) => {
-              onChange(v);
-              if (campoKey) { limpiarError(campoKey); }
-            }}
-            placeholder={placeholder}
-            placeholderTextColor="#bbb"
-            keyboardType={teclado}
-            secureTextEntry={seguro}
-            autoCapitalize="none"
-            underlineColorAndroid="transparent"
-          />
-          {valido ? <Text style={es.iconoValido}>✓</Text> : null}
-        </View>
-        {error ? <Text style={es.textoError}>{error}</Text> : null}
-      </View>
-    );
-  };
 
   return (
     <BookingStepLayout
@@ -327,11 +416,10 @@ export default function ReservaScreen() {
           </View>
         </View>
 
-        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} error={errores.nombre} placeholder={t('rsv_ph_nombre')}    campoKey="nombre" />
-        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          error={errores.email}  placeholder={t('rsv_ph_correo')}    teclado="email-address" campoKey="email" />
-        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       error={errores.tel}    placeholder={t('rsv_ph_telefono')}  teclado="phone-pad" campoKey="tel" />
+        <Campo testID="traveler-name-input"  label={t('rsv_nombre')}   valor={nombre_viajero} onChange={setNombreViajero} onLimpiarError={() => limpiarError('nombre')} error={errores.nombre} placeholder={t('rsv_ph_nombre')}   isValid={nombre_viajero.length > 0 && !errores.nombre && !validarCampo('nombre', nombre_viajero)} />
+        <Campo testID="traveler-email-input" label={t('rsv_correo')}   valor={email}          onChange={setEmail}          onLimpiarError={() => limpiarError('email')}  error={errores.email}  placeholder={t('rsv_ph_correo')}   teclado="email-address" isValid={email.length > 0 && !errores.email && !validarCampo('email', email)} />
+        <Campo testID="traveler-phone-input" label={t('rsv_telefono')} valor={telefono}       onChange={setTelefono}       onLimpiarError={() => limpiarError('tel')}    error={errores.tel}    placeholder={t('rsv_ph_telefono')} teclado="phone-pad" isValid={telefono.length > 0 && !errores.tel && !validarCampo('tel', telefono)} />
 
-        {/* Fecha con calendario */}
         <View style={es.grupoCampo}>
           <Text style={es.label}>{t('rsv_fecha')}</Text>
           <CalendarioPicker fecha={fecha} onSelect={setFecha} color="#3AB7A5" />
@@ -354,13 +442,18 @@ export default function ReservaScreen() {
 
         <TouchableOpacity
           testID="reserve-continue-button"
-          style={es.btnContinuar}
-          onPress={continuar}
+          style={[es.btnContinuar, enviando && es.btnContinuarDisabled]}
+          onPress={confirmar}
+          disabled={enviando}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Continuar a pago"
+          accessibilityLabel="Confirmar reserva"
         >
-          <Text style={es.textoContinuar}>{t('rsv_continuar')}</Text>
+          {enviando ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={es.textoContinuar}>{t('rsv_continuar')}</Text>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 20 }} />
@@ -386,7 +479,6 @@ const es = StyleSheet.create({
   cajaInputError:    { borderColor: '#DD331D' },
   cajaInputValido:   { borderColor: '#1A9B8A' },
   input:             { flex: 1, fontSize: 14, color: '#333', paddingVertical: 0, outlineWidth: 0 },
-  iconoValido:       { fontSize: 14, color: '#1A9B8A', fontWeight: '700', marginLeft: 6 },
   textoError:        { fontSize: 11, color: '#DD331D', marginTop: 4, marginLeft: 14 },
 
   filaPersonas:      { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -397,15 +489,14 @@ const es = StyleSheet.create({
   totalLabel:        { fontSize: 11, color: '#3AB7A5', fontWeight: '600' },
   totalMonto:        { fontSize: 17, fontWeight: '800', color: '#3AB7A5' },
 
-  btnContinuar:      { backgroundColor: '#DD331D', borderRadius: 25, paddingVertical: 16, alignItems: 'center', marginTop: 8, ...sombra({ color: '#DD331D', opacity: 0.3, radius: 8, offsetY: 4, elevation: 5 }) },
-  textoContinuar:    { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  btnContinuar:      { backgroundColor: '#3AB7A5', borderRadius: 25, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginBottom: 24, ...sombra({ opacity: 0.2, radius: 6, offsetY: 3, elevation: 4 }) },
+  btnContinuarDisabled: { backgroundColor: '#9DB8B3', opacity: 0.7 },
+  textoContinuar:    { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  // ── Calendario ──────────────────────────────────────────────────────────────
   calOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   calCaja:       { backgroundColor: '#fff', borderRadius: 22, padding: 20, width: 320, ...sombra({ opacity: 0.2, radius: 20, offsetY: 8, elevation: 10 }) },
   calNav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   calNavBtn:     { padding: 6 },
-  calNavArrow:   { fontSize: 26, fontWeight: '700', lineHeight: 30 },
   calNavTitulo:  { fontSize: 15, fontWeight: '800', color: '#333' },
   calFilaDias:   { flexDirection: 'row', marginBottom: 6 },
   calCeldaDia:   { flex: 1, alignItems: 'center' },

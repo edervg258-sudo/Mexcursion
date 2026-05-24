@@ -17,14 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_reservas_estado
 ON public.reservas(estado);
 
 -- ════════════════════════════════════════════════════════════
---  ANALYTICS_EVENTOS: Indexes for reporting
--- ════════════════════════════════════════════════════════════
-
--- Event type filtering
-CREATE INDEX IF NOT EXISTS idx_analytics_eventos_event_type
-ON public.analytics_eventos(event_name);
-
--- ════════════════════════════════════════════════════════════
 --  FAVORITOS: Index by user
 -- ════════════════════════════════════════════════════════════
 

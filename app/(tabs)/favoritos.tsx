@@ -1,18 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated, FlatList, Image, ImageSourcePropType, LayoutAnimation, Platform,
-    RefreshControl, StyleSheet, Text,
+    RefreshControl, Share, StyleSheet, Text,
     TouchableOpacity, UIManager, View, useWindowDimensions,
 } from 'react-native';
+import { crearUrlDestino } from '../../lib/constantes/deep-links';
 import { TabChrome } from '../../components/TabChrome';
 import { TopActionHeader } from '../../components/TopActionHeader';
+import { useToast } from '../../components/Toast';
 import { configurarBarraAndroid } from '../../lib/android-ui';
 import { TODOS_LOS_ESTADOS } from '../../lib/constantes';
 import { RUTAS_APP } from '../../lib/constantes/navegacion';
 import { useIdioma } from '../../lib/IdiomaContext';
-import { alternarFavorito, cargarFavoritos, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
+import { alternarFavorito, cargarFavoritos, obtenerItinerarios, obtenerTodosLosDestinos, obtenerUsuarioActivo } from '../../lib/supabase-db';
 import { TraduccionClave } from '../../lib/traducciones';
 import { useTemaContext } from '../../lib/TemaContext';
 import { SkeletonLista } from './skeletonloader';
@@ -24,10 +27,11 @@ if (Platform.OS === 'android' && !(globalThis as Record<string, unknown>).native
 }
 
 // ─── FavCard — igual que las tarjetas de menu.tsx ─────────────────────────────
-const FavCard = ({ item, idx, t, onPress, onRemove }: {
+const FavCard = ({ item, idx, t, onPress, onRemove, onShare }: {
   item: FavoritoItem; idx: number; t: (clave: TraduccionClave, vars?: Record<string, string | number>) => string;
   onPress: (item: FavoritoItem) => void;
   onRemove: (id: number) => void;
+  onShare: (item: FavoritoItem) => void;
 }) => {
   const entradaAnim = useRef(new Animated.Value(0)).current;
   const escalaCard  = useRef(new Animated.Value(1)).current;
@@ -77,6 +81,15 @@ const FavCard = ({ item, idx, t, onPress, onRemove }: {
           <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
         </Animated.View>
       </TouchableOpacity>
+      {/* Botón compartir */}
+      <TouchableOpacity
+        style={s.botonCompartir}
+        onPress={() => onShare(item)}
+        activeOpacity={0.7}
+        accessibilityLabel={`Compartir ${item.nombre}`}
+      >
+        <Ionicons name="share-social-outline" size={18} color="#3AB7A5" />
+      </TouchableOpacity>
     </Animated.View>
   );
 };
@@ -86,6 +99,7 @@ export default function FavoritosScreen() {
   const esPC             = width >= 768;
   const { t } = useIdioma();
   const { tema } = useTemaContext();
+  const { showToast } = useToast();
 
   useEffect(() => {
     configurarBarraAndroid();
@@ -95,12 +109,9 @@ export default function FavoritosScreen() {
   const [usuarioId, setUsuarioId]       = useState<string | null>(null);
   const [cargando, setCargando]   = useState(true);
   const [recargando, setRecargando] = useState(false);
+  const [itinerariosCount, setItinerariosCount] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const totalCategorias = useMemo(
-    () => new Set(estadosFavoritos.map(item => item.categoria)).size,
-    [estadosFavoritos]
-  );
   const previewFavoritos = useMemo(
     () => estadosFavoritos.slice(0, 3).map(item => item.nombre).join(' · '),
     [estadosFavoritos]
@@ -109,44 +120,70 @@ export default function FavoritosScreen() {
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
       setCargando(true);
-      const usuario = await obtenerUsuarioActivo();
-      if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
-      setUsuarioId(usuario.id);
+      try {
+        const usuario = await obtenerUsuarioActivo();
+        if (!usuario) { setTimeout(() => router.replace('/login'), 0); return; }
+        setUsuarioId(usuario.id);
 
-      const [idsFav, destinosDB] = await Promise.all([
-        cargarFavoritos(usuario.id),
-        obtenerTodosLosDestinos()
-      ]);
+        const [idsFav, destinosDB, itinerarios] = await Promise.all([
+          cargarFavoritos(usuario.id),
+          obtenerTodosLosDestinos(),
+          obtenerItinerarios(usuario.id),
+        ]);
+        setItinerariosCount(itinerarios.length);
 
-      const mapeados = destinosDB
-        .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-        .map((d: Record<string, unknown>) => {
-          const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-          return {
-            id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
-            precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
-          };
-        });
-      setEstadosFavoritos(mapeados);
-      setCargando(false);
-      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
+        const mapeados = destinosDB
+          .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+          .map((d: Record<string, unknown>) => {
+            const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
+            return {
+              id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string,
+              precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen
+            };
+          });
+        setEstadosFavoritos(mapeados);
+        Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', tension: 45, friction: 9 }).start();
+      } catch (error) {
+        if (__DEV__) {console.error('Error cargando favoritos:', error);}
+        showToast(t('error_cargar_favoritos') || 'No se pudieron cargar los favoritos', 'error');
+      } finally {
+        setCargando(false);
+      }
     };
     cargar();
-  }, [fadeAnim]));
+  }, [fadeAnim, showToast, t]));
 
   const onRefresh = useCallback(async () => {
     if (!usuarioId) { return; }
     setRecargando(true);
-    const [idsFav, destinosDB] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos()]);
-    const mapeados = destinosDB
-      .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
-      .map((d: Record<string, unknown>) => {
-        const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
-        return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
+    try {
+      const [idsFav, destinosDB, itinerarios] = await Promise.all([cargarFavoritos(usuarioId), obtenerTodosLosDestinos(), obtenerItinerarios(usuarioId)]);
+      const mapeados = destinosDB
+        .filter((d: Record<string, unknown>) => idsFav.includes(d.id as number))
+        .map((d: Record<string, unknown>) => {
+          const original = TODOS_LOS_ESTADOS.find(e => e.id === d.id);
+          return { id: d.id as number, nombre: d.nombre as string, categoria: d.categoria as string, precio: d.precio as number, imagen: original ? original.imagen : TODOS_LOS_ESTADOS[0].imagen };
+        });
+      setEstadosFavoritos(mapeados);
+      setItinerariosCount(itinerarios.length);
+    } catch (error) {
+      if (__DEV__) {console.error('Error refrescando favoritos:', error);}
+      showToast(t('error_refrescar') || 'Error al actualizar favoritos', 'error');
+    } finally {
+      setRecargando(false);
+    }
+  }, [usuarioId, showToast, t]);
+
+  const compartirFavorito = async (item: FavoritoItem) => {
+    const url = crearUrlDestino(item.nombre, item.categoria);
+    try {
+      await Share.share({
+        title: `${item.nombre} — Mexcursión`,
+        message: `Mira este destino en Mexcursión: ${item.nombre}\n${url}`,
+        url,
       });
-    setEstadosFavoritos(mapeados);
-    setRecargando(false);
-  }, [usuarioId]);
+    } catch { /* silencioso */ }
+  };
 
   const quitarFavorito = async (id: number) => {
     if (!usuarioId) { return; }
@@ -187,6 +224,7 @@ export default function FavoritosScreen() {
                     params: { nombre: it.nombre, categoria: it.categoria },
                   }), 0)}
                   onRemove={quitarFavorito}
+                  onShare={compartirFavorito}
                 />
               )}
               ListHeaderComponent={
@@ -202,10 +240,10 @@ export default function FavoritosScreen() {
                         <Image source={require('../../assets/images/favoritos_rojo.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
                         <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{estadosFavoritos.length}</Text>
                       </View>
-                      {/* Categorías con PNG de rutas */}
+                      {/* Itinerarios con PNG de rutas */}
                       <View style={[s.resumenBadge, { backgroundColor: tema.superficie }]}>
                         <Image source={require('../../assets/images/rutas_gris.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
-                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{totalCategorias}</Text>
+                        <Text style={[s.resumenBadgeTxt, { color: tema.texto }]}>{itinerariosCount}</Text>
                       </View>
                     </View>
                   </View>
@@ -257,6 +295,7 @@ const s = StyleSheet.create({
   nombreTarjeta:         { position: 'absolute', bottom: 28, left: 14, fontSize: 22, fontWeight: '700', color: '#fff' },
   precioTarjeta:         { position: 'absolute', bottom: 10, left: 14, fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
   botonFavorito:         { position: 'absolute', top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
+  botonCompartir:        { position: 'absolute', top: 54, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', elevation: 3 },
 
   // Estado vacío
   vacio:                 { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, marginHorizontal: 16, borderRadius: 20, padding: 32, borderWidth: 1 },

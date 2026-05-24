@@ -1,17 +1,25 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Animated,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
+import { EmptyState } from '../../components/EmptyState';
 import { Estrellas } from '../../components/Estrellas';
 import { TabChrome } from '../../components/TabChrome';
+import { useToast } from '../../components/Toast';
 import { useIdioma } from '../../lib/IdiomaContext';
 import {
+  borrarResena,
   cargarResenasPaginadas,
+  editarResena,
   guardarResena,
   obtenerUsuarioActivo,
 } from '../../lib/supabase-db';
@@ -37,9 +45,15 @@ export default function ResenasScreen() {
   const esPC              = width >= 768;
   const { t } = useIdioma();
   const { tema } = useTemaContext();
+  const { showToast } = useToast();
+
+  // ── Animación fade al cargar contenido ───────────────────────────────────
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [resenas, setResenas]         = useState<ResenaDB[]>([]);
   const [cargando, setCargando]       = useState(true);
+  const [errorCarga, setErrorCarga]   = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [totalResenas, setTotalResenas] = useState(0);
@@ -48,17 +62,26 @@ export default function ResenasScreen() {
   const [miTexto, setMiTexto]         = useState('');
   const [enviando, setEnviando]       = useState(false);
   const [enviado, setEnviado]         = useState(false);
+  const [editandoId, setEditandoId]   = useState<number | null>(null);
+  const [borrandoId, setBorrandoId]   = useState<number | null>(null);
 
   const cargarPagina = useCallback(async (offset: number, append = false) => {
-    if (!nombre) return;
-    const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
-    if (append) {
-      setResenas(prev => [...prev, ...result.resenas]);
-    } else {
-      setResenas(result.resenas);
+    if (!nombre) {return;}
+    try {
+      const result = await cargarResenasPaginadas(nombre, LIMITE, offset);
+      if (append) {
+        setResenas(prev => [...prev, ...result.resenas]);
+      } else {
+        setResenas(result.resenas);
+        setErrorCarga(false);
+      }
+      setTotalResenas(result.total);
+    } catch (error) {
+      if (__DEV__) {console.error('Error cargando reseñas:', error);}
+      if (!append) {setErrorCarga(true);}
+      else {showToast('No se pudieron cargar más reseñas', 'error');}
     }
-    setTotalResenas(result.total);
-  }, [nombre]);
+  }, [nombre, showToast]);
 
   useFocusEffect(useCallback(() => {
     const cargar = async () => {
@@ -67,9 +90,12 @@ export default function ResenasScreen() {
       if (usuario) { setUsuarioId(usuario.id); }
       await cargarPagina(0, false);
       setCargando(false);
+      // Fade-in del contenido al reemplazar el skeleton
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: Platform.OS !== 'web' }).start();
     };
     cargar();
-  }, [cargarPagina]));
+  }, [cargarPagina, fadeAnim]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -78,7 +104,7 @@ export default function ResenasScreen() {
   };
 
   const cargarMas = async () => {
-    if (cargandoMas || resenas.length >= totalResenas) return;
+    if (cargandoMas || resenas.length >= totalResenas) {return;}
     setCargandoMas(true);
     await cargarPagina(resenas.length, true);
     setCargandoMas(false);
@@ -91,42 +117,125 @@ export default function ResenasScreen() {
   const enviarResena = async () => {
     if (miEstrellas === 0 || !miTexto.trim() || !usuarioId || !nombre) { return; }
     setEnviando(true);
-    const resultado = await guardarResena(usuarioId, nombre, miEstrellas, miTexto.trim());
-    setEnviando(false);
-    if (resultado.exito) {
-      setEnviado(true);
-      setMiEstrellas(0);
-      setMiTexto('');
-      await cargarPagina(0, false);
-      setTimeout(() => setEnviado(false), 2500);
+    try {
+      const resultado = editandoId
+        ? await editarResena(editandoId, usuarioId, miEstrellas, miTexto.trim())
+        : await guardarResena(usuarioId, nombre, miEstrellas, miTexto.trim());
+      if (resultado.exito) {
+        const fueEdicion = !!editandoId;
+        setEnviado(true);
+        setMiEstrellas(0);
+        setMiTexto('');
+        setEditandoId(null);
+        showToast(
+          fueEdicion ? 'Reseña actualizada' : (t('res_enviada') || '¡Reseña publicada!'),
+          'success'
+        );
+        await cargarPagina(0, false);
+        setTimeout(() => setEnviado(false), 2500);
+      } else {
+        showToast(t('res_error_enviar') || 'No se pudo publicar la reseña', 'error');
+      }
+    } catch (error) {
+      if (__DEV__) {console.error('Error enviando reseña:', error);}
+      showToast(t('res_error_enviar') || 'Error al enviar la reseña', 'error');
+    } finally {
+      setEnviando(false);
     }
   };
 
-  const renderResena = ({ item }: { item: ResenaDB }) => (
-    <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-      <View style={es.headerResena}>
-        <View style={es.avatarCirculo}>
-          <Text style={es.avatarLetra}>{(item.nombre ?? 'V')[0].toUpperCase()}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[es.usuario, { color: tema.texto }]}>{item.nombre ?? 'Viajero'}</Text>
-          <Text style={[es.fecha, { color: tema.textoMuted }]}>{formatearMes(item.creado_en)}</Text>
-        </View>
-        <Estrellas valor={item.calificacion} tamaño={14} />
-      </View>
-      <Text style={[es.textoResena, { color: tema.textoSecundario }]}>{item.comentario}</Text>
-    </View>
-  );
+  const iniciarEdicion = (item: ResenaDB) => {
+    setEditandoId(item.id);
+    setMiEstrellas(item.calificacion);
+    setMiTexto(item.comentario);
+  };
 
-  // Estado vacío rico
+  const cancelarEdicion = () => {
+    setEditandoId(null);
+    setMiEstrellas(0);
+    setMiTexto('');
+  };
+
+  const eliminarResena = async (item: ResenaDB) => {
+    if (!usuarioId) { return; }
+    const confirmar = Platform.OS === 'web'
+      ? window.confirm('¿Borrar tu reseña?')
+      : await new Promise<boolean>(resolve =>
+          Alert.alert('Borrar reseña', '¿Seguro que quieres borrarla?', [
+            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Borrar',   style: 'destructive', onPress: () => resolve(true) },
+          ])
+        );
+    if (!confirmar) { return; }
+    setBorrandoId(item.id);
+    try {
+      const r = await borrarResena(item.id, usuarioId);
+      if (r.exito) {
+        showToast('Reseña borrada', 'success');
+        if (editandoId === item.id) { cancelarEdicion(); }
+        await cargarPagina(0, false);
+      } else {
+        showToast('No se pudo borrar la reseña', 'error');
+      }
+    } finally {
+      setBorrandoId(null);
+    }
+  };
+
+  const renderResena = ({ item }: { item: ResenaDB }) => {
+    const esMia = usuarioId !== null && String(item.usuario_id) === String(usuarioId);
+    const estaBorrando = borrandoId === item.id;
+    return (
+      <View style={[es.tarjeta, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
+        <View style={es.headerResena}>
+          <View style={es.avatarCirculo}>
+            <Text style={es.avatarLetra}>{(item.nombre ?? 'V')[0].toUpperCase()}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[es.usuario, { color: tema.texto }]}>
+              {item.nombre ?? 'Viajero'}{esMia ? ' · Tú' : ''}
+            </Text>
+            <Text style={[es.fecha, { color: tema.textoMuted }]}>{formatearMes(item.creado_en)}</Text>
+          </View>
+          <Estrellas valor={item.calificacion} tamaño={14} />
+        </View>
+        <Text style={[es.textoResena, { color: tema.textoSecundario }]}>{item.comentario}</Text>
+        {esMia && (
+          <View style={es.accionesResena}>
+            <TouchableOpacity
+              style={[es.btnAccionResena, { borderColor: tema.borde }]}
+              onPress={() => iniciarEdicion(item)}
+              disabled={estaBorrando}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={13} color={tema.textoSecundario} />
+              <Text style={[es.txtAccionResena, { color: tema.textoSecundario }]}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[es.btnAccionResena, { borderColor: '#DD331D33' }, estaBorrando && { opacity: 0.5 }]}
+              onPress={() => eliminarResena(item)}
+              disabled={estaBorrando}
+              activeOpacity={0.8}
+            >
+              {estaBorrando
+                ? <ActivityIndicator size="small" color="#DD331D" />
+                : <>
+                    <Ionicons name="trash-outline" size={13} color="#DD331D" />
+                    <Text style={[es.txtAccionResena, { color: '#DD331D' }]}>Borrar</Text>
+                  </>}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const EmptyComponent = () => (
-    <View style={es.vacioCont}>
-      <Text style={es.vacioEmoji}>⭐</Text>
-      <Text style={[es.vacioTitulo, { color: tema.texto }]}>Sin reseñas aún</Text>
-      <Text style={[es.vacioSub, { color: tema.textoMuted }]}>
-        ¡Sé el primero en compartir tu experiencia en {nombre ?? 'este destino'}!
-      </Text>
-    </View>
+    <EmptyState
+      icono="star-outline"
+      titulo="Sin reseñas aún"
+      subtitulo={`Sé el primero en compartir tu experiencia en ${nombre ?? 'este destino'}.`}
+    />
   );
 
   // Footer: "cargar más" o spinner
@@ -167,7 +276,10 @@ export default function ResenasScreen() {
           const pct   = resenas.length > 0 ? (count / resenas.length) * 100 : 0;
           return (
             <View key={n} style={es.filaBarra}>
-              <Text style={[es.numBarra, { color: tema.textoMuted }]}>{n}★</Text>
+              <View style={es.numBarraCont}>
+                <Text style={[es.numBarra, { color: tema.textoMuted }]}>{n}</Text>
+                <Ionicons name="star" size={10} color="#f5a623" />
+              </View>
               <View style={[es.barraFondo, { backgroundColor: tema.borde }]}>
                 <View style={[es.barraRelleno, { width: `${pct}%` as `${number}%` }]} />
               </View>
@@ -179,7 +291,9 @@ export default function ResenasScreen() {
 
       {/* Formulario */}
       <View style={[es.formulario, { backgroundColor: tema.superficieBlanca, borderColor: tema.borde }]}>
-        <Text style={[es.formTitulo, { color: tema.texto }]}>{t('rsn_deja_resena')}</Text>
+        <Text style={[es.formTitulo, { color: tema.texto }]}>
+          {editandoId ? 'Editar tu reseña' : t('rsn_deja_resena')}
+        </Text>
         <Estrellas valor={miEstrellas} tamaño={32} seleccionable onSelect={setMiEstrellas} />
         <TextInput
           style={[es.inputResena, { borderColor: tema.borde, color: tema.texto, backgroundColor: tema.superficie }]}
@@ -194,13 +308,30 @@ export default function ResenasScreen() {
         {enviado ? (
           <View style={es.enviado}><Text style={es.textoEnviado}>{t('rsn_gracias')}</Text></View>
         ) : (
-          <TouchableOpacity
-            style={[es.btnEnviar, (miEstrellas === 0 || !miTexto.trim() || enviando) && { opacity: 0.5 }]}
-            onPress={enviarResena}
-            disabled={miEstrellas === 0 || !miTexto.trim() || enviando}
-          >
-            <Text style={es.textoEnviar}>{enviando ? t('rsn_publicando') : t('rsn_publicar')}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {editandoId && (
+              <TouchableOpacity
+                style={[es.btnCancelarEd, { borderColor: tema.borde }]}
+                onPress={cancelarEdicion}
+                disabled={enviando}
+              >
+                <Text style={[es.textoCancelarEd, { color: tema.textoMuted }]}>Cancelar</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[es.btnEnviar, { flex: 1 }, (miEstrellas === 0 || !miTexto.trim() || enviando) && { opacity: 0.5 }]}
+              onPress={enviarResena}
+              disabled={miEstrellas === 0 || !miTexto.trim() || enviando}
+            >
+              <Text style={es.textoEnviar}>
+                {enviando
+                  ? t('rsn_publicando')
+                  : editandoId
+                    ? 'Guardar cambios'
+                    : t('rsn_publicar')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -218,6 +349,15 @@ export default function ResenasScreen() {
 
       {cargando ? (
         <SkeletonFilas cantidad={4} />
+      ) : errorCarga ? (
+        <EmptyState
+          icono="cloud-offline-outline"
+          titulo="Error al cargar reseñas"
+          subtitulo="Revisa tu conexión e intenta de nuevo."
+          colorIcono="#DD331D"
+          btnLabel="Reintentar"
+          onBtnPress={() => cargarPagina(0, false)}
+        />
       ) : (
         <FlatList
           data={resenas}
@@ -251,7 +391,9 @@ export default function ResenasScreen() {
       headerRight={<View style={es.headerSpacer} />}
       maxWidth={700}
     >
-      {contenidoInterno}
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+        {contenidoInterno}
+      </Animated.View>
     </TabChrome>
   );
 }
@@ -267,7 +409,8 @@ const es = StyleSheet.create({
   promedioNum:         { fontSize: 52, fontWeight: '800', lineHeight: 60 },
   totalResenas:        { fontSize: 12, marginBottom: 8 },
   filaBarra:           { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
-  numBarra:            { fontSize: 12, width: 24 },
+  numBarraCont:        { flexDirection: 'row', alignItems: 'center', gap: 2, width: 28 },
+  numBarra:            { fontSize: 12 },
   barraFondo:          { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   barraRelleno:        { height: '100%', backgroundColor: '#f5a623', borderRadius: 3 },
   contBarra:           { fontSize: 12, width: 16, textAlign: 'right' },
@@ -278,8 +421,14 @@ const es = StyleSheet.create({
   inputResena:         { borderWidth: 1.5, borderRadius: 10, padding: 12, fontSize: 14, minHeight: 80 },
   btnEnviar:           { backgroundColor: '#3AB7A5', borderRadius: 25, paddingVertical: 12, alignItems: 'center' },
   textoEnviar:         { color: '#fff', fontWeight: '700', fontSize: 14 },
+  btnCancelarEd:       { borderWidth: 1.5, borderRadius: 25, paddingVertical: 12, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  textoCancelarEd:     { fontWeight: '700', fontSize: 13 },
   enviado:             { backgroundColor: '#e8f8f5', borderRadius: 10, padding: 12, alignItems: 'center' },
   textoEnviado:        { color: '#3AB7A5', fontWeight: '700' },
+
+  accionesResena:      { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  btnAccionResena:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1 },
+  txtAccionResena:     { fontSize: 12, fontWeight: '600' },
 
   seccion:             { fontSize: 15, fontWeight: '700', marginBottom: 4 },
 
@@ -292,11 +441,6 @@ const es = StyleSheet.create({
   fecha:               { fontSize: 11 },
   textoResena:         { fontSize: 13, lineHeight: 20 },
 
-  // Vacío
-  vacioCont:           { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
-  vacioEmoji:          { fontSize: 44, marginBottom: 4 },
-  vacioTitulo:         { fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  vacioSub:            { fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
   // Paginación
   btnCargarMas:        { marginHorizontal: 16, marginTop: 8, marginBottom: 16, paddingVertical: 12, alignItems: 'center', borderRadius: 25, borderWidth: 1.5 },

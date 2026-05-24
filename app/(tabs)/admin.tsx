@@ -3,8 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator, Alert,
-    Image,
-    ScrollView,
+    Platform,
     StyleSheet, Text,
     TouchableOpacity,
     useWindowDimensions,
@@ -15,9 +14,9 @@ import { AdminDashboard } from '../../components/AdminDashboard';
 import { AdminNavBar } from '../../components/Admin/AdminNavBar';
 import { SeccionDestinos } from '../../components/Admin/SeccionDestinos';
 import { SeccionReservas } from '../../components/Admin/SeccionReservas';
+import { SeccionRutas } from '../../components/Admin/SeccionRutas';
 import { SeccionUsuarios } from '../../components/Admin/SeccionUsuarios';
 import { Destino, Reserva, Seccion, Usuario } from '../../components/Admin/tipos';
-import { RUTAS_TEMATICAS } from '../../lib/datos/rutas-tematicas';
 import {
     actualizarDestino,
     actualizarEstadoReserva,
@@ -32,23 +31,8 @@ import {
 } from '../../lib/supabase-db';
 import { useTemaContext } from '../../lib/TemaContext';
 
-// ── Imágenes de rutas ──────────────────────────────────────────────────────
-import guanajuatoImg from '../../assets/images/guanajuato.png';
-import chiapasImg from '../../assets/images/chiapas.png';
-import sinaloaImg from '../../assets/images/sinaloa.png';
-import jaliscoImg from '../../assets/images/jalisco.png';
-import chihuahuaImg from '../../assets/images/chihuahua.png';
-
-const RUTA_IMG: Record<string, number> = {
-  colonial: guanajuatoImg,
-  maya:     chiapasImg,
-  pacifico: sinaloaImg,
-  sabor:    jaliscoImg,
-  aventura: chihuahuaImg,
-};
-
 // ── Colores de estado de reserva ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 const _C_ESTADO_BASE: Record<string, { fondo: string; texto: string; label: string }> = {
   confirmada: { fondo: '#E8F5F2', texto: '#3AB7A5', label: 'Confirmada'  },
   completada: { fondo: '#F0F0F0', texto: '#666',    label: 'Completada'  },
@@ -96,6 +80,7 @@ export default function AdminScreen() {
   // Filtros y búsqueda — reservas
   const [filtroReserva, setFiltroReserva]     = useState('todas');
   const [filtroFecha, setFiltroFecha]         = useState('todas');
+  const [filtroMetodo, setFiltroMetodo]       = useState('todos');
   const [busquedaReserva, setBusquedaReserva] = useState('');
   const [ordenReservas, setOrdenReservas]     = useState('reciente');
 
@@ -195,21 +180,33 @@ export default function AdminScreen() {
   const handleCambiarEstado = (reserva: Reserva, nuevo_estado: string) => {
     const tr = TRANSICIONES[reserva.estado]?.find(t => t.estado === nuevo_estado);
     const esCancelacion = nuevo_estado === 'cancelada';
-    Alert.alert(
-      tr?.label ?? 'Cambiar estado',
-      `¿${tr?.label ?? 'Cambiar'} la reserva ${reserva.folio}?\n\n${esCancelacion ? 'Esta acción notificará al usuario y no se puede deshacer fácilmente.' : `Pasará de "${reserva.estado}" a "${nuevo_estado}".`}`,
-      [
+    const titulo = tr?.label ?? 'Cambiar estado';
+    const detalle = esCancelacion
+      ? 'Esta acción notificará al usuario y no se puede deshacer fácilmente.'
+      : 'Pasará de "' + reserva.estado + '" a "' + nuevo_estado + '".';
+    const mensaje = `¿${tr?.label ?? 'Cambiar'} la reserva ${reserva.folio}?\n\n${detalle}`;
+
+    const ejecutar = async () => {
+      setReservas(r => r.map(x => x.id === reserva.id ? { ...x, estado: nuevo_estado } : x));
+      const resultado = await actualizarEstadoReserva(reserva.id, nuevo_estado);
+      if (!resultado.exito) {
+        setReservas(r => r.map(x => x.id === reserva.id ? { ...x, estado: reserva.estado } : x));
+        Alert.alert('Error', `No se pudo actualizar la reserva.\n\n${resultado.error ?? 'Sin permisos o error de red.'}`);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${titulo}\n\n${mensaje}`)) {ejecutar();}
+    } else {
+      Alert.alert(titulo, mensaje, [
         { text: 'No, volver', style: 'cancel' },
         {
           text: tr?.label ?? 'Confirmar',
           style: esCancelacion ? 'destructive' : 'default',
-          onPress: async () => {
-            setReservas(r => r.map(x => x.id === reserva.id ? { ...x, estado: nuevo_estado } : x));
-            await actualizarEstadoReserva(reserva.id, nuevo_estado);
-          },
+          onPress: ejecutar,
         },
-      ]
-    );
+      ]);
+    }
   };
 
   // ── Estadísticas reales ────────────────────────────────────────────────
@@ -252,6 +249,9 @@ export default function AdminScreen() {
     totalReservas:       reservas.length,
     ingresos:            reservas.filter(r => r.estado !== 'cancelada').reduce((a, r) => a + (r.total ?? 0), 0),
     confirmadas:         reservas.filter(r => r.estado === 'confirmada').length,
+    pendientes:          reservas.filter(r => r.estado === 'pendiente').length,
+    completadas:         reservas.filter(r => r.estado === 'completada').length,
+    canceladas:          reservas.filter(r => r.estado === 'cancelada').length,
     usuarios:            usuarios.filter(u => u.activo).length,
     destinosActivos:     destinos.filter(d => d.activo).length,
     reservasHoy:         reservas.filter(r => r.creado_en && new Date(r.creado_en).toDateString() === ahora.toDateString()).length,
@@ -290,6 +290,7 @@ export default function AdminScreen() {
     const hace30 = new Date(ahora2); hace30.setDate(ahora2.getDate() - 30);
     const base = reservas
       .filter(r => filtroReserva === 'todas' || r.estado === filtroReserva)
+      .filter(r => filtroMetodo === 'todos' || r.metodo === filtroMetodo)
       .filter(r => {
         if (filtroFecha === 'todas') {return true;}
         const f = r.creado_en ? new Date(r.creado_en) : null;
@@ -335,6 +336,13 @@ export default function AdminScreen() {
     });
   })();
 
+  // Navegar al listado de reservas filtrado por pendientes
+  const irAReservasPendientes = () => {
+    setFiltroReserva('pendiente');
+    setFiltroMetodo('todos');
+    setSeccion('reservas');
+  };
+
   // NavBar delegado a AdminNavBar
 
   // ── Banner de error global (con botón Reintentar) ─────────────────────
@@ -353,7 +361,7 @@ export default function AdminScreen() {
 
   // ── Secciones delegadas a componentes externos ────────────────────────
   const Dashboard = () => (
-    <AdminDashboard stats={stats} cargando={cargando} esPC={esPC} />
+    <AdminDashboard stats={stats} cargando={cargando} esPC={esPC} onIrAPendientes={irAReservasPendientes} />
   );
 
   const Destinos = () => (
@@ -385,61 +393,7 @@ export default function AdminScreen() {
     />
   );
 
-  // ── Rutas temáticas (datos locales — RUTAS_TEMATICAS) ─────────────────
-  const RutasView = () => (
-    <ScrollView contentContainerStyle={[s.seccionScroll, { backgroundColor: tema.fondo }]}>
-      <Text style={[s.seccionTitulo, { color: tema.texto }]}>Rutas temáticas ({RUTAS_TEMATICAS.length})</Text>
-      <Text style={[s.subTitulo, { color: tema.textoMuted, marginBottom: 16, fontSize: 13 }]}>
-        Rutas curadas de la app. Para editar el contenido, modifica{' '}
-        <Text style={{ fontFamily: 'monospace', color: tema.primario }}>lib/datos/rutas-tematicas.ts</Text>
-      </Text>
-      {RUTAS_TEMATICAS.map(r => {
-        const img = RUTA_IMG[r.id];
-        const difColor = r.dificultad === 'Fácil' ? '#3AB7A5' : r.dificultad === 'Moderada' ? '#e9c46a' : '#DD331D';
-        return (
-          <View key={r.id} style={[s.rutaCard, { backgroundColor: tema.superficieBlanca, borderColor: r.color + '55', borderLeftColor: r.color }]}>
-            <View style={s.rutaCardTop}>
-              {img && <Image source={img} style={s.rutaCardImg} resizeMode="cover" />}
-              <View style={{ flex: 1 }}>
-                <View style={[s.itemCardRow, { marginBottom: 4 }]}>
-                  <Text style={[s.itemNombre, { color: tema.texto }]}>{r.nombre}</Text>
-                  <View style={[s.badge, { backgroundColor: difColor + '22', borderWidth: 1, borderColor: difColor }]}>
-                    <Text style={[s.badgeTxt, { color: difColor }]}>{r.dificultad}</Text>
-                  </View>
-                </View>
-                <Text style={[s.itemSub, { color: tema.textoMuted }]} numberOfLines={2}>{r.descripcion}</Text>
-              </View>
-            </View>
-            <View style={[s.rutaCardInfo, { borderTopColor: tema.borde }]}>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Destinos</Text>
-                <Text style={[s.rutaInfoVal, { color: r.color }]}>{r.estadoIds.length}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Días total</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.estadoIds.length * r.diasPorEstado}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Presupuesto</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.presupuestoDiario}</Text>
-              </View>
-              <View style={s.rutaInfoItem}>
-                <Text style={[s.rutaInfoLbl, { color: tema.textoMuted }]}>Época</Text>
-                <Text style={[s.rutaInfoVal, { color: tema.texto }]}>{r.mejorEpoca}</Text>
-              </View>
-            </View>
-            <View style={s.rutaTags}>
-              {r.tags.map(tag => (
-                <View key={tag} style={[s.rutaTag, { backgroundColor: r.color + '18', borderColor: r.color + '44' }]}>
-                  <Text style={[s.rutaTagTxt, { color: r.color }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
+  const RutasView = () => <SeccionRutas />;
 
   const Reservas = () => (
     <SeccionReservas
@@ -449,10 +403,12 @@ export default function AdminScreen() {
       busqueda={busquedaReserva}
       filtroEstado={filtroReserva}
       filtroFecha={filtroFecha}
+      filtroMetodo={filtroMetodo}
       orden={ordenReservas}
       onBusqueda={setBusquedaReserva}
       onFiltroEstado={setFiltroReserva}
       onFiltroFecha={setFiltroFecha}
+      onFiltroMetodo={setFiltroMetodo}
       onOrden={setOrdenReservas}
       onCambiarEstado={handleCambiarEstado}
     />
@@ -560,17 +516,6 @@ const s = StyleSheet.create({
   // Error banner
   errorBannerTxt: { fontSize: 13, fontWeight: '600' },
 
-  // Rutas temáticas (SeccionRutas inline)
-  rutaCard:     { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, overflow: 'hidden', elevation: 1, marginBottom: 2 },
-  rutaCardTop:  { flexDirection: 'row', gap: 12, padding: 14 },
-  rutaCardImg:  { width: 68, height: 68, borderRadius: 10 },
-  rutaCardInfo: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
-  rutaInfoItem: { flex: 1, alignItems: 'center', gap: 2 },
-  rutaInfoLbl:  { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  rutaInfoVal:  { fontSize: 13, fontWeight: '800' },
-  rutaTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingBottom: 12 },
-  rutaTag:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  rutaTagTxt:   { fontSize: 11, fontWeight: '600' },
   itemCardRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   itemNombre:   { fontSize: 15, fontWeight: '700', flex: 1 },
   itemSub:      { fontSize: 12, marginTop: 2 },

@@ -1,7 +1,8 @@
 // MapaRutas.native.tsx — Leaflet embebido en WebView
 // Usa OpenStreetMap (sin API key). Funciona en Expo Go y builds de producción.
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import { Image as ExpoImage } from 'expo-image';
 import { Estado } from '../lib/tipos';
@@ -20,6 +21,7 @@ interface Props {
   rutaNombre: string;
   estadosRuta: Estado[];
   polylineCoords: { latitude: number; longitude: number }[];
+  numerosEstados?: number[];
   favoritos: number[];
   isDark: boolean;
   tema: Record<string, string>;
@@ -113,22 +115,23 @@ const generarHtml = (puntos: Punto[], color: string, isDark: boolean): string =>
 
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function MapaRutas({
-  rutaColor, rutaNombre, estadosRuta, polylineCoords,
-  favoritos, isDark, tema, onToggleFav, onIrADetalle,
+  rutaColor, rutaNombre, estadosRuta, polylineCoords: _polylineCoords,
+  numerosEstados, favoritos, isDark, tema, onToggleFav, onIrADetalle,
 }: Props) {
   const puntos: Punto[] = useMemo(
     () =>
       estadosRuta
-        .filter(e => e.latitude && e.longitude)
-        .map((e, i) => ({
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => e.latitude !== null && e.latitude !== undefined && e.longitude !== null && e.longitude !== undefined)
+        .map(({ e, i }) => ({
           lat: e.latitude!,
           lon: e.longitude!,
           nombre: e.nombre,
           categoria: e.categoria,
           precio: e.precio,
-          numero: i + 1,
+          numero: numerosEstados?.[i] ?? i + 1,
         })),
-    [estadosRuta],
+    [estadosRuta, numerosEstados],
   );
 
   const html = useMemo(
@@ -149,20 +152,21 @@ export default function MapaRutas({
       {/* Mapa Leaflet en WebView */}
       {estadosRuta.length === 0 ? (
         <View style={[s.mapaVacio, { backgroundColor: tema.superficie as string }]}>
-          <Text style={{ fontSize: 40, marginBottom: 10 }}>🗺️</Text>
+          <Ionicons name="map-outline" size={40} color="#3AB7A5" style={{ marginBottom: 10 }} />
           <Text style={[s.mapaVacioTxt, { color: tema.textoSecundario as string }]}>
             Agrega destinos para ver tu ruta en el mapa.
           </Text>
         </View>
       ) : (
         <WebView
-          source={{ html }}
+          source={{ html, baseUrl: 'https://unpkg.com' }}
           style={s.webview}
           originWhitelist={['*']}
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState
           scrollEnabled={false}
+          mixedContentMode="always"
         />
       )}
 
@@ -185,7 +189,7 @@ export default function MapaRutas({
                   cachePolicy="memory-disk"
                 />
                 <View style={[s.destinoChipOverlay, { backgroundColor: rutaColor + 'CC' }]}>
-                  <Text style={s.destinoChipNum}>{i + 1}</Text>
+                  <Text style={s.destinoChipNum}>{numerosEstados?.[i] ?? i + 1}</Text>
                 </View>
                 <Text style={[s.destinoChipNombre, { color: tema.texto as string }]} numberOfLines={1}>
                   {estado.nombre}

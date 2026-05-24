@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { EyeIcon } from '../components/EyeIcon';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
-    Image, Modal, ScrollView,
+    Animated,
+    Image, Modal, Platform, ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +12,19 @@ import { iniciarSesion, obtenerUsuarioActivo, solicitarRecuperacionContrasena } 
 
 export default function LoginScreen() {
   const router = useRouter();
+
+  // ── Animación de entrada ──────────────────────────────────────────────────
+  const opacidad = useRef(new Animated.Value(0)).current;
+  const slideY   = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacidad, { toValue: 1, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideY,   { toValue: 0, duration: 450, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -112,7 +126,7 @@ export default function LoginScreen() {
 
       <SafeAreaView style={estilos.areaSegura}>
         <ScrollView contentContainerStyle={estilos.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={estilos.centrado}>
+          <Animated.View style={[estilos.centrado, { opacity: opacidad, transform: [{ translateY: slideY }] }]}>
             <Image source={require('../assets/images/logo.png')} style={estilos.logo} resizeMode="contain" />
 
             <View style={estilos.tarjeta}>
@@ -130,8 +144,9 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   value={correo}
                   onChangeText={t => { setCorreo(t); if (errorCorreo) {setErrorCorreo('');} }}
+                  underlineColorAndroid="transparent"
                 />
-                {errorCorreo ? <Text style={estilos.textoError}>⚠ {errorCorreo}</Text> : null}
+                {errorCorreo ? <Text style={estilos.textoError}>{errorCorreo}</Text> : null}
               </View>
 
               {/* Contraseña */}
@@ -145,12 +160,13 @@ export default function LoginScreen() {
                     secureTextEntry={!verContrasena}
                     value={contrasena}
                     onChangeText={t => { setContrasena(t); if (errorContrasena) {setErrorContrasena('');} }}
+                    underlineColorAndroid="transparent"
                   />
                   <TouchableOpacity onPress={() => setVerContrasena(v => !v)} style={estilos.botonOjo}>
                     <EyeIcon visible={verContrasena} size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
-                {errorContrasena ? <Text style={estilos.textoError}>⚠ {errorContrasena}</Text> : null}
+                {errorContrasena ? <Text style={estilos.textoError}>{errorContrasena}</Text> : null}
               </View>
 
               <TouchableOpacity
@@ -173,7 +189,7 @@ export default function LoginScreen() {
                 <Text style={estilos.textoEnlace}>¿No tienes cuenta? <Text style={estilos.textoEnlaceColor}>Regístrate</Text></Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
 
@@ -194,8 +210,9 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 value={correoRecup}
                 onChangeText={t => { setCorreoRecup(t); if (errorCorreoRecup) {setErrorCorreoRecup('');} }}
+                underlineColorAndroid="transparent"
               />
-              {errorCorreoRecup ? <Text style={estilos.textoError}>⚠ {errorCorreoRecup}</Text> : null}
+              {errorCorreoRecup ? <Text style={estilos.textoError}>{errorCorreoRecup}</Text> : null}
             </View>
 
             <TouchableOpacity style={estilos.boton} onPress={handleRecuperar}>
@@ -222,9 +239,9 @@ const estilos = StyleSheet.create({
   titulo:           { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6, color: '#222' },
   subtitulo:        { fontSize: 14, textAlign: 'center', color: '#666', marginBottom: 20 },
   grupoCampo:       { marginBottom: 14 },
-  campo:            { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333' },
-  campoContenedor:  { height: 48, borderWidth: 1.5, borderColor: '#3AB7A5', borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', flexDirection: 'row', alignItems: 'center' },
-  campoInterno:     { flex: 1, fontSize: 14, color: '#333' },
+  campo:            { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
+  campoContenedor:  { height: 48, borderWidth: 0, borderRadius: 25, paddingHorizontal: 16, backgroundColor: '#f9f9f9', flexDirection: 'row', alignItems: 'center' },
+  campoInterno:     { flex: 1, fontSize: 14, color: '#333', outlineStyle: 'none' } as any,
   campoError:       { borderColor: '#DD331D' },
   textoError:       { fontSize: 12, color: '#DD331D', marginTop: 4, marginLeft: 12 },
   enlaceOlvide:     { alignItems: 'flex-end', marginBottom: 10, marginTop: -6 },

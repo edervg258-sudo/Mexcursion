@@ -1,6 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { captureException } from '../lib/sentry';
 
 interface State { hasError: boolean; error: Error | null }
 
@@ -15,7 +15,7 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    captureException(error, { componentStack: info.componentStack ?? '' });
+    console.error('ErrorBoundary caught error:', error, info.componentStack);
   }
 
   reset = () => this.setState({ hasError: false, error: null });
@@ -25,7 +25,7 @@ export class ErrorBoundary extends React.Component<
       if (this.props.fallback) { return this.props.fallback; }
       return (
         <View style={s.contenedor}>
-          <Text style={s.emoji}>⚠️</Text>
+          <Ionicons name="alert-circle-outline" size={56} color="#DD331D" style={{ marginBottom: 16 }} />
           <Text style={s.titulo}>Algo salió mal</Text>
           <Text style={s.mensaje} numberOfLines={4}>
             {this.state.error?.message ?? 'Error desconocido'}
@@ -42,7 +42,6 @@ export class ErrorBoundary extends React.Component<
 
 const s = StyleSheet.create({
   contenedor: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#FAF7F0' },
-  emoji:      { fontSize: 52, marginBottom: 16 },
   titulo:     { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 8 },
   mensaje:    { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   btn:        { backgroundColor: '#3AB7A5', paddingHorizontal: 28, paddingVertical: 13, borderRadius: 14 },

@@ -6,19 +6,16 @@ module.exports = {
     '<rootDir>/dist/',
     '<rootDir>/.claude/',
     '<rootDir>/.claire/',
-    '<rootDir>/.kilo/',
   ],
   modulePathIgnorePatterns: [
     '<rootDir>/dist/',
     '<rootDir>/.claude/',
     '<rootDir>/.claire/',
-    '<rootDir>/.kilo/',
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/dist/',
     '<rootDir>/.claude/',
     '<rootDir>/.claire/',
-    '<rootDir>/.kilo/',
   ],
   collectCoverageFrom: [
     '**/*.{ts,tsx}',

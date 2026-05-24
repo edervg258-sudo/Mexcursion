@@ -24,12 +24,6 @@ jest.mock('@react-native-async-storage/async-storage');
 // Mock NetInfo
 jest.mock('@react-native-community/netinfo');
 
-// Mock Sentry
-jest.mock('./sentry', () => ({
-  addBreadcrumb: jest.fn(),
-  captureApiError: jest.fn(),
-}));
-
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const mockNetInfo = NetInfo as jest.Mocked<typeof NetInfo>;
 
@@ -201,7 +195,7 @@ describe('cacheDestinos', () => {
 
   it('debería guardar destinos en cache', async () => {
     const destinos: Estado[] = [
-      { id: 1, nombre: 'Cancún', categoria: 'playas', precio: 5000, imagen: '' },
+      { id: 1, nombre: 'Cancún', categoria: 'Playa', precio: 5000, imagen: '', descripcion: '', latitude: 0, longitude: 0 } as Estado,
     ];
 
     await cacheDestinos.guardar(destinos);
@@ -211,7 +205,7 @@ describe('cacheDestinos', () => {
 
   it('debería obtener destinos del cache', async () => {
     const destinos: Estado[] = [
-      { id: 1, nombre: 'Cancún', categoria: 'playas', precio: 5000, imagen: '' },
+      { id: 1, nombre: 'Cancún', categoria: 'Playa', precio: 5000, imagen: '', descripcion: '', latitude: 0, longitude: 0 } as Estado,
     ];
 
     const cacheEntry = {
@@ -241,7 +235,7 @@ describe('cacheSugerencias', () => {
 
   it('debería guardar sugerencias en cache', async () => {
     const sugerencias: Sugerencia[] = [
-      { id: 1, titulo: 'Cancún', descripcion: 'Playas hermosas', imagen: '' },
+      { id: '1', titulo: 'Cancún', descripcion: 'Playas hermosas', imagen: '', estado: '', hotel: '', precioHotel: '', estilo: '', restaurante: '', precioRestaurante: '', nivel: 'medio' } as Sugerencia,
     ];
 
     await cacheSugerencias.guardar(sugerencias);
@@ -251,7 +245,7 @@ describe('cacheSugerencias', () => {
 
   it('debería obtener sugerencias del cache', async () => {
     const sugerencias: Sugerencia[] = [
-      { id: 1, titulo: 'Cancún', descripcion: 'Playas hermosas', imagen: '' },
+      { id: '1', titulo: 'Cancún', descripcion: 'Playas hermosas', imagen: '', estado: '', hotel: '', precioHotel: '', estilo: '', restaurante: '', precioRestaurante: '', nivel: 'medio' } as Sugerencia,
     ];
 
     const cacheEntry = {

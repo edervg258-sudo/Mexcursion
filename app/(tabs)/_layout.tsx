@@ -11,8 +11,7 @@ export default function LayoutPestanas() {
       {/* Pantallas auxiliares — ocultas de la barra de tabs */}
       <Tabs.Screen name="detalle"        options={{ href: null }} />
       <Tabs.Screen name="reserva"        options={{ href: null }} />
-      <Tabs.Screen name="pago"           options={{ href: null }} />
-      <Tabs.Screen name="confirmacion"   options={{ href: null }} />
+<Tabs.Screen name="confirmacion"   options={{ href: null }} />
       <Tabs.Screen name="mis_reservas"   options={{ href: null }} />
       <Tabs.Screen name="notificaciones" options={{ href: null }} />
       <Tabs.Screen name="resenas"        options={{ href: null }} />
